@@ -10,6 +10,7 @@ Claude plugins for Augur, from SimpleApps. Add the marketplace once and install 
 | [Augur API](plugins/augur-api/README.md) | Site admins reading and managing their site's ERP and e-commerce data, with Claude asking before every change | `/plugin install augur-api --marketplace simpleapps-com/augur-plugins` |
 | [SimpleApps Work](plugins/simpleapps-work/README.md) | SimpleApps staff working with Basecamp 2 from any Claude surface | `/plugin install simpleapps-work --marketplace simpleapps-com/augur-plugins` |
 | [Augur Build](plugins/augur-build/README.md) | Developers, including third parties, building on Augur (early release: no skills yet) | `/plugin install augur-build --marketplace simpleapps-com/augur-plugins` |
+| [SimpleApps Status Line](plugins/simpleapps-statusline/README.md) | SimpleApps developers: status lines under the prompt. **Claude Code only** | `/plugin install simpleapps-statusline --marketplace simpleapps-com/augur-plugins` |
 
 On claude.ai, Desktop, and Cowork, add the marketplace (below), then install plugins from it.
 
@@ -52,17 +53,17 @@ To update by hand: `claude plugin marketplace update augur`.
 
 ## Versioning
 
-Each plugin has its own version in CalVer (`YYYY.MM.N`), set only in that plugin's `.claude-plugin/plugin.json`. The marketplace file carries no versions. Users get a new release only when its version changes, so every release MUST bump it.
+Each plugin has its own version in CalVer (`YYYY.M.seq`, no leading zeros), set only in that plugin's `.claude-plugin/plugin.json`. The marketplace file carries no versions. Users get a new release only when its version changes, so every release MUST bump it.
 
 ## Contributing
 
-Run once per clone to turn on the git hooks:
+Needs Node 24 and pnpm. Run once per clone:
 
 ```
-git config core.hooksPath .githooks
+pnpm install
 ```
 
-The hooks run `scripts/check-banned-strings.sh` before every commit and push. It reads a list of strings that MUST NOT be published from a file kept outside the repo, and blocks the commit or push on any match, or when the list is missing.
+That installs the dev tools and the git hooks (lefthook). Before every commit and push, the hooks run `scripts/check-banned-strings.sh`: it reads a list of strings that MUST NOT be published from a file kept outside the repo, and blocks the commit or push on any match, or when the list is missing. Before every push they also run `pnpm quality` (format, lint, typecheck, unused-code check, tests, and `scripts/validate.ts`), which CI runs too.
 
 ## License
 

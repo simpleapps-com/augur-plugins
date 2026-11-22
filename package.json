@@ -1,0 +1,55 @@
+{
+  "private": true,
+  "name": "augur-plugins",
+  "description": "The augur Claude plugin marketplace",
+  "license": "MIT",
+  "type": "module",
+  "packageManager": "pnpm@10.28.2",
+  "engines": {
+    "node": ">=24.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "scripts": {
+    "validate": "node scripts/validate.ts",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "node --test --experimental-test-coverage --test-coverage-lines=100 --test-coverage-branches=100 --test-coverage-functions=100 --test-coverage-exclude='**/*.test.ts' 'scripts/**/*.test.ts'",
+    "knip": "knip",
+    "proofs": "lsc check --backend=dafny && dafny verify --unicode-char:false --allow-deprecation models/Marketplace.dfy models/links/*.dfy",
+    "prepare": "lefthook install",
+    "quality": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm knip && pnpm test && pnpm validate"
+  },
+  "knip": {
+    "entry": [
+      "scripts/*.ts",
+      "plugins/*/hooks/register.tsx",
+      "plugins/*/tests/*.test.ts"
+    ],
+    "ignoreDependencies": [
+      "claude-code"
+    ],
+    "ignoreBinaries": [
+      "dafny"
+    ]
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "lefthook"
+    ]
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@simpleapps-com/augur-config": "^2026.11.8",
+    "@types/node": "^24.19.2",
+    "eslint": "^10.15.0",
+    "globals": "^17.13.0",
+    "knip": "^6.41.0",
+    "lefthook": "^2.1.4",
+    "lemmascript": "0.6.11",
+    "prettier": "^3.9.10",
+    "typescript": "^6.0.3"
+  }
+}
