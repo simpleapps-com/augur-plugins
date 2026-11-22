@@ -1,0 +1,15 @@
+{
+  "name": "augur-build",
+  "displayName": "Augur Build",
+  "description": "For developers, including third parties, building on Augur: conventions and workflows for Augur projects.",
+  "version": "2026.11.1",
+  "author": {
+    "name": "SimpleApps",
+    "email": "info@simpleapps.com",
+    "url": "https://www.simpleapps.com"
+  },
+  "homepage": "https://www.simpleapps.com",
+  "repository": "https://github.com/simpleapps-com/augur-plugins",
+  "license": "MIT",
+  "keywords": ["augur", "developer", "workflow"]
+}
