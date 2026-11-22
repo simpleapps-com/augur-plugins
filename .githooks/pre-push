@@ -1,0 +1,3 @@
+#!/bin/sh
+# stdin carries the ref lines; exec passes it through.
+exec "$(git rev-parse --show-toplevel)/scripts/check-banned-strings.sh" --push

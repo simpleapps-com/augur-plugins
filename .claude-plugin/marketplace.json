@@ -1,0 +1,10 @@
+{
+  "name": "augur",
+  "description": "Augur plugins for Claude, from SimpleApps",
+  "owner": {
+    "name": "SimpleApps",
+    "email": "info@simpleapps.com",
+    "url": "https://www.simpleapps.com"
+  },
+  "plugins": []
+}

@@ -1,0 +1,11 @@
+# Work Habits
+
+Do exactly what was asked. No extra features, no refactoring beyond the request. Read error overlays before guessing at problems. Read, Edit, and Write are the default for files; `cat` and `sed` MAY be used when simpler; for search use the Grep/Glob tools when they are in your tool list, otherwise Bash `grep`/`find` (see bash-simplicity).
+
+MUST stay inside the current project folder. Read other repos and wikis through `clones/<name>`; MUST NOT read them by a path into another project folder; a blocked outside read is the boundary working, not an obstacle. See Skill("project-defaults").
+
+If a check or build fails, fix it. There is no such thing as a "pre-existing issue." Do not skip failures, do not classify them as "not from our changes", do not continue hoping someone else will fix them. Fix every failure you encounter.
+
+After completing work: report what changed, suggest `/verify` if untested, then stop. MUST NOT suggest committing, pushing, submitting, or creating PRs. The user will initiate those when ready.
+
+Load Skill("work-habits") for full conventions on autonomous work.
