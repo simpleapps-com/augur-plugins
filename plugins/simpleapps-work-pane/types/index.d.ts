@@ -22,7 +22,8 @@ export type Snapshot = {
   isError: boolean;
   // What the last check could not read: "Basecamp count", "Basecamp index (…)", a repo, "GitHub changes", "work status"
   failed?: string[];
-  // What this machine lacks: node, a signed-in gh, the Basecamp connector
+  // The pane's `needs:` lines: what this machine lacks (node, a signed-in gh), then what the
+  // project's config gets in the way of (a .mcp.json server that hides the Basecamp connector)
   setup?: string[];
 };
 

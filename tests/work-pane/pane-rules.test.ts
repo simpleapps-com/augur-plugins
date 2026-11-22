@@ -11,6 +11,7 @@ import {
   hasChanges,
   hasLeft,
   hasOwner,
+  isBasecampUrl,
   isDue,
   isEdited,
   isIssueIdOf,
@@ -116,6 +117,31 @@ test("isIssueIdOf: the prefix, then one or more digits", () => {
 test("hasOwner: a / anywhere", () => {
   for (const repo of ["site", "org/site", "/", "site/", "", "a-b", "a/b/c"])
     assert.equal(hasOwner(repo), repo.includes("/"), repo);
+});
+
+test("isBasecampUrl: the connector's origin, alone or with a path", () => {
+  const oracle = (url: string): boolean => {
+    try {
+      const u = new URL(url);
+      return (
+        u.origin === "https://basecamp.augur-mcp.com" && (url.length === 30 || url[30] === "/")
+      );
+    } catch {
+      return false;
+    }
+  };
+  for (const url of [
+    "https://basecamp.augur-mcp.com/mcp",
+    "https://basecamp.augur-mcp.com",
+    "https://basecamp.augur-mcp.com/",
+    "https://basecamp.augur-mcp.com.evil.example/mcp",
+    "https://basecamp.augur-mcp.com:8443/mcp",
+    "https://basecamp.augur-mcp.co",
+    "http://basecamp.augur-mcp.com/mcp",
+    "https://api.augur-mcp.com/mcp",
+    "",
+  ])
+    assert.equal(isBasecampUrl(url), oracle(url), url);
 });
 
 test("isProjectId: positive only", () => {

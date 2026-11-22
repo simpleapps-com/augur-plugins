@@ -89,6 +89,31 @@ module WorkPane {
     exists k :: 0 <= k < |repo| && repo[k] == '/'
   }
 
+  // ---------------------------------------------------------------- the connector
+  // Claude Code drops the plugin's Basecamp connector when another configured server has the
+  // same URL. A project server is that duplicate when its URL is the connector's host, alone or
+  // followed by a path. The pane names it for the person to remove; it never calls it.
+  const BasecampOrigin := "https://basecamp.augur-mcp.com"
+
+  predicate IsBasecampUrl(url: string)
+  {
+    |url| >= |BasecampOrigin| && url[..|BasecampOrigin|] == BasecampOrigin
+      && (|url| == |BasecampOrigin| || url[|BasecampOrigin|] == '/')
+  }
+
+  lemma BasecampUrlExamples()
+    ensures IsBasecampUrl("https://basecamp.augur-mcp.com/mcp")
+    ensures IsBasecampUrl("https://basecamp.augur-mcp.com")
+    ensures !IsBasecampUrl("https://basecamp.augur-mcp.com.evil.example/mcp")
+    ensures !IsBasecampUrl("https://api.augur-mcp.com/mcp")
+    ensures !IsBasecampUrl("http://basecamp.augur-mcp.com/mcp")
+  {
+    assert "https://basecamp.augur-mcp.com/mcp"[..30] == BasecampOrigin;
+    assert "https://basecamp.augur-mcp.com.evil.example/mcp"[30] == '.';
+    assert "https://api.augur-mcp.com/mcp"[8] != BasecampOrigin[8];
+    assert "http://basecamp.augur-mcp.com/mcp"[4] != BasecampOrigin[4];
+  }
+
   // A Basecamp project id a site brief covers; anything else is skipped.
   predicate IsProjectId(id: int)
   {

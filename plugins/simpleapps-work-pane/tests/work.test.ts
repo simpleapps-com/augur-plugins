@@ -9,6 +9,7 @@ import {
   checkSummary,
   completedIds,
   countColor,
+  duplicateServers,
   failedParts,
   hasChangesOf,
   inWatchedRepo,
@@ -271,8 +272,12 @@ interface World {
   hasNode: boolean;
   ghSignedIn: boolean;
   connected: boolean;
+  /** The project's .mcp.json, or none. */
+  mcpFile: string | undefined;
   status: Status | undefined;
   calls: string[];
+  /** Every server `$.mcp.connect` was asked for. */
+  connects: string[];
 }
 
 const ran = (exitCode: number, stdout: string): { value: ProcessRunResult } => ({
@@ -295,8 +300,10 @@ function stubs(on: On, overrides: Partial<World> = {}): World & { clock: MockClo
     hasNode: true,
     ghSignedIn: true,
     connected: true,
+    mcpFile: undefined,
     status: STATUS,
     calls: [] as string[],
+    connects: [] as string[],
     ...overrides,
     clock: mock.clock(on, { now: NOW }),
   };
@@ -315,6 +322,10 @@ function stubs(on: On, overrides: Partial<World> = {}): World & { clock: MockClo
     world.store.set(e.key, e.value);
     return { value: undefined };
   });
+  on("fs.read", (_$, e) => {
+    if (e.path !== "/p/.mcp.json" || world.mcpFile === undefined) throw new Error("ENOENT");
+    return { value: world.mcpFile };
+  });
   on("fs.write", (_$, e) => {
     world.writes.set(e.path, e.text);
     return { value: undefined };
@@ -328,11 +339,14 @@ function stubs(on: On, overrides: Partial<World> = {}): World & { clock: MockClo
       return world.status ? ran(0, JSON.stringify(world.status)) : ran(1, "");
     return ran(0, JSON.stringify(REFRESHED));
   });
-  on("mcp.connect", () => ({
-    value: world.connected
-      ? { isConnected: true, server: CONNECTOR }
-      : { isConnected: false, reason: "unlisted", message: "not listed" },
-  }));
+  on("mcp.connect", (_$, e) => {
+    world.connects.push(e.server);
+    return {
+      value: world.connected
+        ? { isConnected: true, server: CONNECTOR }
+        : { isConnected: false, reason: "unlisted", message: "not listed" },
+    };
+  });
   on("mcp.call", (_$, e) => {
     world.calls.push(e.tool);
     if (e.tool === "count_my_todos")
@@ -416,4 +430,49 @@ test("an unconnected connector is named, and the check waits and looks again", a
   const answer = await pending;
   expect(answer.text).toMatch(/connect SimpleApps Basecamp \(install simpleapps-work and sign in/);
   expect(world.calls).toEqual([]);
+});
+
+test("a project server on the connector's URL is a need: named, never connected or called", async ($, on) => {
+  const mcpFile = JSON.stringify({
+    mcpServers: {
+      basecamp2: { type: "http", url: "https://basecamp.augur-mcp.com/mcp" },
+      other: { type: "http", url: "https://api.augur-mcp.com/mcp" },
+    },
+  });
+  const world = stubs(on, { connected: false, mcpFile });
+  await $.session.start(START);
+  // No clock advance: a duplicate never clears on its own, so the check answers without retrying
+  const answer = await $.command.run(work("check"));
+  const need =
+    'remove "basecamp2" from .mcp.json: it has SimpleApps Basecamp\'s URL, so Claude Code drops the connector';
+  expect(answer.text).toContain(need);
+  expect(answer.text).not.toMatch(/"other"|tool not loaded/);
+  // Only the plugin's own connector is ever asked for, and no tool is called
+  expect(world.connects.length).toBeGreaterThan(0);
+  expect(world.connects.every((server) => server === CONNECTOR)).toBe(true);
+  expect(world.calls).toEqual([]);
+  // The pane shows it on its needs line
+  const ui = await $.ui.mount({ ...PANE, surface: "terminal" });
+  expect(await ui.find({ type: "Text", text: `needs: ${need}` })).toBeDefined();
+  await ui.unmount();
+});
+
+test("duplicateServers reads .mcp.json for servers on the connector's URL", async () => {
+  const servers = (s: unknown): string => JSON.stringify({ mcpServers: s });
+  expect(
+    duplicateServers(
+      servers({
+        a: { url: "https://basecamp.augur-mcp.com/mcp" },
+        b: { url: "https://basecamp.augur-mcp.com" },
+        c: { url: "https://basecamp.augur-mcp.com.evil.example/mcp" },
+        d: { command: "node" },
+        e: null,
+        f: { url: 3 },
+      }),
+    ),
+  ).toEqual(["a", "b"]);
+  expect(duplicateServers("")).toEqual([]);
+  expect(duplicateServers("null")).toEqual([]);
+  expect(duplicateServers("{}")).toEqual([]);
+  expect(duplicateServers(servers("x"))).toEqual([]);
 });

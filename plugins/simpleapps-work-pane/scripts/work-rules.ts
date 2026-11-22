@@ -77,72 +77,110 @@ export function hasAt(s: string, i: number, w: string): boolean {
 /** Where the run of repo characters that starts at `i` ends. */
 function repoRunEnd(s: string, i: number): number {
   //@ verify
+  //@ pure
   //@ type i nat
   //@ requires i <= s.length
-  //@ decreases s.length - i
   //@ ensures i <= \result && \result <= s.length
-  if (i >= s.length || !isRepoUnit(s.charCodeAt(i))) return i;
-  return repoRunEnd(s, i + 1);
+  let j = i;
+  while (j < s.length && isRepoUnit(s.charCodeAt(j))) {
+    //@ invariant i <= j && j <= s.length
+    //@ decreases s.length - j
+    j = j + 1;
+  }
+  return j;
 }
 
 /** Where the run of digits that starts at `i` ends. */
 function digitRunEnd(s: string, i: number): number {
   //@ verify
+  //@ pure
   //@ type i nat
   //@ requires i <= s.length
-  //@ decreases s.length - i
   //@ ensures i <= \result && \result <= s.length
-  if (i >= s.length || !isDigitUnit(s.charCodeAt(i))) return i;
-  return digitRunEnd(s, i + 1);
+  let j = i;
+  while (j < s.length && isDigitUnit(s.charCodeAt(j))) {
+    //@ invariant i <= j && j <= s.length
+    //@ decreases s.length - j
+    j = j + 1;
+  }
+  return j;
 }
 
 /** Where the run of whitespace that starts at `i` ends. */
 function spaceRunEnd(s: string, i: number): number {
   //@ verify
+  //@ pure
   //@ type i nat
   //@ requires i <= s.length
-  //@ decreases s.length - i
   //@ ensures i <= \result && \result <= s.length
-  if (i >= s.length || !isSpaceUnit(s.charCodeAt(i))) return i;
-  return spaceRunEnd(s, i + 1);
+  let j = i;
+  while (j < s.length && isSpaceUnit(s.charCodeAt(j))) {
+    //@ invariant i <= j && j <= s.length
+    //@ decreases s.length - j
+    j = j + 1;
+  }
+  return j;
 }
 
 /** Where the run of non-whitespace (`\S`) that starts at `i` ends. */
 function solidRunEnd(s: string, i: number): number {
   //@ verify
+  //@ pure
   //@ type i nat
   //@ requires i <= s.length
-  //@ decreases s.length - i
   //@ ensures i <= \result && \result <= s.length
-  if (i >= s.length || isSpaceUnit(s.charCodeAt(i))) return i;
-  return solidRunEnd(s, i + 1);
+  let j = i;
+  while (j < s.length && !isSpaceUnit(s.charCodeAt(j))) {
+    //@ invariant i <= j && j <= s.length
+    //@ decreases s.length - j
+    j = j + 1;
+  }
+  return j;
 }
 
 /** Every code unit of `s` from `i` on is a digit. */
 function allDigitsFrom(s: string, i: number): boolean {
   //@ verify
+  //@ pure
   //@ type i nat
-  //@ decreases s.length - i
-  return i >= s.length || (isDigitUnit(s.charCodeAt(i)) && allDigitsFrom(s, i + 1));
+  let j = i;
+  while (j < s.length && isDigitUnit(s.charCodeAt(j))) {
+    //@ invariant i <= j
+    //@ decreases s.length - j
+    j = j + 1;
+  }
+  return j >= s.length;
 }
 
 /** No code unit of `s` from `i` on is a line end. */
 function noLineEndFrom(s: string, i: number): boolean {
   //@ verify
+  //@ pure
   //@ type i nat
-  //@ decreases s.length - i
-  return i >= s.length || (!isLineEndUnit(s.charCodeAt(i)) && noLineEndFrom(s, i + 1));
+  let j = i;
+  while (j < s.length && !isLineEndUnit(s.charCodeAt(j))) {
+    //@ invariant i <= j
+    //@ decreases s.length - j
+    j = j + 1;
+  }
+  return j >= s.length;
 }
 
 /** `s` from `i` on with A-Z lowered; nothing else changes (every input here is ASCII). */
 function lowerFrom(s: string, i: number): string {
   //@ verify
+  //@ pure
   //@ type i nat
-  //@ decreases s.length - i
-  if (i >= s.length) return "";
-  const c = s.charCodeAt(i);
-  const head = c >= 65 && c <= 90 ? String.fromCharCode(c + 32) : s.slice(i, i + 1);
-  return head + lowerFrom(s, i + 1);
+  let acc = "";
+  let j = i;
+  while (j < s.length) {
+    //@ invariant i <= j
+    //@ decreases s.length - j
+    const c = s.charCodeAt(j);
+    acc = acc + (c >= 65 && c <= 90 ? String.fromCharCode(c + 32) : s.slice(j, j + 1));
+    j = j + 1;
+  }
+  return acc;
 }
 
 /** `s` with A-Z lowered. Replaces `toLowerCase`, which lsc can translate only with an axiom. */
@@ -175,24 +213,33 @@ function numberedId(owner: string, repo: string, num: string, org: string): stri
 /** The last index before `i` that holds a hyphen, or -1. */
 function lastHyphenBefore(s: string, i: number): number {
   //@ verify
+  //@ pure
   //@ type i nat
   //@ requires i <= s.length
-  //@ decreases i
   //@ ensures -1 <= \result && \result < i
-  // At 0 there is nothing before: -1, the same `i - 1` a hyphen at 0 would give
-  if (i === 0 || s.charCodeAt(i - 1) === 45) return i - 1;
-  return lastHyphenBefore(s, i - 1);
+  // At 0 there is nothing before: -1, the same `j - 1` a hyphen at 0 would give
+  let j = i;
+  while (j > 0 && s.charCodeAt(j - 1) !== 45) {
+    //@ invariant j <= i
+    //@ decreases j
+    j = j - 1;
+  }
+  return j - 1;
 }
 
 /** The first index at or after `i` that holds a dot, or -1. */
 function firstDotFrom(s: string, i: number): number {
   //@ verify
+  //@ pure
   //@ type i nat
-  //@ decreases s.length - i
   //@ ensures \result === -1 || (i <= \result && \result < s.length)
-  if (i >= s.length) return -1;
-  if (s.charCodeAt(i) === 46) return i;
-  return firstDotFrom(s, i + 1);
+  let j = i;
+  while (j < s.length && s.charCodeAt(j) !== 46) {
+    //@ invariant i <= j
+    //@ decreases s.length - j
+    j = j + 1;
+  }
+  return j < s.length ? j : -1;
 }
 
 /** Owner, repo and number of a GitHub item id; `ok` false when `id` is not one. */
@@ -234,12 +281,17 @@ export function todoLabel(id: string): string {
 /** The start of the whitespace that ends at `e`, not before `lo`. */
 function spaceStartBack(s: string, lo: number, e: number): number {
   //@ verify
+  //@ pure
   //@ type lo nat
   //@ requires lo <= e && e <= s.length
-  //@ decreases e - lo
   //@ ensures lo <= \result && \result <= e
-  if (e > lo && isSpaceUnit(s.charCodeAt(e - 1))) return spaceStartBack(s, lo, e - 1);
-  return e;
+  let j = e;
+  while (j > lo && isSpaceUnit(s.charCodeAt(j - 1))) {
+    //@ invariant lo <= j && j <= e
+    //@ decreases j - lo
+    j = j - 1;
+  }
+  return j;
 }
 
 /** The keyword `k` (lowercase) ends at `e`, ignoring case, at a word start no earlier than `lo`. */
@@ -514,12 +566,16 @@ export function refContext(isGithub: boolean, ref: string, org: string): RefCont
 /** The index of the reference to `id` at or after `i`, or -1. */
 function refIndex(refs: Ref[], id: string, i: number): number {
   //@ verify
+  //@ pure
   //@ type i nat
-  //@ decreases refs.length - i
   //@ ensures \result === -1 || (i <= \result && \result < refs.length)
-  if (i >= refs.length) return -1;
-  if (refs[i]!.id === id) return i;
-  return refIndex(refs, id, i + 1);
+  let j = i;
+  while (j < refs.length && refs[j]!.id !== id) {
+    //@ invariant i <= j
+    //@ decreases refs.length - j
+    j = j + 1;
+  }
+  return j < refs.length ? j : -1;
 }
 
 /** The reference at `k` seen again: `closes` wins over a mention, and a project, once known, is kept. */
@@ -546,14 +602,23 @@ function addRef(refs: Ref[], id: string, closes: boolean, project: string): Ref[
 /** GitHub issue and PR links, from `i` on. */
 function scanGithubUrls(s: string, i: number, ctx: RefContext, refs: Ref[]): Ref[] {
   //@ verify
+  //@ pure
   //@ type i nat
   //@ requires i <= s.length
-  //@ decreases s.length - i
-  if (i >= s.length) return refs;
-  const h = githubUrlAt(s, i);
-  if (!h.ok) return scanGithubUrls(s, i + 1, ctx, refs);
-  const id = githubId(h.owner, h.repo, h.num, ctx.org);
-  return scanGithubUrls(s, h.end, ctx, addRef(refs, id, closesBefore(s, i), ""));
+  let acc = refs;
+  let j = i;
+  while (j < s.length) {
+    //@ invariant i <= j && j <= s.length
+    //@ decreases s.length - j
+    const h = githubUrlAt(s, j);
+    if (h.ok) {
+      acc = addRef(acc, githubId(h.owner, h.repo, h.num, ctx.org), closesBefore(s, j), "");
+      j = h.end;
+    } else {
+      j = j + 1;
+    }
+  }
+  return acc;
 }
 
 /** The id `(<owner>/)?<repo>#<n>` names, or "": `GH#<n>` is the item's own repo, like a bare `#<n>`. */
@@ -567,32 +632,46 @@ function issueRefId(h: Hit, ctx: RefContext): string {
 /** `<owner>/<repo>#<n>` and `<repo>#<n>`, from `i` on. */
 function scanIssueRefs(s: string, i: number, ctx: RefContext, refs: Ref[]): Ref[] {
   //@ verify
+  //@ pure
   //@ type i nat
   //@ requires i <= s.length
-  //@ decreases s.length - i
-  if (i >= s.length) return refs;
-  const h = issueRefAt(s, i);
-  if (!h.ok) return scanIssueRefs(s, i + 1, ctx, refs);
-  const id = issueRefId(h, ctx);
-  const next = id === "" ? refs : addRef(refs, id, closesBefore(s, i), "");
-  return scanIssueRefs(s, h.end, ctx, next);
+  let acc = refs;
+  let j = i;
+  while (j < s.length) {
+    //@ invariant i <= j && j <= s.length
+    //@ decreases s.length - j
+    const h = issueRefAt(s, j);
+    if (h.ok) {
+      const id = issueRefId(h, ctx);
+      if (id !== "") acc = addRef(acc, id, closesBefore(s, j), "");
+      j = h.end;
+    } else {
+      j = j + 1;
+    }
+  }
+  return acc;
 }
 
 /** The first GitHub reference found so far whose number is `num`, from `i` on, or "". */
 function knownIssueId(refs: Ref[], num: string, i: number): string {
   //@ verify
+  //@ pure
   //@ type i nat
-  //@ decreases refs.length - i
-  if (i >= refs.length) return "";
-  const id = refs[i]!.id;
   const tail = "-" + num;
-  if (
-    hasAt(id, 0, "gh-") &&
-    id.length >= tail.length &&
-    id.slice(id.length - tail.length, id.length) === tail
-  )
-    return id;
-  return knownIssueId(refs, num, i + 1);
+  let j = i;
+  while (j < refs.length) {
+    //@ invariant i <= j
+    //@ decreases refs.length - j
+    const id = refs[j]!.id;
+    if (
+      hasAt(id, 0, "gh-") &&
+      id.length >= tail.length &&
+      id.slice(id.length - tail.length, id.length) === tail
+    )
+      return id;
+    j = j + 1;
+  }
+  return "";
 }
 
 /** The id a bare `#<n>` names: the issue the text already named with that number, else the item's own repo's, else "". */
@@ -606,40 +685,68 @@ function bareRefId(refs: Ref[], num: string, ctx: RefContext): string {
 /** Bare `#<n>`, from `i` on. */
 function scanBareRefs(s: string, i: number, ctx: RefContext, refs: Ref[]): Ref[] {
   //@ verify
+  //@ pure
   //@ type i nat
   //@ requires i <= s.length
-  //@ decreases s.length - i
-  if (i >= s.length) return refs;
-  const h = bareRefAt(s, i);
-  if (!h.ok) return scanBareRefs(s, i + 1, ctx, refs);
-  const id = bareRefId(refs, h.num, ctx);
-  const next = id === "" ? refs : addRef(refs, id, closesBefore(s, i), "");
-  return scanBareRefs(s, h.end, ctx, next);
+  let acc = refs;
+  let j = i;
+  while (j < s.length) {
+    //@ invariant i <= j && j <= s.length
+    //@ decreases s.length - j
+    const h = bareRefAt(s, j);
+    if (h.ok) {
+      const id = bareRefId(acc, h.num, ctx);
+      if (id !== "") acc = addRef(acc, id, closesBefore(s, j), "");
+      j = h.end;
+    } else {
+      j = j + 1;
+    }
+  }
+  return acc;
 }
 
 /** Basecamp todo and message links, from `i` on. */
 function scanBasecampUrls(s: string, i: number, refs: Ref[]): Ref[] {
   //@ verify
+  //@ pure
   //@ type i nat
   //@ requires i <= s.length
-  //@ decreases s.length - i
-  if (i >= s.length) return refs;
-  const h = basecampUrlAt(s, i);
-  if (!h.ok) return scanBasecampUrls(s, i + 1, refs);
-  const id = basecampId(h.isMessage, h.num);
-  return scanBasecampUrls(s, h.end, addRef(refs, id, closesBefore(s, i), h.project));
+  let acc = refs;
+  let j = i;
+  while (j < s.length) {
+    //@ invariant i <= j && j <= s.length
+    //@ decreases s.length - j
+    const h = basecampUrlAt(s, j);
+    if (h.ok) {
+      acc = addRef(acc, basecampId(h.isMessage, h.num), closesBefore(s, j), h.project);
+      j = h.end;
+    } else {
+      j = j + 1;
+    }
+  }
+  return acc;
 }
 
 /** `BC<n>`, from `i` on. */
 function scanBcRefs(s: string, i: number, refs: Ref[]): Ref[] {
   //@ verify
+  //@ pure
   //@ type i nat
   //@ requires i <= s.length
-  //@ decreases s.length - i
-  if (i >= s.length) return refs;
-  const h = bcRefAt(s, i);
-  if (!h.ok) return scanBcRefs(s, i + 1, refs);
-  return scanBcRefs(s, h.end, addRef(refs, basecampId(false, h.num), closesBefore(s, i), ""));
+  let acc = refs;
+  let j = i;
+  while (j < s.length) {
+    //@ invariant i <= j && j <= s.length
+    //@ decreases s.length - j
+    const h = bcRefAt(s, j);
+    if (h.ok) {
+      acc = addRef(acc, basecampId(false, h.num), closesBefore(s, j), "");
+      j = h.end;
+    } else {
+      j = j + 1;
+    }
+  }
+  return acc;
 }
 
 /** Every reference in `s`, each target once, in the order first found: links, then `repo#n`, bare `#n`, Basecamp links, `BC<n>`. */
@@ -671,13 +778,17 @@ function noHead(): Head {
 /** The last line end in `[from, to)`, or -1. */
 function lastLineEndIn(s: string, lo: number, hi: number): number {
   //@ verify
+  //@ pure
   //@ type lo nat
   //@ requires lo <= hi && hi <= s.length
-  //@ decreases hi - lo
   //@ ensures \result === -1 || (lo <= \result && \result < hi)
-  if (hi <= lo) return -1;
-  if (isLineEndUnit(s.charCodeAt(hi - 1))) return hi - 1;
-  return lastLineEndIn(s, lo, hi - 1);
+  let j = hi;
+  while (j > lo && !isLineEndUnit(s.charCodeAt(j - 1))) {
+    //@ invariant lo <= j && j <= hi
+    //@ decreases j - lo
+    j = j - 1;
+  }
+  return j > lo ? j - 1 : -1;
 }
 
 /** After ` · ` at `t`: `\S+\s*$`. Where the heading ends, or -1. */
@@ -696,20 +807,27 @@ function headTailEnd(s: string, t: number): number {
 /** The shortest author from `a` to `m` or later, with no line end, that ` · <when>` follows. */
 function headFrom(s: string, a: number, m: number): Head {
   //@ verify
+  //@ pure
   //@ type a nat
   //@ type m nat
   //@ requires a < m && m <= s.length
-  //@ decreases s.length - m
   //@ ensures \result.ok ==> (m < \result.end && \result.end <= s.length)
-  if (hasAt(s, m, " · ")) {
-    const end = headTailEnd(s, m + 3);
-    if (end >= 0) {
-      const tail = solidRunEnd(s, m + 3);
-      return { ok: true, end, author: s.slice(a, m), at: s.slice(m + 3, tail) };
+  let k = m;
+  while (k < s.length) {
+    //@ invariant m <= k && k <= s.length
+    //@ decreases s.length - k
+    if (hasAt(s, k, " · ")) {
+      const end = headTailEnd(s, k + 3);
+      if (end >= 0) {
+        const tail = solidRunEnd(s, k + 3);
+        return { ok: true, end, author: s.slice(a, k), at: s.slice(k + 3, tail) };
+      }
     }
+    if (isLineEndUnit(s.charCodeAt(k))) return noHead();
+    k = k + 1;
   }
-  if (m >= s.length || isLineEndUnit(s.charCodeAt(m))) return noHead();
-  return headFrom(s, a, m + 1);
+  // At the end no ` · ` fits, and the author has run out.
+  return noHead();
 }
 
 /** A comment heading at line start `p`. */
@@ -735,27 +853,39 @@ export interface Segment {
 /** The next comment heading at or after `i`, with its start, or none (`start` = the body's length). */
 function nextHead(s: string, i: number): number {
   //@ verify
+  //@ pure
   //@ type i nat
   //@ requires i <= s.length
-  //@ decreases s.length - i
   //@ ensures i <= \result && \result <= s.length
   //@ ensures \result === s.length || headAt(s, \result).ok
-  if (i >= s.length) return s.length;
-  if (headAt(s, i).ok) return i;
-  return nextHead(s, i + 1);
+  let j = i;
+  while (j < s.length && !headAt(s, j).ok) {
+    //@ invariant i <= j && j <= s.length
+    //@ decreases s.length - j
+    j = j + 1;
+  }
+  return j;
 }
 
 /** The comments from `p`, a heading's start or the end, on: each heading's author and when, and the text to the next heading. */
 function commentsFrom(s: string, p: number): Segment[] {
   //@ verify
+  //@ pure
   //@ type p nat
   //@ requires p <= s.length
   //@ requires p === s.length || headAt(s, p).ok
-  //@ decreases s.length - p
-  if (p >= s.length) return [];
-  const h = headAt(s, p);
-  const q = nextHead(s, h.end);
-  return [{ author: h.author, at: h.at, text: s.slice(h.end, q) }, ...commentsFrom(s, q)];
+  const acc: Segment[] = [];
+  let q = p;
+  while (q < s.length) {
+    //@ invariant p <= q && q <= s.length
+    //@ invariant q === s.length || headAt(s, q).ok
+    //@ decreases s.length - q
+    const h = headAt(s, q);
+    const n = nextHead(s, h.end);
+    acc.push({ author: h.author, at: h.at, text: s.slice(h.end, n) });
+    q = n;
+  }
+  return acc;
 }
 
 /** An item's body as its description (by `author`, at `at`) and one segment per `### author · when` comment. */
@@ -772,23 +902,33 @@ export function splitSegments(body: string, author: string, at: string): Segment
 /** Where `s`'s leading whitespace ends. */
 function trimStartAt(s: string, i: number): number {
   //@ verify
+  //@ pure
   //@ type i nat
   //@ requires i <= s.length
-  //@ decreases s.length - i
   //@ ensures i <= \result && \result <= s.length
-  if (i >= s.length || !isSpaceUnit(s.charCodeAt(i))) return i;
-  return trimStartAt(s, i + 1);
+  let j = i;
+  while (j < s.length && isSpaceUnit(s.charCodeAt(j))) {
+    //@ invariant i <= j && j <= s.length
+    //@ decreases s.length - j
+    j = j + 1;
+  }
+  return j;
 }
 
 /** Where `s`'s trailing whitespace starts, not before `lo`. */
 function trimEndAt(s: string, lo: number, e: number): number {
   //@ verify
+  //@ pure
   //@ type lo nat
   //@ requires lo <= e && e <= s.length
-  //@ decreases e - lo
   //@ ensures lo <= \result && \result <= e
-  if (e > lo && isSpaceUnit(s.charCodeAt(e - 1))) return trimEndAt(s, lo, e - 1);
-  return e;
+  let j = e;
+  while (j > lo && isSpaceUnit(s.charCodeAt(j - 1))) {
+    //@ invariant lo <= j && j <= e
+    //@ decreases j - lo
+    j = j - 1;
+  }
+  return j;
 }
 
 /** `String.prototype.trim`. */
@@ -807,17 +947,29 @@ function isYamlMark(c: number): boolean {
 /** `s` from `i` on holds a YAML mark. */
 function hasMarkFrom(s: string, i: number): boolean {
   //@ verify
+  //@ pure
   //@ type i nat
-  //@ decreases s.length - i
-  return i < s.length && (isYamlMark(s.charCodeAt(i)) || hasMarkFrom(s, i + 1));
+  let j = i;
+  while (j < s.length && !isYamlMark(s.charCodeAt(j))) {
+    //@ invariant i <= j
+    //@ decreases s.length - j
+    j = j + 1;
+  }
+  return j < s.length;
 }
 
 /** `s` from `i` on holds a double quote. */
 function hasDoubleQuoteFrom(s: string, i: number): boolean {
   //@ verify
+  //@ pure
   //@ type i nat
-  //@ decreases s.length - i
-  return i < s.length && (s.charCodeAt(i) === 34 || hasDoubleQuoteFrom(s, i + 1));
+  let j = i;
+  while (j < s.length && s.charCodeAt(j) !== 34) {
+    //@ invariant i <= j
+    //@ decreases s.length - j
+    j = j + 1;
+  }
+  return j < s.length;
 }
 
 /** One value as written: as it is, or quoted when it is empty, holds a mark, or starts or ends with whitespace; single quotes when it holds a double quote. */
@@ -835,11 +987,17 @@ export function formatScalar(text: string): string {
 /** The list items from `i` on, each formatted, joined by ", ". */
 function formatItemsFrom(items: string[], i: number): string {
   //@ verify
+  //@ pure
   //@ type i nat
-  //@ decreases items.length - i
-  if (i >= items.length) return "";
-  const head = formatScalar(items[i]!);
-  return i + 1 >= items.length ? head : head + ", " + formatItemsFrom(items, i + 1);
+  let acc = "";
+  let j = i;
+  while (j < items.length) {
+    //@ invariant i <= j
+    //@ decreases items.length - j
+    acc = acc + formatScalar(items[j]!) + (j + 1 >= items.length ? "" : ", ");
+    j = j + 1;
+  }
+  return acc;
 }
 
 /** A list as written: `[a, b]`. Items MUST NOT contain commas. */
@@ -862,24 +1020,37 @@ export function parseScalar(raw: string): string {
 /** Where the comma at or after `i` is, or the end. */
 function commaFrom(s: string, i: number): number {
   //@ verify
+  //@ pure
   //@ type i nat
   //@ requires i <= s.length
-  //@ decreases s.length - i
   //@ ensures i <= \result && \result <= s.length
-  if (i >= s.length || s.charCodeAt(i) === 44) return i;
-  return commaFrom(s, i + 1);
+  let j = i;
+  while (j < s.length && s.charCodeAt(j) !== 44) {
+    //@ invariant i <= j && j <= s.length
+    //@ decreases s.length - j
+    j = j + 1;
+  }
+  return j;
 }
 
 /** The comma-separated parts of `s` from `i` on, each read as a value. */
 function splitItemsFrom(s: string, i: number): string[] {
   //@ verify
+  //@ pure
   //@ type i nat
   //@ requires i <= s.length
-  //@ decreases s.length - i
-  const c = commaFrom(s, i);
-  const item = parseScalar(s.slice(i, c));
-  if (c >= s.length) return [item];
-  return [item, ...splitItemsFrom(s, c + 1)];
+  const acc: string[] = [];
+  let j = i;
+  let c = commaFrom(s, j);
+  while (c < s.length) {
+    //@ invariant i <= j && j <= c && c <= s.length
+    //@ decreases s.length - j
+    acc.push(parseScalar(s.slice(j, c)));
+    j = c + 1;
+    c = commaFrom(s, j);
+  }
+  acc.push(parseScalar(s.slice(j, c)));
+  return acc;
 }
 
 /** A value read: a list (`[...]`) or one scalar. */
@@ -919,12 +1090,17 @@ function isKeyUnit(c: number): boolean {
 /** Where the run of key characters that starts at `i` ends. */
 function keyRunEnd(s: string, i: number): number {
   //@ verify
+  //@ pure
   //@ type i nat
   //@ requires i <= s.length
-  //@ decreases s.length - i
   //@ ensures i <= \result && \result <= s.length
-  if (i >= s.length || !isKeyUnit(s.charCodeAt(i))) return i;
-  return keyRunEnd(s, i + 1);
+  let j = i;
+  while (j < s.length && isKeyUnit(s.charCodeAt(j))) {
+    //@ invariant i <= j && j <= s.length
+    //@ decreases s.length - j
+    j = j + 1;
+  }
+  return j;
 }
 
 /** `^\s+-\s+(.+)$`: the item's text from the greedy match, or -1 when the line is not one. */
@@ -977,12 +1153,16 @@ export interface Yaml {
 /** The index of `key` at or after `i`, or -1. */
 function entryIndex(entries: YamlEntry[], key: string, i: number): number {
   //@ verify
+  //@ pure
   //@ type i nat
-  //@ decreases entries.length - i
   //@ ensures \result === -1 || (i <= \result && \result < entries.length)
-  if (i >= entries.length) return -1;
-  if (entries[i]!.key === key) return i;
-  return entryIndex(entries, key, i + 1);
+  let j = i;
+  while (j < entries.length && entries[j]!.key !== key) {
+    //@ invariant i <= j
+    //@ decreases entries.length - j
+    j = j + 1;
+  }
+  return j < entries.length ? j : -1;
 }
 
 /** Set `key`: a new key goes last; a key seen before keeps its place. */
@@ -996,15 +1176,22 @@ function setEntry(entries: YamlEntry[], key: string, value: YamlValue): YamlEntr
 /** The entries from `i` on, with `item` added to the list `listKey` (keys are unique). */
 function pushItemFrom(entries: YamlEntry[], i: number, listKey: string, item: string): YamlEntry[] {
   //@ verify
+  //@ pure
   //@ type i nat
-  //@ decreases entries.length - i
-  if (i >= entries.length) return [];
-  const e = entries[i]!;
-  const head: YamlEntry =
-    e.key === listKey
-      ? { key: e.key, value: { isList: true, scalar: "", items: [...e.value.items, item] } }
-      : e;
-  return [head, ...pushItemFrom(entries, i + 1, listKey, item)];
+  const acc: YamlEntry[] = [];
+  let j = i;
+  while (j < entries.length) {
+    //@ invariant i <= j
+    //@ decreases entries.length - j
+    const e = entries[j]!;
+    const head: YamlEntry =
+      e.key === listKey
+        ? { key: e.key, value: { isList: true, scalar: "", items: [...e.value.items, item] } }
+        : e;
+    acc.push(head);
+    j = j + 1;
+  }
+  return acc;
 }
 
 /** Add an item to the list being read, `listKey`. */
@@ -1028,24 +1215,29 @@ function readPair(yaml: Yaml, i: number, key: string, rest: string): Yaml {
 /** The lines from `i` on read into `yaml`; `listKey` is the list being read ("" for none). */
 function readLines(lines: string[], i: number, listKey: string, yaml: Yaml): Yaml {
   //@ verify
+  //@ pure
   //@ type i nat
-  //@ decreases lines.length - i
-  if (i >= lines.length) return yaml;
-  const line = classifyLine(lines[i]!);
-  if (line.kind === "blank") return readLines(lines, i + 1, listKey, yaml);
-  if (line.kind === "item" && listKey !== "") {
-    const entries = pushItem(yaml.entries, listKey, parseScalar(line.rest));
-    return readLines(lines, i + 1, listKey, { entries, problems: yaml.problems });
+  let acc = yaml;
+  let current = listKey;
+  let j = i;
+  while (j < lines.length) {
+    //@ invariant i <= j
+    //@ decreases lines.length - j
+    const line = classifyLine(lines[j]!);
+    if (line.kind === "item" && current !== "") {
+      const entries = pushItem(acc.entries, current, parseScalar(line.rest));
+      acc = { entries, problems: acc.problems };
+    } else if (line.kind === "pair") {
+      const next = trimText(line.rest).length === 0 ? line.key : "";
+      acc = readPair(acc, j, line.key, line.rest);
+      current = next;
+    } else if (line.kind !== "blank") {
+      const bad: YamlProblem = { line: j, kind: "bad", text: trimText(lines[j]!) };
+      acc = { entries: acc.entries, problems: [...acc.problems, bad] };
+    }
+    j = j + 1;
   }
-  if (line.kind === "pair") {
-    const next = trimText(line.rest).length === 0 ? line.key : "";
-    return readLines(lines, i + 1, next, readPair(yaml, i, line.key, line.rest));
-  }
-  const bad: YamlProblem = { line: i, kind: "bad", text: trimText(lines[i]!) };
-  return readLines(lines, i + 1, listKey, {
-    entries: yaml.entries,
-    problems: [...yaml.problems, bad],
-  });
+  return acc;
 }
 
 /** Frontmatter lines (between the `---` lines) read: entries in first-seen order, and problems. */
@@ -1062,14 +1254,24 @@ function isIdStartUnit(c: number): boolean {
   return (c >= 97 && c <= 122) || (c >= 48 && c <= 57);
 }
 
+/** `[a-z0-9._-]`. */
+function isIdRestUnit(c: number): boolean {
+  //@ verify
+  return isIdStartUnit(c) || c === 46 || c === 95 || c === 45;
+}
+
 /** `[a-z0-9._-]` from `i` on. */
 function idRestFrom(s: string, i: number): boolean {
   //@ verify
+  //@ pure
   //@ type i nat
-  //@ decreases s.length - i
-  if (i >= s.length) return true;
-  const c = s.charCodeAt(i);
-  return (isIdStartUnit(c) || c === 46 || c === 95 || c === 45) && idRestFrom(s, i + 1);
+  let j = i;
+  while (j < s.length && isIdRestUnit(s.charCodeAt(j))) {
+    //@ invariant i <= j
+    //@ decreases s.length - j
+    j = j + 1;
+  }
+  return j >= s.length;
 }
 
 /** An id: `^[a-z0-9][a-z0-9._-]*$`. */
@@ -1081,30 +1283,48 @@ export function isIdText(s: string): boolean {
 /** `s` holds a non-whitespace code unit from `i` on (`\S`). */
 function hasSolidFrom(s: string, i: number): boolean {
   //@ verify
+  //@ pure
   //@ type i nat
-  //@ decreases s.length - i
-  return i < s.length && (!isSpaceUnit(s.charCodeAt(i)) || hasSolidFrom(s, i + 1));
+  let j = i;
+  while (j < s.length && isSpaceUnit(s.charCodeAt(j))) {
+    //@ invariant i <= j
+    //@ decreases s.length - j
+    j = j + 1;
+  }
+  return j < s.length;
 }
 
 /** The number of `=` in `s` from `i` on. */
 function equalsFrom(s: string, i: number): number {
   //@ verify
+  //@ pure
   //@ type i nat
-  //@ decreases s.length - i
   //@ ensures \result >= 0
-  if (i >= s.length) return 0;
-  return (s.charCodeAt(i) === 61 ? 1 : 0) + equalsFrom(s, i + 1);
+  let n = 0;
+  let j = i;
+  while (j < s.length) {
+    //@ invariant i <= j && n >= 0
+    //@ decreases s.length - j
+    if (s.charCodeAt(j) === 61) n = n + 1;
+    j = j + 1;
+  }
+  return n;
 }
 
 /** The first `=` at or after `i`, or the end. */
 function equalsAt(s: string, i: number): number {
   //@ verify
+  //@ pure
   //@ type i nat
   //@ requires i <= s.length
-  //@ decreases s.length - i
   //@ ensures i <= \result && \result <= s.length
-  if (i >= s.length || s.charCodeAt(i) === 61) return i;
-  return equalsAt(s, i + 1);
+  let j = i;
+  while (j < s.length && s.charCodeAt(j) !== 61) {
+    //@ invariant i <= j && j <= s.length
+    //@ decreases s.length - j
+    j = j + 1;
+  }
+  return j;
 }
 
 /** An alias: `^[^=]+=[^=]+$`, one `=` with text on both sides. */
@@ -1150,11 +1370,16 @@ function isMinutesText(s: string): boolean {
 /** `\d{n}` at `i`. */
 function digitsAt(s: string, i: number, n: number): boolean {
   //@ verify
+  //@ pure
   //@ type i nat
   //@ type n nat
-  //@ decreases n
-  if (n === 0) return true;
-  return i < s.length && isDigitUnit(s.charCodeAt(i)) && digitsAt(s, i + 1, n - 1);
+  let k = 0;
+  while (k < n && i + k < s.length && isDigitUnit(s.charCodeAt(i + k))) {
+    //@ invariant 0 <= k && k <= n
+    //@ decreases n - k
+    k = k + 1;
+  }
+  return k >= n;
 }
 
 /** `\d{4}-\d{2}-\d{2}` at the start. */
@@ -1248,9 +1473,15 @@ function matchesValueFormat(format: string, v: string): boolean {
 /** `xs` holds `x` from `i` on. */
 function holdsFrom(xs: string[], x: string, i: number): boolean {
   //@ verify
+  //@ pure
   //@ type i nat
-  //@ decreases xs.length - i
-  return i < xs.length && (xs[i] === x || holdsFrom(xs, x, i + 1));
+  let j = i;
+  while (j < xs.length && xs[j] !== x) {
+    //@ invariant i <= j
+    //@ decreases xs.length - j
+    j = j + 1;
+  }
+  return j < xs.length;
 }
 
 /** `xs` holds `x`. */
@@ -1298,14 +1529,17 @@ export function compareText(a: string, b: string): number {
 
 function compareFrom(a: string, b: string, i: number): number {
   //@ verify
+  //@ pure
   //@ type i nat
-  //@ decreases a.length - i
-  if (i >= a.length) return i < b.length ? -1 : 0;
-  if (i >= b.length) return 1;
-  const x = a.charCodeAt(i);
-  const y = b.charCodeAt(i);
-  if (x !== y) return x < y ? -1 : 1;
-  return compareFrom(a, b, i + 1);
+  let j = i;
+  while (j < a.length && j < b.length && a.charCodeAt(j) === b.charCodeAt(j)) {
+    //@ invariant i <= j
+    //@ decreases a.length - j
+    j = j + 1;
+  }
+  if (j >= a.length) return j < b.length ? -1 : 0;
+  if (j >= b.length) return 1;
+  return a.charCodeAt(j) < b.charCodeAt(j) ? -1 : 1;
 }
 
 /** The later of two texts in code-unit order: what `sort().at(-1)` picks. */
@@ -1373,9 +1607,15 @@ export function isVisibleName(name: string): boolean {
 /** Every name from `i` on is `items`. */
 function allItemsFrom(names: string[], i: number): boolean {
   //@ verify
+  //@ pure
   //@ type i nat
-  //@ decreases names.length - i
-  return i >= names.length || (names[i] === "items" && allItemsFrom(names, i + 1));
+  let j = i;
+  while (j < names.length && names[j] === "items") {
+    //@ invariant i <= j
+    //@ decreases names.length - j
+    j = j + 1;
+  }
+  return j >= names.length;
 }
 
 /** A hub holds nothing: besides README.md, at most an `items/` with nothing visible in it. */
@@ -1394,15 +1634,20 @@ export function projectInUrl(url: string): string {
 
 function projectInUrlFrom(url: string, i: number): string {
   //@ verify
+  //@ pure
   //@ type i nat
   //@ requires i <= url.length
-  //@ decreases url.length - i
-  if (i >= url.length) return "";
-  if (hasAt(url, i, "/projects/")) {
-    const d = digitRunEnd(url, i + 10);
-    if (d > i + 10 && hasAt(url, d, "/")) return url.slice(i + 10, d);
+  let j = i;
+  while (j < url.length) {
+    //@ invariant i <= j && j <= url.length
+    //@ decreases url.length - j
+    if (hasAt(url, j, "/projects/")) {
+      const d = digitRunEnd(url, j + 10);
+      if (d > j + 10 && hasAt(url, d, "/")) return url.slice(j + 10, d);
+    }
+    j = j + 1;
   }
-  return projectInUrlFrom(url, i + 1);
+  return "";
 }
 
 /** A brief's table cell: `|` escaped, each run of whitespace one space. */
@@ -1413,13 +1658,24 @@ export function briefCell(text: string): string {
 
 function briefCellFrom(s: string, i: number): string {
   //@ verify
+  //@ pure
   //@ type i nat
   //@ requires i <= s.length
-  //@ decreases s.length - i
-  if (i >= s.length) return "";
-  const c = s.charCodeAt(i);
-  if (isSpaceUnit(c)) return " " + briefCellFrom(s, spaceRunEnd(s, i));
-  return (c === 124 ? "\\|" : s.slice(i, i + 1)) + briefCellFrom(s, i + 1);
+  let acc = "";
+  let j = i;
+  while (j < s.length) {
+    //@ invariant i <= j && j <= s.length
+    //@ decreases s.length - j
+    const c = s.charCodeAt(j);
+    if (isSpaceUnit(c)) {
+      acc = acc + " ";
+      j = spaceRunEnd(s, j);
+    } else {
+      acc = acc + (c === 124 ? "\\|" : s.slice(j, j + 1));
+      j = j + 1;
+    }
+  }
+  return acc;
 }
 
 /** 14 days: an open item with no activity for that long is quiet. */
@@ -1447,13 +1703,17 @@ export function isBotName(person: string): boolean {
 /** The last index from `i` down whose flag is set, or -1. */
 function lastSetBefore(flags: boolean[], i: number): number {
   //@ verify
+  //@ pure
   //@ type i nat
   //@ requires i <= flags.length
-  //@ decreases i
   //@ ensures -1 <= \result && \result < i
-  if (i === 0) return -1;
-  if (flags[i - 1]) return i - 1;
-  return lastSetBefore(flags, i - 1);
+  let j = i;
+  while (j > 0 && !flags[j - 1]) {
+    //@ invariant j <= i
+    //@ decreases j
+    j = j - 1;
+  }
+  return j - 1;
 }
 
 /** The person's last word in a thread: the last segment written by them, or -1. */
@@ -1531,11 +1791,16 @@ export function numberText(digits: string): string {
 
 function numberTextFrom(d: string, i: number): string {
   //@ verify
+  //@ pure
   //@ type i nat
   //@ requires i <= d.length
-  //@ decreases d.length - i
-  if (i + 1 < d.length && d.charCodeAt(i) === 48) return numberTextFrom(d, i + 1);
-  return d.slice(i, d.length);
+  let j = i;
+  while (j + 1 < d.length && d.charCodeAt(j) === 48) {
+    //@ invariant i <= j && j <= d.length
+    //@ decreases d.length - j
+    j = j + 1;
+  }
+  return d.slice(j, d.length);
 }
 
 /** An item's short label: `<repo>#<n>` for GitHub, `BC<n>` for a Basecamp todo. */
@@ -1583,10 +1848,17 @@ function isAlnumUnit(c: number): boolean {
 
 function nodeNameFrom(s: string, i: number): string {
   //@ verify
+  //@ pure
   //@ type i nat
-  //@ decreases s.length - i
-  if (i >= s.length) return "";
-  return (isAlnumUnit(s.charCodeAt(i)) ? s.slice(i, i + 1) : "_") + nodeNameFrom(s, i + 1);
+  let acc = "";
+  let j = i;
+  while (j < s.length) {
+    //@ invariant i <= j
+    //@ decreases s.length - j
+    acc = acc + (isAlnumUnit(s.charCodeAt(j)) ? s.slice(j, j + 1) : "_");
+    j = j + 1;
+  }
+  return acc;
 }
 
 /** A Mermaid node id: `n_` and the id with each code unit outside a-z, A-Z, 0-9 as `_`. */
@@ -1597,12 +1869,18 @@ export function nodeId(id: string): string {
 
 function labelFrom(s: string, i: number): string {
   //@ verify
+  //@ pure
   //@ type i nat
-  //@ decreases s.length - i
-  if (i >= s.length) return "";
-  const c = s.charCodeAt(i);
-  const head = c === 34 ? "#quot;" : c === 60 || c === 62 ? "" : s.slice(i, i + 1);
-  return head + labelFrom(s, i + 1);
+  let acc = "";
+  let j = i;
+  while (j < s.length) {
+    //@ invariant i <= j
+    //@ decreases s.length - j
+    const c = s.charCodeAt(j);
+    acc = acc + (c === 34 ? "#quot;" : c === 60 || c === 62 ? "" : s.slice(j, j + 1));
+    j = j + 1;
+  }
+  return acc;
 }
 
 /** Text in a Mermaid label: `"` as `#quot;`, `<` and `>` dropped. */
@@ -1634,12 +1912,18 @@ export function arrowOf(closes: boolean): string {
 
 function htmlFrom(s: string, i: number): string {
   //@ verify
+  //@ pure
   //@ type i nat
-  //@ decreases s.length - i
-  if (i >= s.length) return "";
-  const c = s.charCodeAt(i);
-  const head = c === 38 ? "&amp;" : c === 60 ? "&lt;" : c === 62 ? "&gt;" : s.slice(i, i + 1);
-  return head + htmlFrom(s, i + 1);
+  let acc = "";
+  let j = i;
+  while (j < s.length) {
+    //@ invariant i <= j
+    //@ decreases s.length - j
+    const c = s.charCodeAt(j);
+    acc = acc + (c === 38 ? "&amp;" : c === 60 ? "&lt;" : c === 62 ? "&gt;" : s.slice(j, j + 1));
+    j = j + 1;
+  }
+  return acc;
 }
 
 /** Text in chart.html: `&`, `<` and `>` escaped. */
@@ -1657,12 +1941,16 @@ export interface Edge {
 
 function edgeIndex(edges: Edge[], from: string, to: string, i: number): number {
   //@ verify
+  //@ pure
   //@ type i nat
-  //@ decreases edges.length - i
   //@ ensures \result === -1 || (i <= \result && \result < edges.length)
-  if (i >= edges.length) return -1;
-  if (edges[i]!.from === from && edges[i]!.to === to) return i;
-  return edgeIndex(edges, from, to, i + 1);
+  let j = i;
+  while (j < edges.length && !(edges[j]!.from === from && edges[j]!.to === to)) {
+    //@ invariant i <= j
+    //@ decreases edges.length - j
+    j = j + 1;
+  }
+  return j < edges.length ? j : -1;
 }
 
 /** Add an edge: one per pair, in the order first seen, `closes` winning over a mention. */
@@ -1710,10 +1998,15 @@ export function todoProject(linkProject: string, elsewhere: string, hubProjects:
 /** `w` occurs in `s` at `i` or later. */
 function occursIn(s: string, w: string, i: number): boolean {
   //@ verify
+  //@ pure
   //@ type i nat
-  //@ decreases s.length - i
-  if (i + w.length > s.length) return false;
-  return s.slice(i, i + w.length) === w || occursIn(s, w, i + 1);
+  let j = i;
+  while (j + w.length <= s.length && s.slice(j, j + w.length) !== w) {
+    //@ invariant i <= j
+    //@ decreases s.length - j
+    j = j + 1;
+  }
+  return j + w.length <= s.length;
 }
 
 /** A transferred issue still answers at its old path: its page is no longer under `/<org>/<repo>/issues/`. */
@@ -1769,13 +2062,26 @@ export function orUnknown(name: string): string {
 /** The slug of `s` from `i` on; `started` once a character was kept, `gap` when others followed it. */
 function slugFrom(s: string, i: number, started: boolean, gap: boolean): string {
   //@ verify
+  //@ pure
   //@ type i nat
-  //@ decreases s.length - i
-  if (i >= s.length) return "";
-  const c = s.charCodeAt(i);
-  const keep = (c >= 97 && c <= 122) || isDigitUnit(c);
-  if (!keep) return slugFrom(s, i + 1, started, started);
-  return (gap ? "-" : "") + s.slice(i, i + 1) + slugFrom(s, i + 1, true, false);
+  let acc = "";
+  let kept = started;
+  let pending = gap;
+  let j = i;
+  while (j < s.length) {
+    //@ invariant i <= j
+    //@ decreases s.length - j
+    const c = s.charCodeAt(j);
+    if ((c >= 97 && c <= 122) || isDigitUnit(c)) {
+      acc = acc + (pending ? "-" : "") + s.slice(j, j + 1);
+      kept = true;
+      pending = false;
+    } else {
+      pending = kept;
+    }
+    j = j + 1;
+  }
+  return acc;
 }
 
 /** A hub id from a Basecamp project name: lowered, each run of other characters one hyphen, none at the ends. */
@@ -1805,13 +2111,24 @@ function brEnd(s: string, i: number): number {
 
 function plainFrom(s: string, i: number): string {
   //@ verify
+  //@ pure
   //@ type i nat
   //@ requires i <= s.length
-  //@ decreases s.length - i
-  if (i >= s.length) return "";
-  const e = brEnd(s, i);
-  if (e > 0) return "\n" + plainFrom(s, e);
-  return s.slice(i, i + 1) + plainFrom(s, i + 1);
+  let acc = "";
+  let j = i;
+  while (j < s.length) {
+    //@ invariant i <= j && j <= s.length
+    //@ decreases s.length - j
+    const e = brEnd(s, j);
+    if (e > 0) {
+      acc = acc + "\n";
+      j = e;
+    } else {
+      acc = acc + s.slice(j, j + 1);
+      j = j + 1;
+    }
+  }
+  return acc;
 }
 
 /** A Basecamp comment's HTML with each `<br>` as a line break. */

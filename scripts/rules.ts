@@ -28,21 +28,31 @@ function isNameCode(c: number): boolean {
 /** Every code unit of `s` from `i` on is a digit. */
 function digitsFrom(s: string, i: number): boolean {
   //@ verify
+  //@ pure
   //@ type i nat
   //@ requires i >= 0
-  //@ decreases s.length - i
-  //@ ensures \result <==> forall(k: nat, (i <= k && k < s.length) ==> (s.charCodeAt(k) >= 48 && s.charCodeAt(k) <= 57))
-  return i >= s.length || (isDigitCode(s.charCodeAt(i)) && digitsFrom(s, i + 1));
+  let j = i;
+  while (j < s.length && isDigitCode(s.charCodeAt(j))) {
+    //@ invariant i <= j
+    //@ decreases s.length - j
+    j = j + 1;
+  }
+  return j >= s.length;
 }
 
 /** Every code unit of `s` from `i` on is a name character. */
 function nameCodesFrom(s: string, i: number): boolean {
   //@ verify
+  //@ pure
   //@ type i nat
   //@ requires i >= 0
-  //@ decreases s.length - i
-  //@ ensures \result <==> forall(k: nat, (i <= k && k < s.length) ==> ((s.charCodeAt(k) >= 97 && s.charCodeAt(k) <= 122) || (s.charCodeAt(k) >= 48 && s.charCodeAt(k) <= 57) || s.charCodeAt(k) === 45))
-  return i >= s.length || (isNameCode(s.charCodeAt(i)) && nameCodesFrom(s, i + 1));
+  let j = i;
+  while (j < s.length && isNameCode(s.charCodeAt(j))) {
+    //@ invariant i <= j
+    //@ decreases s.length - j
+    j = j + 1;
+  }
+  return j >= s.length;
 }
 
 /** The year and its dot: a digit 1-9, three digits, then "." at 4. */
@@ -108,11 +118,16 @@ export function isSkillName(n: string): boolean {
 /** `w` occurs in `s` at `i` or later. */
 function occursFrom(s: string, w: string, i: number): boolean {
   //@ verify
+  //@ pure
   //@ type i nat
   //@ requires i >= 0
-  //@ decreases s.length - i
-  if (i + w.length > s.length) return false;
-  return s.slice(i, i + w.length) === w || occursFrom(s, w, i + 1);
+  let j = i;
+  while (j + w.length <= s.length && s.slice(j, j + w.length) !== w) {
+    //@ invariant i <= j
+    //@ decreases s.length - j
+    j = j + 1;
+  }
+  return j + w.length <= s.length;
 }
 
 /** `n` contains a word Anthropic reserves: "anthropic" or "claude". */
@@ -145,11 +160,16 @@ export function budgetOf(words: number): Budget {
 /** Where the host label that starts at `i` ends: the first non-label code unit, or the end. */
 function labelEnd(u: string, i: number): number {
   //@ verify
+  //@ pure
   //@ type i nat
   //@ requires i <= u.length
-  //@ decreases u.length - i
-  if (i === u.length || !isNameCode(u.charCodeAt(i))) return i;
-  return labelEnd(u, i + 1);
+  let j = i;
+  while (j < u.length && isNameCode(u.charCodeAt(j))) {
+    //@ invariant i <= j && j <= u.length
+    //@ decreases u.length - j
+    j = j + 1;
+  }
+  return j;
 }
 
 /** `u` is `https://<label>.augur-mcp.com/...` (model: Marketplace.IsConnectorUrl). */

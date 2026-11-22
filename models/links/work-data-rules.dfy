@@ -261,7 +261,8 @@ lemma {:vcs_split_on_every_assert} ClosesBeforeMatchesModel(s: string, start: na
     keywordEndsAt(s, lo, e, "fixes") || keywordEndsAt(s, lo, e, "fixed") ||
     keywordEndsAt(s, lo, e, "resolve") || keywordEndsAt(s, lo, e, "resolves") ||
     keywordEndsAt(s, lo, e, "resolved");
-  assert closesBefore(s, start) == code;
+  assert closesBefore(s, start) == anyKeywordEndsAt(s, lo, e);
+  assert anyKeywordEndsAt(s, lo, e) == code;
   assert code == AnyKeyword(s, lo, e);
 }
 
@@ -690,7 +691,12 @@ lemma SplitItemsMatchesModel(s: string, i: nat)
   CommaFromMatchesModel(s, i);
   var c := commaFrom(s, i);
   ParseScalarMatchesModel(s[i..c]);
-  if c < |s| { SplitItemsMatchesModel(s, c + 1); }
+  // splitItemsFrom is its loop's spec: one unfolding of each side lines them up.
+  assert splitItemsFrom(s, i) == splitItemsFrom_fun_spec(s, i);
+  if c < |s| {
+    SplitItemsMatchesModel(s, c + 1);
+    assert splitItemsFrom(s, c + 1) == splitItemsFrom_fun_spec(s, c + 1);
+  }
 }
 
 lemma ParseValueMatchesModel(raw: string)

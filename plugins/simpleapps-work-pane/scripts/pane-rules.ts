@@ -51,13 +51,16 @@ export function isTrackedIssue(
 /** Every code unit of `s` from `i` on is a digit 0-9. */
 function idDigitsFrom(s: string, i: number): boolean {
   //@ verify
+  //@ pure
   //@ type i nat
   //@ requires i >= 0
-  //@ decreases s.length - i
-  //@ ensures \result <==> forall(k: nat, (i <= k && k < s.length) ==> (s.charCodeAt(k) >= 48 && s.charCodeAt(k) <= 57))
-  return (
-    i >= s.length || (s.charCodeAt(i) >= 48 && s.charCodeAt(i) <= 57 && idDigitsFrom(s, i + 1))
-  );
+  let j = i;
+  while (j < s.length && s.charCodeAt(j) >= 48 && s.charCodeAt(j) <= 57) {
+    //@ invariant i <= j
+    //@ decreases s.length - j
+    j = j + 1;
+  }
+  return j >= s.length;
 }
 
 /** `id` is `prefix` (`gh-<repo>-`, lowercased) followed by one or more digits. */
@@ -73,17 +76,36 @@ export function isIssueIdOf(id: string, prefix: string): boolean {
 /** `repo` has a "/" at `i` or later. */
 function slashFrom(repo: string, i: number): boolean {
   //@ verify
+  //@ pure
   //@ type i nat
   //@ requires i >= 0
-  //@ decreases repo.length - i
-  //@ ensures \result <==> exists(k: nat, i <= k && k < repo.length && repo.charCodeAt(k) === 47)
-  return i < repo.length && (repo.charCodeAt(i) === 47 || slashFrom(repo, i + 1));
+  let j = i;
+  while (j < repo.length && repo.charCodeAt(j) !== 47) {
+    //@ invariant i <= j
+    //@ decreases repo.length - j
+    j = j + 1;
+  }
+  return j < repo.length;
 }
 
 /** A watched repo named with its owner (`org/repo`); a bare name is in the person's org. */
 export function hasOwner(repo: string): boolean {
   //@ verify
   return slashFrom(repo, 0);
+}
+
+/** The plugin connector's host: a project server at this URL suppresses the connector. */
+const BASECAMP_ORIGIN = "https://basecamp.augur-mcp.com";
+
+/** `url` is on the connector's host, alone or followed by a path. */
+export function isBasecampUrl(url: string): boolean {
+  //@ verify
+  const n = BASECAMP_ORIGIN.length;
+  return (
+    url.length >= n &&
+    url.slice(0, n) === BASECAMP_ORIGIN &&
+    (url.length === n || url.charCodeAt(n) === 47)
+  );
 }
 
 /** A Basecamp project id a site brief covers. */

@@ -33,42 +33,6 @@ lemma isNameCode_ensures(c: int)
 {
 }
 
-function digitsFrom(s: string, i: nat): bool
-  requires (i >= 0)
-  decreases (|s| - i)
-{
-  ((i >= |s|) || (isDigitCode((s[i] as int)) && digitsFrom(s, (i + 1))))
-}
-
-lemma digitsFrom_ensures(s: string, i: nat)
-  requires (i >= 0)
-  ensures (digitsFrom(s, i) <==> forall k: nat :: ((i <= k) ==> (k < |s|) ==> (((s[k] as int) >= 48) && ((s[k] as int) <= 57))))
-  decreases |s| - i
-{
-  // Induction on the suffix: s[i] decides the head, the recursive call the rest.
-  if i < |s| {
-    digitsFrom_ensures(s, i + 1);
-  }
-}
-
-function nameCodesFrom(s: string, i: nat): bool
-  requires (i >= 0)
-  decreases (|s| - i)
-{
-  ((i >= |s|) || (isNameCode((s[i] as int)) && nameCodesFrom(s, (i + 1))))
-}
-
-lemma nameCodesFrom_ensures(s: string, i: nat)
-  requires (i >= 0)
-  ensures (nameCodesFrom(s, i) <==> forall k: nat :: ((i <= k) ==> (k < |s|) ==> (((((s[k] as int) >= 97) && ((s[k] as int) <= 122)) || (((s[k] as int) >= 48) && ((s[k] as int) <= 57))) || ((s[k] as int) == 45))))
-  decreases |s| - i
-{
-  // Induction on the suffix, as digitsFrom.
-  if i < |s| {
-    nameCodesFrom_ensures(s, i + 1);
-  }
-}
-
 function yearPart(s: string): bool
   requires (|s| >= 8)
 {
@@ -120,16 +84,6 @@ function isSkillName(n: string): bool
   ((((|n| >= 1) && (|n| <= 64)) && isLowerCode((n[0] as int))) && nameCodesFrom(n, 1))
 }
 
-function occursFrom(s: string, w: string, i: nat): bool
-  requires (i >= 0)
-  decreases (|s| - i)
-{
-  if ((i + |w|) > |s|) then
-    false
-  else
-    ((s[i..(i + |w|)] == w) || occursFrom(s, w, (i + 1)))
-}
-
 function isReservedName(n: string): bool
 {
   (occursFrom(n, "anthropic", 0) || occursFrom(n, "claude", 0))
@@ -159,16 +113,6 @@ function budgetOf(words: nat): Budget
       Budget.fits
 }
 
-function labelEnd(u: string, i: nat): int
-  requires (i <= |u|)
-  decreases (|u| - i)
-{
-  if ((i == |u|) || !(isNameCode((u[i] as int)))) then
-    i
-  else
-    labelEnd(u, (i + 1))
-}
-
 function isConnectorUrl(u: string): bool
 {
   if ((|u| < 8) || (u[0..8] != "https://")) then
@@ -176,4 +120,109 @@ function isConnectorUrl(u: string): bool
   else
     var j := labelEnd(u, 8);
     (((j > 8) && ((j + 15) <= |u|)) && (u[j..(j + 15)] == ".augur-mcp.com/"))
+}
+
+function digitsFrom_fun_spec(s: string, i: nat): bool
+  requires (i >= 0)
+  ensures (digitsFrom_fun_spec(s, i) <==> forall k: nat :: ((i <= k) ==> (k < |s|) ==> (((s[k] as int) >= 48) && ((s[k] as int) <= 57))))
+  decreases |s| - i
+{
+  // What the loop computes, by recursion on the suffix: s[i] decides the head.
+  (i >= |s|) || (isDigitCode(s[i] as int) && digitsFrom_fun_spec(s, i + 1))
+}
+
+function digitsFrom(s: string, i: nat): bool
+  requires (i >= 0)
+{
+  digitsFrom_fun_spec(s, i)
+}
+by method {
+  var j := i;
+  while ((j < |s|) && isDigitCode((s[j] as int)))
+    invariant (i <= j)
+    invariant j <= |s| || j == i
+    invariant digitsFrom_fun_spec(s, j) == digitsFrom_fun_spec(s, i)
+    decreases (|s| - j)
+  {
+    j := (j + 1);
+  }
+  return (j >= |s|);
+}
+
+function nameCodesFrom_fun_spec(s: string, i: nat): bool
+  requires (i >= 0)
+  ensures (nameCodesFrom_fun_spec(s, i) <==> forall k: nat :: ((i <= k) ==> (k < |s|) ==> (((((s[k] as int) >= 97) && ((s[k] as int) <= 122)) || (((s[k] as int) >= 48) && ((s[k] as int) <= 57))) || ((s[k] as int) == 45))))
+  decreases |s| - i
+{
+  // What the loop computes, by recursion on the suffix, as digitsFrom.
+  (i >= |s|) || (isNameCode(s[i] as int) && nameCodesFrom_fun_spec(s, i + 1))
+}
+
+function nameCodesFrom(s: string, i: nat): bool
+  requires (i >= 0)
+{
+  nameCodesFrom_fun_spec(s, i)
+}
+by method {
+  var j := i;
+  while ((j < |s|) && isNameCode((s[j] as int)))
+    invariant (i <= j)
+    invariant j <= |s| || j == i
+    invariant nameCodesFrom_fun_spec(s, j) == nameCodesFrom_fun_spec(s, i)
+    decreases (|s| - j)
+  {
+    j := (j + 1);
+  }
+  return (j >= |s|);
+}
+
+function occursFrom_fun_spec(s: string, w: string, i: nat): bool
+  requires (i >= 0)
+  decreases |s| - i
+{
+  // What the loop computes: w at i, or at a later index.
+  if i + |w| > |s| then false else s[i..i + |w|] == w || occursFrom_fun_spec(s, w, i + 1)
+}
+
+function occursFrom(s: string, w: string, i: nat): bool
+  requires (i >= 0)
+{
+  occursFrom_fun_spec(s, w, i)
+}
+by method {
+  var j := i;
+  while (((j + |w|) <= |s|) && (s[j..(j + |w|)] != w))
+    invariant (i <= j)
+    invariant occursFrom_fun_spec(s, w, j) == occursFrom_fun_spec(s, w, i)
+    decreases (|s| - j)
+  {
+    j := (j + 1);
+  }
+  return ((j + |w|) <= |s|);
+}
+
+function labelEnd_fun_spec(u: string, i: nat): int
+  requires (i <= |u|)
+  decreases |u| - i
+{
+  // What the loop computes: the first index from i that is not a name code.
+  if i == |u| || !isNameCode(u[i] as int) then i else labelEnd_fun_spec(u, i + 1)
+}
+
+function labelEnd(u: string, i: nat): int
+  requires (i <= |u|)
+{
+  labelEnd_fun_spec(u, i)
+}
+by method {
+  var j := i;
+  while ((j < |u|) && isNameCode((u[j] as int)))
+    invariant (i <= j)
+    invariant (j <= |u|)
+    invariant labelEnd_fun_spec(u, j) == labelEnd_fun_spec(u, i)
+    decreases (|u| - j)
+  {
+    j := (j + 1);
+  }
+  return j;
 }
