@@ -10,6 +10,7 @@
       "Bash(cat:*)",
       "Bash(dirname:*)",
       "Bash(find:*)",
+      "Bash(git -C repo:*)",
       "Bash(grep:*)",
       "Bash(ls:*)",
       "Bash(lsof:*)",
