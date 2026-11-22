@@ -54,53 +54,20 @@ lemma isTrackedIssue_ensures(isOpen: bool, isGithub: bool, isIssue: bool, watche
 {
 }
 
-function idDigitsFrom(s: string, i: nat): bool
-  requires (i >= 0)
-  decreases (|s| - i)
-{
-  ((i >= |s|) || ((((s[i] as int) >= 48) && ((s[i] as int) <= 57)) && idDigitsFrom(s, (i + 1))))
-}
-
-lemma idDigitsFrom_ensures(s: string, i: nat)
-  requires (i >= 0)
-  ensures (idDigitsFrom(s, i) <==> forall k: nat :: ((i <= k) ==> (k < |s|) ==> (((s[k] as int) >= 48) && ((s[k] as int) <= 57))))
-  decreases |s| - i
-{
-  // Induction on the suffix: s[i] decides the head, the recursive call the rest.
-  if i < |s| {
-    idDigitsFrom_ensures(s, i + 1);
-  }
-}
-
 function isIssueIdOf(id: string, prefix: string): bool
 {
   (((|id| > |prefix|) && (id[0..|prefix|] == prefix)) && idDigitsFrom(id[|prefix|..|id|], 0))
 }
 
-function slashFrom(repo: string, i: nat): bool
-  requires (i >= 0)
-  decreases (|repo| - i)
-{
-  ((i < |repo|) && (((repo[i] as int) == 47) || slashFrom(repo, (i + 1))))
-}
-
-lemma slashFrom_ensures(repo: string, i: nat)
-  requires (i >= 0)
-  ensures (slashFrom(repo, i) <==> exists k: nat :: (((i <= k) && (k < |repo|)) && ((repo[k] as int) == 47)))
-  decreases |repo| - i
-{
-  // Induction on the suffix, as idDigitsFrom; a slash at i is its own witness.
-  if i < |repo| {
-    slashFrom_ensures(repo, i + 1);
-    if (repo[i] as int) == 47 {
-      assert i <= i < |repo|;
-    }
-  }
-}
-
 function hasOwner(repo: string): bool
 {
   slashFrom(repo, 0)
+}
+
+function isBasecampUrl(url: string): bool
+{
+  var n := |BASECAMP_ORIGIN|;
+  (((|url| >= n) && (url[0..n] == BASECAMP_ORIGIN)) && ((|url| == n) || ((url[n] as int) == 47)))
 }
 
 function isProjectId(id: int): bool
@@ -225,4 +192,60 @@ function notesBriefProblem(synced: bool, hasProblem: bool): bool
 lemma notesBriefProblem_ensures(synced: bool, hasProblem: bool)
   ensures (notesBriefProblem(synced, hasProblem) <==> (synced && hasProblem))
 {
+}
+
+const BASECAMP_ORIGIN: string := "https://basecamp.augur-mcp.com"
+
+function idDigitsFrom_fun_spec(s: string, i: nat): bool
+  requires (i >= 0)
+  ensures (idDigitsFrom_fun_spec(s, i) <==> forall k: nat :: ((i <= k) ==> (k < |s|) ==> (((s[k] as int) >= 48) && ((s[k] as int) <= 57))))
+  decreases |s| - i
+{
+  // What the loop computes, by recursion on the suffix: s[i] decides the head.
+  (i >= |s|) || ((((s[i] as int) >= 48) && ((s[i] as int) <= 57)) && idDigitsFrom_fun_spec(s, i + 1))
+}
+
+function idDigitsFrom(s: string, i: nat): bool
+  requires (i >= 0)
+{
+  idDigitsFrom_fun_spec(s, i)
+}
+by method {
+  var j := i;
+  while (((j < |s|) && ((s[j] as int) >= 48)) && ((s[j] as int) <= 57))
+    invariant (i <= j)
+    invariant j <= |s| || j == i
+    invariant idDigitsFrom_fun_spec(s, j) == idDigitsFrom_fun_spec(s, i)
+    decreases (|s| - j)
+  {
+    j := (j + 1);
+  }
+  return (j >= |s|);
+}
+
+function slashFrom_fun_spec(repo: string, i: nat): bool
+  requires (i >= 0)
+  ensures (slashFrom_fun_spec(repo, i) <==> exists k: nat :: (((i <= k) && (k < |repo|)) && ((repo[k] as int) == 47)))
+  decreases |repo| - i
+{
+  // What the loop computes, by recursion on the suffix; a slash at i is its own witness.
+  (i < |repo|) && (((repo[i] as int) == 47 && assert i <= i < |repo|; true) || slashFrom_fun_spec(repo, i + 1))
+}
+
+function slashFrom(repo: string, i: nat): bool
+  requires (i >= 0)
+{
+  slashFrom_fun_spec(repo, i)
+}
+by method {
+  var j := i;
+  while ((j < |repo|) && ((repo[j] as int) != 47))
+    invariant (i <= j)
+    invariant j <= |repo| || j == i
+    invariant slashFrom_fun_spec(repo, j) == slashFrom_fun_spec(repo, i)
+    decreases (|repo| - j)
+  {
+    j := (j + 1);
+  }
+  return (j < |repo|);
 }

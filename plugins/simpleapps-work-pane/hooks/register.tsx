@@ -12,6 +12,7 @@ import {
   hasChanges,
   hasLeft,
   hasOwner,
+  isBasecampUrl,
   isDue,
   isEdited,
   isIssueIdOf,
@@ -392,6 +393,8 @@ interface Place {
 
 /** This machine's gaps: node, a signed-in gh. Read once a session. */
 let setup: string[] = [];
+/** The project's config gaps, from the last connect: a server that hides the connector. */
+let serverGaps: string[] = [];
 let syncing = false;
 let retries = 0;
 let lastSummary = "not checked yet";
@@ -429,13 +432,43 @@ async function readSetup($: EngineInterface): Promise<string[]> {
   return gaps;
 }
 
+/**
+ * The project's own servers (its `.mcp.json` text) on the connector's URL. Claude Code drops a
+ * plugin's server when a configured one has the same URL, so each of these hides the connector.
+ * The pane names them for the person to remove; it never connects to or calls them.
+ */
+export function duplicateServers(mcpJsonText: string): string[] {
+  let servers: unknown;
+  try {
+    servers = (JSON.parse(mcpJsonText) as { mcpServers?: unknown }).mcpServers;
+  } catch {
+    return [];
+  }
+  if (typeof servers !== "object" || servers === null) return [];
+  return Object.entries(servers).flatMap(([name, server]) => {
+    const url: unknown =
+      typeof server === "object" && server !== null ? (server as { url?: unknown }).url : undefined;
+    return typeof url === "string" && isBasecampUrl(url) ? [name] : [];
+  });
+}
+
 /** The connector's name for `$.mcp.call`, or the problem connecting it. */
 async function connector($: EngineInterface): Promise<{ server?: string; problem?: string }> {
   const result = await $.mcp.connect(CONNECTOR).catch((error: unknown) => ({
     isConnected: false as const,
     message: String(error),
   }));
+  serverGaps = [];
   if (result.isConnected) return { server: result.server };
+  const root = await $.session.root();
+  const duplicates = duplicateServers(await $.fs.read(`${root}/.mcp.json`).catch(() => ""));
+  if (duplicates.length > 0) {
+    // Not `tool not loaded`: a duplicate never clears on its own, so the check must not retry
+    const names = duplicates.map((name) => `"${name}"`).join(", ");
+    const gap = `remove ${names} from .mcp.json: it has SimpleApps Basecamp's URL, so Claude Code drops the connector`;
+    serverGaps = [gap];
+    return { problem: `duplicate server: ${gap}` };
+  }
   return {
     problem: `${NOT_LOADED}: connect SimpleApps Basecamp (install simpleapps-work and sign in, /mcp): ${result.message}`,
   };
@@ -579,6 +612,8 @@ export async function check($: EngineInterface, trigger: "timer" | "open"): Prom
     changed,
   );
   const totals = tracked(status);
+  // What the pane's `needs:` lines show: the machine's gaps, then the project's
+  const needs = [...setup, ...serverGaps];
   lastSummary = checkSummary(basecamp.count, pending, issues, [...setup, ...failed], totals);
   // The connector still connecting (session start, or just reconnected): check again soon
   const notLoaded = failed.some((part) => part.includes(NOT_LOADED));
@@ -591,9 +626,9 @@ export async function check($: EngineInterface, trigger: "timer" | "open"): Prom
     tracked: totals,
     pending,
     checkedAt: now,
-    isError: failed.length > 0 || setup.length > 0,
+    isError: failed.length > 0 || needs.length > 0,
     failed,
-    setup,
+    setup: needs,
   }));
   if (status.auto_sync && hasChangesOf(pending) && !syncing) await sync($, "auto");
 }

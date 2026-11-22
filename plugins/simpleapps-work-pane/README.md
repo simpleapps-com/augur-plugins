@@ -43,7 +43,7 @@ Tested with Claude Code 2.1.330.
 
 In a folder you have not trusted yet, no mod loads until you answer the trust prompt.
 
-**Moving from the project's own Work pane:** a `simpleapps-work` project that still loads its own `work` mod (from `.claude/skills/work/`) MUST turn that off first. Both register `/work` and a pane named `work`, so with both loaded you cannot tell which one answers. If the project reaches Basecamp through its own `basecamp2` entry in `.mcp.json`, install and sign in to `simpleapps-work` as well: this pane uses that plugin's `SimpleApps Basecamp` connector, not `basecamp2`. The `work/` folder itself needs no change.
+**Moving from the project's own Work pane:** a `simpleapps-work` project that still loads its own `work` mod (from `.claude/skills/work/`) MUST turn that off first. Both register `/work` and a pane named `work`, so with both loaded you cannot tell which one answers. If the project reaches Basecamp through its own `basecamp2` entry in `.mcp.json` (or any server at `https://basecamp.augur-mcp.com`), you MUST remove that entry and sign in to `simpleapps-work`'s `SimpleApps Basecamp` connector instead: Claude Code drops the plugin's connector when another server has the same URL, and this pane uses only its own connector. The pane names such a server in its `needs:` line until it is removed. The `work/` folder itself needs no change.
 
 ## Settings
 

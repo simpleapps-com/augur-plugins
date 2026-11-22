@@ -80,105 +80,6 @@ function hasAt(s: string, i: nat, w: string): bool
   (((i + |w|) <= |s|) && (s[i..(i + |w|)] == w))
 }
 
-function repoRunEnd(s: string, i: nat): int
-  requires (i <= |s|)
-  decreases (|s| - i)
-  ensures (i <= repoRunEnd(s, i))
-  ensures (repoRunEnd(s, i) <= |s|)
-{
-  if ((i >= |s|) || !(isRepoUnit((s[i] as int)))) then
-    i
-  else
-    repoRunEnd(s, (i + 1))
-}
-
-lemma repoRunEnd_ensures(s: string, i: nat)
-  requires (i <= |s|)
-  ensures (i <= repoRunEnd(s, i))
-  ensures (repoRunEnd(s, i) <= |s|)
-{
-}
-
-function digitRunEnd(s: string, i: nat): int
-  requires (i <= |s|)
-  decreases (|s| - i)
-  ensures (i <= digitRunEnd(s, i))
-  ensures (digitRunEnd(s, i) <= |s|)
-{
-  if ((i >= |s|) || !(isDigitUnit((s[i] as int)))) then
-    i
-  else
-    digitRunEnd(s, (i + 1))
-}
-
-lemma digitRunEnd_ensures(s: string, i: nat)
-  requires (i <= |s|)
-  ensures (i <= digitRunEnd(s, i))
-  ensures (digitRunEnd(s, i) <= |s|)
-{
-}
-
-function spaceRunEnd(s: string, i: nat): int
-  requires (i <= |s|)
-  decreases (|s| - i)
-  ensures (i <= spaceRunEnd(s, i))
-  ensures (spaceRunEnd(s, i) <= |s|)
-{
-  if ((i >= |s|) || !(isSpaceUnit((s[i] as int)))) then
-    i
-  else
-    spaceRunEnd(s, (i + 1))
-}
-
-lemma spaceRunEnd_ensures(s: string, i: nat)
-  requires (i <= |s|)
-  ensures (i <= spaceRunEnd(s, i))
-  ensures (spaceRunEnd(s, i) <= |s|)
-{
-}
-
-function solidRunEnd(s: string, i: nat): int
-  requires (i <= |s|)
-  decreases (|s| - i)
-  ensures (i <= solidRunEnd(s, i))
-  ensures (solidRunEnd(s, i) <= |s|)
-{
-  if ((i >= |s|) || isSpaceUnit((s[i] as int))) then
-    i
-  else
-    solidRunEnd(s, (i + 1))
-}
-
-lemma solidRunEnd_ensures(s: string, i: nat)
-  requires (i <= |s|)
-  ensures (i <= solidRunEnd(s, i))
-  ensures (solidRunEnd(s, i) <= |s|)
-{
-}
-
-function allDigitsFrom(s: string, i: nat): bool
-  decreases (|s| - i)
-{
-  ((i >= |s|) || (isDigitUnit((s[i] as int)) && allDigitsFrom(s, (i + 1))))
-}
-
-function noLineEndFrom(s: string, i: nat): bool
-  decreases (|s| - i)
-{
-  ((i >= |s|) || (!(isLineEndUnit((s[i] as int))) && noLineEndFrom(s, (i + 1))))
-}
-
-function lowerFrom(s: string, i: nat): string
-  decreases (|s| - i)
-{
-  if (i >= |s|) then
-    ""
-  else
-    var c := (s[i] as int);
-    var head := (if ((c >= 65) && (c <= 90)) then StringFromCharCode((c + 32)) else s[i..(i + 1)]);
-    (head + lowerFrom(s, (i + 1)))
-}
-
 function lower(s: string): string
 {
   lowerFrom(s, 0)
@@ -201,43 +102,6 @@ function numberedId(owner: string, repo: string, num: string, org: string): stri
     basecampId(false, num)
   else
     githubId(owner, repo, num, org)
-}
-
-function lastHyphenBefore(s: string, i: nat): int
-  requires (i <= |s|)
-  decreases i
-  ensures (-1 <= lastHyphenBefore(s, i))
-  ensures (lastHyphenBefore(s, i) < i)
-{
-  if ((i == 0) || ((s[(i - 1)] as int) == 45)) then
-    (i - 1)
-  else
-    lastHyphenBefore(s, (i - 1))
-}
-
-lemma lastHyphenBefore_ensures(s: string, i: nat)
-  requires (i <= |s|)
-  ensures (-1 <= lastHyphenBefore(s, i))
-  ensures (lastHyphenBefore(s, i) < i)
-{
-}
-
-function firstDotFrom(s: string, i: nat): int
-  decreases (|s| - i)
-  ensures ((firstDotFrom(s, i) == -1) || ((i <= firstDotFrom(s, i)) && (firstDotFrom(s, i) < |s|)))
-{
-  if (i >= |s|) then
-    -1
-  else
-    if ((s[i] as int) == 46) then
-      i
-    else
-      firstDotFrom(s, (i + 1))
-}
-
-lemma firstDotFrom_ensures(s: string, i: nat)
-  ensures ((firstDotFrom(s, i) == -1) || ((i <= firstDotFrom(s, i)) && (firstDotFrom(s, i) < |s|)))
-{
 }
 
 function parseGithubId(id: string, org: string): GithubParts
@@ -268,27 +132,6 @@ function todoLabel(id: string): string
     ("BC" + id[8..|id|])
   else
     id
-}
-
-function spaceStartBack(s: string, lo: nat, e: int): int
-  requires (lo <= e)
-  requires (e <= |s|)
-  decreases (e - lo)
-  ensures (lo <= spaceStartBack(s, lo, e))
-  ensures (spaceStartBack(s, lo, e) <= e)
-{
-  if ((e > lo) && isSpaceUnit((s[(e - 1)] as int))) then
-    spaceStartBack(s, lo, (e - 1))
-  else
-    e
-}
-
-lemma spaceStartBack_ensures(s: string, lo: nat, e: int)
-  requires (lo <= e)
-  requires (e <= |s|)
-  ensures (lo <= spaceStartBack(s, lo, e))
-  ensures (spaceStartBack(s, lo, e) <= e)
-{
 }
 
 function keywordEndsAt(s: string, lo: nat, e: int, k: string): bool
@@ -570,24 +413,6 @@ function refContext(isGithub: bool, ref: string, org: string): RefContext
           RefContext(true, ref[0..o], ref[(o + 1)..r], org)
 }
 
-function refIndex(refs: seq<Ref>, id: string, i: nat): int
-  decreases (|refs| - i)
-  ensures ((refIndex(refs, id, i) == -1) || ((i <= refIndex(refs, id, i)) && (refIndex(refs, id, i) < |refs|)))
-{
-  if (i >= |refs|) then
-    -1
-  else
-    if (refs[i].id == id) then
-      i
-    else
-      refIndex(refs, id, (i + 1))
-}
-
-lemma refIndex_ensures(refs: seq<Ref>, id: string, i: nat)
-  ensures ((refIndex(refs, id, i) == -1) || ((i <= refIndex(refs, id, i)) && (refIndex(refs, id, i) < |refs|)))
-{
-}
-
 function mergeAt(refs: seq<Ref>, k: nat, closes: bool, project: string): seq<Ref>
   requires (k < |refs|)
 {
@@ -604,21 +429,6 @@ function addRef(refs: seq<Ref>, id: string, closes: bool, project: string): seq<
     mergeAt(refs, k, closes, project)
 }
 
-function scanGithubUrls(s: string, i: nat, ctx: RefContext, refs: seq<Ref>): seq<Ref>
-  requires (i <= |s|)
-  decreases (|s| - i)
-{
-  if (i >= |s|) then
-    refs
-  else
-    var h := githubUrlAt(s, i);
-    if !(h.ok) then
-      scanGithubUrls(s, (i + 1), ctx, refs)
-    else
-      var id := githubId(h.owner, h.repo, h.num, ctx.org);
-      scanGithubUrls(s, h.end, ctx, addRef(refs, id, closesBefore(s, i), ""))
-}
-
 function issueRefId(h: Hit, ctx: RefContext): string
 {
   if ((h.owner == "") && (lower(h.repo) == "gh")) then
@@ -628,36 +438,6 @@ function issueRefId(h: Hit, ctx: RefContext): string
       ""
   else
     numberedId((if (h.owner == "") then ctx.org else h.owner), h.repo, h.num, ctx.org)
-}
-
-function scanIssueRefs(s: string, i: nat, ctx: RefContext, refs: seq<Ref>): seq<Ref>
-  requires (i <= |s|)
-  decreases (|s| - i)
-{
-  if (i >= |s|) then
-    refs
-  else
-    var h := issueRefAt(s, i);
-    if !(h.ok) then
-      scanIssueRefs(s, (i + 1), ctx, refs)
-    else
-      var id := issueRefId(h, ctx);
-      var next := (if (id == "") then refs else addRef(refs, id, closesBefore(s, i), ""));
-      scanIssueRefs(s, h.end, ctx, next)
-}
-
-function knownIssueId(refs: seq<Ref>, num: string, i: nat): string
-  decreases (|refs| - i)
-{
-  if (i >= |refs|) then
-    ""
-  else
-    var id := refs[i].id;
-    var tail := ("-" + num);
-    if ((hasAt(id, 0, "gh-") && (|id| >= |tail|)) && (id[(|id| - |tail|)..|id|] == tail)) then
-      id
-    else
-      knownIssueId(refs, num, (i + 1))
 }
 
 function bareRefId(refs: seq<Ref>, num: string, ctx: RefContext): string
@@ -672,51 +452,6 @@ function bareRefId(refs: seq<Ref>, num: string, ctx: RefContext): string
       ""
 }
 
-function scanBareRefs(s: string, i: nat, ctx: RefContext, refs: seq<Ref>): seq<Ref>
-  requires (i <= |s|)
-  decreases (|s| - i)
-{
-  if (i >= |s|) then
-    refs
-  else
-    var h := bareRefAt(s, i);
-    if !(h.ok) then
-      scanBareRefs(s, (i + 1), ctx, refs)
-    else
-      var id := bareRefId(refs, h.num, ctx);
-      var next := (if (id == "") then refs else addRef(refs, id, closesBefore(s, i), ""));
-      scanBareRefs(s, h.end, ctx, next)
-}
-
-function scanBasecampUrls(s: string, i: nat, refs: seq<Ref>): seq<Ref>
-  requires (i <= |s|)
-  decreases (|s| - i)
-{
-  if (i >= |s|) then
-    refs
-  else
-    var h := basecampUrlAt(s, i);
-    if !(h.ok) then
-      scanBasecampUrls(s, (i + 1), refs)
-    else
-      var id := basecampId(h.isMessage, h.num);
-      scanBasecampUrls(s, h.end, addRef(refs, id, closesBefore(s, i), h.project))
-}
-
-function scanBcRefs(s: string, i: nat, refs: seq<Ref>): seq<Ref>
-  requires (i <= |s|)
-  decreases (|s| - i)
-{
-  if (i >= |s|) then
-    refs
-  else
-    var h := bcRefAt(s, i);
-    if !(h.ok) then
-      scanBcRefs(s, (i + 1), refs)
-    else
-      scanBcRefs(s, h.end, addRef(refs, basecampId(false, h.num), closesBefore(s, i), ""))
-}
-
 function extractRefs(s: string, ctx: RefContext): seq<Ref>
 {
   var a := scanGithubUrls(s, 0, ctx, []);
@@ -729,28 +464,6 @@ function extractRefs(s: string, ctx: RefContext): seq<Ref>
 function noHead(): Head
 {
   Head(false, 0, "", "")
-}
-
-function lastLineEndIn(s: string, lo: nat, hi: int): int
-  requires (lo <= hi)
-  requires (hi <= |s|)
-  decreases (hi - lo)
-  ensures ((lastLineEndIn(s, lo, hi) == -1) || ((lo <= lastLineEndIn(s, lo, hi)) && (lastLineEndIn(s, lo, hi) < hi)))
-{
-  if (hi <= lo) then
-    -1
-  else
-    if isLineEndUnit((s[(hi - 1)] as int)) then
-      (hi - 1)
-    else
-      lastLineEndIn(s, lo, (hi - 1))
-}
-
-lemma lastLineEndIn_ensures(s: string, lo: nat, hi: int)
-  requires (lo <= hi)
-  requires (hi <= |s|)
-  ensures ((lastLineEndIn(s, lo, hi) == -1) || ((lo <= lastLineEndIn(s, lo, hi)) && (lastLineEndIn(s, lo, hi) < hi)))
-{
 }
 
 function headTailEnd(s: string, t: nat): int
@@ -771,36 +484,6 @@ function headTailEnd(s: string, t: nat): int
 lemma headTailEnd_ensures(s: string, t: nat)
   requires (t <= |s|)
   ensures ((headTailEnd(s, t) == -1) || ((t < headTailEnd(s, t)) && (headTailEnd(s, t) <= |s|)))
-{
-}
-
-function headFrom(s: string, a: nat, m: nat): Head
-  requires (a < m)
-  requires (m <= |s|)
-  decreases (|s| - m)
-  ensures (headFrom(s, a, m).ok ==> ((m < headFrom(s, a, m).end) && (headFrom(s, a, m).end <= |s|)))
-{
-  if hasAt(s, m, " \u00B7 ") then
-    var end := headTailEnd(s, (m + 3));
-    if (end >= 0) then
-      var tail := solidRunEnd(s, (m + 3));
-      Head(true, end, s[a..m], s[(m + 3)..tail])
-    else
-      if ((m >= |s|) || isLineEndUnit((s[m] as int))) then
-        noHead()
-      else
-        headFrom(s, a, (m + 1))
-  else
-    if ((m >= |s|) || isLineEndUnit((s[m] as int))) then
-      noHead()
-    else
-      headFrom(s, a, (m + 1))
-}
-
-lemma headFrom_ensures(s: string, a: nat, m: nat)
-  requires (a < m)
-  requires (m <= |s|)
-  ensures (headFrom(s, a, m).ok ==> ((m < headFrom(s, a, m).end) && (headFrom(s, a, m).end <= |s|)))
 {
 }
 
@@ -827,87 +510,10 @@ lemma headAt_ensures(s: string, p: nat)
 {
 }
 
-function nextHead(s: string, i: nat): int
-  requires (i <= |s|)
-  decreases (|s| - i)
-  ensures (i <= nextHead(s, i))
-  ensures (nextHead(s, i) <= |s|)
-  ensures ((nextHead(s, i) == |s|) || headAt(s, nextHead(s, i)).ok)
-{
-  if (i >= |s|) then
-    |s|
-  else
-    if headAt(s, i).ok then
-      i
-    else
-      nextHead(s, (i + 1))
-}
-
-lemma nextHead_ensures(s: string, i: nat)
-  requires (i <= |s|)
-  ensures (i <= nextHead(s, i))
-  ensures (nextHead(s, i) <= |s|)
-  ensures ((nextHead(s, i) == |s|) || headAt(s, nextHead(s, i)).ok)
-{
-}
-
-function commentsFrom(s: string, p: nat): seq<Segment>
-  requires (p <= |s|)
-  requires ((p == |s|) || headAt(s, p).ok)
-  decreases (|s| - p)
-{
-  if (p >= |s|) then
-    []
-  else
-    var h := headAt(s, p);
-    var q := nextHead(s, h.end);
-    ([Segment(h.author, h.at, s[h.end..q])] + commentsFrom(s, q))
-}
-
 function splitSegments(body: string, author: string, at: string): seq<Segment>
 {
   var first := nextHead(body, 0);
   ([Segment(author, at, body[0..first])] + commentsFrom(body, first))
-}
-
-function trimStartAt(s: string, i: nat): int
-  requires (i <= |s|)
-  decreases (|s| - i)
-  ensures (i <= trimStartAt(s, i))
-  ensures (trimStartAt(s, i) <= |s|)
-{
-  if ((i >= |s|) || !(isSpaceUnit((s[i] as int)))) then
-    i
-  else
-    trimStartAt(s, (i + 1))
-}
-
-lemma trimStartAt_ensures(s: string, i: nat)
-  requires (i <= |s|)
-  ensures (i <= trimStartAt(s, i))
-  ensures (trimStartAt(s, i) <= |s|)
-{
-}
-
-function trimEndAt(s: string, lo: nat, e: int): int
-  requires (lo <= e)
-  requires (e <= |s|)
-  decreases (e - lo)
-  ensures (lo <= trimEndAt(s, lo, e))
-  ensures (trimEndAt(s, lo, e) <= e)
-{
-  if ((e > lo) && isSpaceUnit((s[(e - 1)] as int))) then
-    trimEndAt(s, lo, (e - 1))
-  else
-    e
-}
-
-lemma trimEndAt_ensures(s: string, lo: nat, e: int)
-  requires (lo <= e)
-  requires (e <= |s|)
-  ensures (lo <= trimEndAt(s, lo, e))
-  ensures (trimEndAt(s, lo, e) <= e)
-{
 }
 
 function trimText(s: string): string
@@ -921,18 +527,6 @@ function isYamlMark(c: int): bool
   (((((((c == 58) || (c == 35)) || (c == 44)) || (c == 91)) || (c == 93)) || (c == 34)) || (c == 39))
 }
 
-function hasMarkFrom(s: string, i: nat): bool
-  decreases (|s| - i)
-{
-  ((i < |s|) && (isYamlMark((s[i] as int)) || hasMarkFrom(s, (i + 1))))
-}
-
-function hasDoubleQuoteFrom(s: string, i: nat): bool
-  decreases (|s| - i)
-{
-  ((i < |s|) && (((s[i] as int) == 34) || hasDoubleQuoteFrom(s, (i + 1))))
-}
-
 function formatScalar(text: string): string
 {
   var plain := ((((|text| > 0) && !(hasMarkFrom(text, 0))) && !(isSpaceUnit((text[0] as int)))) && !(isSpaceUnit((text[(|text| - 1)] as int))));
@@ -943,19 +537,6 @@ function formatScalar(text: string): string
       (("'" + text) + "'")
     else
       (("\"" + text) + "\"")
-}
-
-function formatItemsFrom(items: seq<string>, i: nat): string
-  decreases (|items| - i)
-{
-  if (i >= |items|) then
-    ""
-  else
-    var head := formatScalar(items[i]);
-    if ((i + 1) >= |items|) then
-      head
-    else
-      ((head + ", ") + formatItemsFrom(items, (i + 1)))
 }
 
 function formatList(items: seq<string>): string
@@ -980,37 +561,6 @@ function parseScalar(raw: string): string
         v
 }
 
-function commaFrom(s: string, i: nat): int
-  requires (i <= |s|)
-  decreases (|s| - i)
-  ensures (i <= commaFrom(s, i))
-  ensures (commaFrom(s, i) <= |s|)
-{
-  if ((i >= |s|) || ((s[i] as int) == 44)) then
-    i
-  else
-    commaFrom(s, (i + 1))
-}
-
-lemma commaFrom_ensures(s: string, i: nat)
-  requires (i <= |s|)
-  ensures (i <= commaFrom(s, i))
-  ensures (commaFrom(s, i) <= |s|)
-{
-}
-
-function splitItemsFrom(s: string, i: nat): seq<string>
-  requires (i <= |s|)
-  decreases (|s| - i)
-{
-  var c := commaFrom(s, i);
-  var item := parseScalar(s[i..c]);
-  if (c >= |s|) then
-    [item]
-  else
-    ([item] + splitItemsFrom(s, (c + 1)))
-}
-
 function parseValue(raw: string): YamlValue
 {
   var v := trimText(raw);
@@ -1027,25 +577,6 @@ function parseValue(raw: string): YamlValue
 function isKeyUnit(c: int): bool
 {
   (((c >= 97) && (c <= 122)) || (c == 95))
-}
-
-function keyRunEnd(s: string, i: nat): int
-  requires (i <= |s|)
-  decreases (|s| - i)
-  ensures (i <= keyRunEnd(s, i))
-  ensures (keyRunEnd(s, i) <= |s|)
-{
-  if ((i >= |s|) || !(isKeyUnit((s[i] as int)))) then
-    i
-  else
-    keyRunEnd(s, (i + 1))
-}
-
-lemma keyRunEnd_ensures(s: string, i: nat)
-  requires (i <= |s|)
-  ensures (i <= keyRunEnd(s, i))
-  ensures (keyRunEnd(s, i) <= |s|)
-{
 }
 
 function itemStart(line: string): int
@@ -1093,24 +624,6 @@ function classifyLine(line: string): YamlLine
         YamlLine(LineKind.bad, "", "")
 }
 
-function entryIndex(entries: seq<YamlEntry>, key: string, i: nat): int
-  decreases (|entries| - i)
-  ensures ((entryIndex(entries, key, i) == -1) || ((i <= entryIndex(entries, key, i)) && (entryIndex(entries, key, i) < |entries|)))
-{
-  if (i >= |entries|) then
-    -1
-  else
-    if (entries[i].key == key) then
-      i
-    else
-      entryIndex(entries, key, (i + 1))
-}
-
-lemma entryIndex_ensures(entries: seq<YamlEntry>, key: string, i: nat)
-  ensures ((entryIndex(entries, key, i) == -1) || ((i <= entryIndex(entries, key, i)) && (entryIndex(entries, key, i) < |entries|)))
-{
-}
-
 function setEntry(entries: seq<YamlEntry>, key: string, value: YamlValue): seq<YamlEntry>
 {
   var k := entryIndex(entries, key, 0);
@@ -1118,17 +631,6 @@ function setEntry(entries: seq<YamlEntry>, key: string, value: YamlValue): seq<Y
     (entries + [YamlEntry(key, value)])
   else
     ((entries[0..k] + [YamlEntry(key, value)]) + entries[(k + 1)..])
-}
-
-function pushItemFrom(entries: seq<YamlEntry>, i: nat, listKey: string, item: string): seq<YamlEntry>
-  decreases (|entries| - i)
-{
-  if (i >= |entries|) then
-    []
-  else
-    var e := entries[i];
-    var head := (if (e.key == listKey) then YamlEntry(e.key, YamlValue(true, "", (e.value.items + [item]))) else e);
-    ([head] + pushItemFrom(entries, (i + 1), listKey, item))
 }
 
 function pushItem(entries: seq<YamlEntry>, listKey: string, item: string): seq<YamlEntry>
@@ -1144,28 +646,6 @@ function readPair(yaml: Yaml, i: int, key: string, rest: string): Yaml
   Yaml(setEntry(yaml.entries, key, value), problems)
 }
 
-function readLines(lines: seq<string>, i: nat, listKey: string, yaml: Yaml): Yaml
-  decreases (|lines| - i)
-{
-  if (i >= |lines|) then
-    yaml
-  else
-    var line := classifyLine(lines[i]);
-    if line.kind.blank? then
-      readLines(lines, (i + 1), listKey, yaml)
-    else
-      if (line.kind.item? && (listKey != "")) then
-        var entries := pushItem(yaml.entries, listKey, parseScalar(line.rest));
-        readLines(lines, (i + 1), listKey, Yaml(entries, yaml.problems))
-      else
-        if line.kind.pair? then
-          var next := (if (|trimText(line.rest)| == 0) then line.key else "");
-          readLines(lines, (i + 1), next, readPair(yaml, i, line.key, line.rest))
-        else
-          var bad := YamlProblem(i, "bad", trimText(lines[i]));
-          readLines(lines, (i + 1), listKey, Yaml(yaml.entries, (yaml.problems + [bad])))
-}
-
 function parseYaml(lines: seq<string>): Yaml
 {
   readLines(lines, 0, "", Yaml([], []))
@@ -1176,55 +656,14 @@ function isIdStartUnit(c: int): bool
   (((c >= 97) && (c <= 122)) || ((c >= 48) && (c <= 57)))
 }
 
-function idRestFrom(s: string, i: nat): bool
-  decreases (|s| - i)
+function isIdRestUnit(c: int): bool
 {
-  ((i >= |s|) || (var c := (s[i] as int); ((((isIdStartUnit(c) || (c == 46)) || (c == 95)) || (c == 45)) && idRestFrom(s, (i + 1)))))
+  (((isIdStartUnit(c) || (c == 46)) || (c == 95)) || (c == 45))
 }
 
 function isIdText(s: string): bool
 {
   (((|s| > 0) && isIdStartUnit((s[0] as int))) && idRestFrom(s, 1))
-}
-
-function hasSolidFrom(s: string, i: nat): bool
-  decreases (|s| - i)
-{
-  ((i < |s|) && (!(isSpaceUnit((s[i] as int))) || hasSolidFrom(s, (i + 1))))
-}
-
-function equalsFrom(s: string, i: nat): int
-  decreases (|s| - i)
-  ensures (equalsFrom(s, i) >= 0)
-{
-  if (i >= |s|) then
-    0
-  else
-    ((if ((s[i] as int) == 61) then 1 else 0) + equalsFrom(s, (i + 1)))
-}
-
-lemma equalsFrom_ensures(s: string, i: nat)
-  ensures (equalsFrom(s, i) >= 0)
-{
-}
-
-function equalsAt(s: string, i: nat): int
-  requires (i <= |s|)
-  decreases (|s| - i)
-  ensures (i <= equalsAt(s, i))
-  ensures (equalsAt(s, i) <= |s|)
-{
-  if ((i >= |s|) || ((s[i] as int) == 61)) then
-    i
-  else
-    equalsAt(s, (i + 1))
-}
-
-lemma equalsAt_ensures(s: string, i: nat)
-  requires (i <= |s|)
-  ensures (i <= equalsAt(s, i))
-  ensures (equalsAt(s, i) <= |s|)
-{
 }
 
 function isAliasText(s: string): bool
@@ -1263,12 +702,6 @@ function isMinutesText(s: string): bool
       var a := (s[0] as int);
       var b := (s[1] as int);
       ((((a >= 49) && (a <= 53)) && isDigitUnit(b)) || ((a == 54) && (b == 48)))
-}
-
-function digitsAt(s: string, i: nat, n: nat): bool
-  decreases n
-{
-  ((n == 0) || (((i < |s|) && isDigitUnit((s[i] as int))) && digitsAt(s, (i + 1), (n - 1))))
 }
 
 function isDayPart(s: string): bool
@@ -1373,12 +806,6 @@ function matchesValueFormat(format: string, v: string): bool
           ((format == "stamp") && isStampText(v))
 }
 
-function holdsFrom(xs: seq<string>, x: string, i: nat): bool
-  decreases (|xs| - i)
-{
-  ((i < |xs|) && ((xs[i] == x) || holdsFrom(xs, x, (i + 1))))
-}
-
 function holds(xs: seq<string>, x: string): bool
 {
   holdsFrom(xs, x, 0)
@@ -1415,29 +842,6 @@ function idFromFile(name: string, folder: string): string
 function compareText(a: string, b: string): int
 {
   compareFrom(a, b, 0)
-}
-
-function compareFrom(a: string, b: string, i: nat): int
-  decreases (|a| - i)
-{
-  if (i >= |a|) then
-    if (i < |b|) then
-      -1
-    else
-      0
-  else
-    if (i >= |b|) then
-      1
-    else
-      var x := (a[i] as int);
-      var y := (b[i] as int);
-      if (x != y) then
-        if (x < y) then
-          -1
-        else
-          1
-      else
-        compareFrom(a, b, (i + 1))
 }
 
 function laterText(a: string, b: string): string
@@ -1522,12 +926,6 @@ function isVisibleName(name: string): bool
   !(hasAt(name, 0, "."))
 }
 
-function allItemsFrom(names: seq<string>, i: nat): bool
-  decreases (|names| - i)
-{
-  ((i >= |names|) || ((names[i] == "items") && allItemsFrom(names, (i + 1))))
-}
-
 function isEmptyHub(others: seq<string>, visibleItems: int): bool
 {
   (allItemsFrom(others, 0) && (visibleItems == 0))
@@ -1538,40 +936,9 @@ function projectInUrl(url: string): string
   projectInUrlFrom(url, 0)
 }
 
-function projectInUrlFrom(url: string, i: nat): string
-  requires (i <= |url|)
-  decreases (|url| - i)
-{
-  if (i >= |url|) then
-    ""
-  else
-    if hasAt(url, i, "/projects/") then
-      var d := digitRunEnd(url, (i + 10));
-      if ((d > (i + 10)) && hasAt(url, d, "/")) then
-        url[(i + 10)..d]
-      else
-        projectInUrlFrom(url, (i + 1))
-    else
-      projectInUrlFrom(url, (i + 1))
-}
-
 function briefCell(text: string): string
 {
   briefCellFrom(text, 0)
-}
-
-function briefCellFrom(s: string, i: nat): string
-  requires (i <= |s|)
-  decreases (|s| - i)
-{
-  if (i >= |s|) then
-    ""
-  else
-    var c := (s[i] as int);
-    if isSpaceUnit(c) then
-      (" " + briefCellFrom(s, spaceRunEnd(s, i)))
-    else
-      ((if (c == 124) then "\\|" else s[i..(i + 1)]) + briefCellFrom(s, (i + 1)))
 }
 
 function isQuiet(hasUpdated: bool, todayMs: int, updatedMs: int): bool
@@ -1599,28 +966,6 @@ lemma markersInOrder_ensures(start: int, end: int)
 function isBotName(person: string): bool
 {
   ((|person| >= 5) && (person[(|person| - 5)..|person|] == "[bot]"))
-}
-
-function lastSetBefore(flags: seq<bool>, i: nat): int
-  requires (i <= |flags|)
-  decreases i
-  ensures (-1 <= lastSetBefore(flags, i))
-  ensures (lastSetBefore(flags, i) < i)
-{
-  if (i == 0) then
-    -1
-  else
-    if flags[(i - 1)] then
-      (i - 1)
-    else
-      lastSetBefore(flags, (i - 1))
-}
-
-lemma lastSetBefore_ensures(flags: seq<bool>, i: nat)
-  requires (i <= |flags|)
-  ensures (-1 <= lastSetBefore(flags, i))
-  ensures (lastSetBefore(flags, i) < i)
-{
 }
 
 function lastMineIndex(mine: seq<bool>): int
@@ -1706,16 +1051,6 @@ function numberText(digits: string): string
   numberTextFrom(digits, 0)
 }
 
-function numberTextFrom(d: string, i: nat): string
-  requires (i <= |d|)
-  decreases (|d| - i)
-{
-  if (((i + 1) < |d|) && ((d[i] as int) == 48)) then
-    numberTextFrom(d, (i + 1))
-  else
-    d[i..|d|]
-}
-
 function shortRef(id: string, org: string): string
 {
   var gh := parseGithubId(id, org);
@@ -1764,29 +1099,9 @@ function isAlnumUnit(c: int): bool
   (isAlphaUnit(c) || isDigitUnit(c))
 }
 
-function nodeNameFrom(s: string, i: nat): string
-  decreases (|s| - i)
-{
-  if (i >= |s|) then
-    ""
-  else
-    ((if isAlnumUnit((s[i] as int)) then s[i..(i + 1)] else "_") + nodeNameFrom(s, (i + 1)))
-}
-
 function nodeId(id: string): string
 {
   ("n_" + nodeNameFrom(id, 0))
-}
-
-function labelFrom(s: string, i: nat): string
-  decreases (|s| - i)
-{
-  if (i >= |s|) then
-    ""
-  else
-    var c := (s[i] as int);
-    var head := (if (c == 34) then "#quot;" else (if ((c == 60) || (c == 62)) then "" else s[i..(i + 1)]));
-    (head + labelFrom(s, (i + 1)))
 }
 
 function chartLabel(text: string): string
@@ -1820,38 +1135,9 @@ function arrowOf(closes: bool): string
     "-.->"
 }
 
-function htmlFrom(s: string, i: nat): string
-  decreases (|s| - i)
-{
-  if (i >= |s|) then
-    ""
-  else
-    var c := (s[i] as int);
-    var head := (if (c == 38) then "&amp;" else (if (c == 60) then "&lt;" else (if (c == 62) then "&gt;" else s[i..(i + 1)])));
-    (head + htmlFrom(s, (i + 1)))
-}
-
 function htmlText(text: string): string
 {
   htmlFrom(text, 0)
-}
-
-function edgeIndex(edges: seq<Edge>, from: string, to: string, i: nat): int
-  decreases (|edges| - i)
-  ensures ((edgeIndex(edges, from, to, i) == -1) || ((i <= edgeIndex(edges, from, to, i)) && (edgeIndex(edges, from, to, i) < |edges|)))
-{
-  if (i >= |edges|) then
-    -1
-  else
-    if ((edges[i].from == from) && (edges[i].to == to)) then
-      i
-    else
-      edgeIndex(edges, from, to, (i + 1))
-}
-
-lemma edgeIndex_ensures(edges: seq<Edge>, from: string, to: string, i: nat)
-  ensures ((edgeIndex(edges, from, to, i) == -1) || ((i <= edgeIndex(edges, from, to, i)) && (edgeIndex(edges, from, to, i) < |edges|)))
-{
 }
 
 function addEdge(edges: seq<Edge>, from: string, to: string, closes: bool): seq<Edge>
@@ -1910,15 +1196,6 @@ function todoProject(linkProject: string, elsewhere: string, hubProjects: seq<st
         ""
 }
 
-function occursIn(s: string, w: string, i: nat): bool
-  decreases (|s| - i)
-{
-  if ((i + |w|) > |s|) then
-    false
-  else
-    ((s[i..(i + |w|)] == w) || occursIn(s, w, (i + 1)))
-}
-
 function movedAway(htmlUrl: string, org: string, repo: string): bool
 {
   !(occursIn(lower(htmlUrl), lower((((("/" + org) + "/") + repo) + "/issues/")), 0))
@@ -1969,20 +1246,6 @@ function orUnknown(name: string): string
     name
 }
 
-function slugFrom(s: string, i: nat, started: bool, gap: bool): string
-  decreases (|s| - i)
-{
-  if (i >= |s|) then
-    ""
-  else
-    var c := (s[i] as int);
-    var keep := (((c >= 97) && (c <= 122)) || isDigitUnit(c));
-    if !(keep) then
-      slugFrom(s, (i + 1), started, started)
-    else
-      (((if gap then "-" else "") + s[i..(i + 1)]) + slugFrom(s, (i + 1), true, false))
-}
-
 function slug(name: string): string
 {
   slugFrom(lower(name), 0, false, false)
@@ -2018,7 +1281,1674 @@ lemma brEnd_ensures(s: string, i: nat)
 {
 }
 
-function plainFrom(s: string, i: nat): string
+function plainText(html: string): string
+{
+  plainFrom(html, 0)
+}
+
+function repoRunEnd_fun_spec(s: string, i: nat): int
+  requires (i <= |s|)
+  decreases (|s| - i)
+  ensures (i <= repoRunEnd_fun_spec(s, i))
+  ensures (repoRunEnd_fun_spec(s, i) <= |s|)
+{
+  if ((i >= |s|) || !(isRepoUnit((s[i] as int)))) then
+    i
+  else
+    repoRunEnd_fun_spec(s, (i + 1))
+}
+
+function repoRunEnd(s: string, i: nat): int
+  requires (i <= |s|)
+{
+  repoRunEnd_fun_spec(s, i)
+}
+by method {
+  var j := i;
+  while ((j < |s|) && isRepoUnit((s[j] as int)))
+    invariant (i <= j)
+    invariant (j <= |s|)
+    invariant repoRunEnd_fun_spec(s, j) == repoRunEnd_fun_spec(s, i)
+    decreases (|s| - j)
+  {
+    j := (j + 1);
+  }
+  return j;
+}
+
+function digitRunEnd_fun_spec(s: string, i: nat): int
+  requires (i <= |s|)
+  decreases (|s| - i)
+  ensures (i <= digitRunEnd_fun_spec(s, i))
+  ensures (digitRunEnd_fun_spec(s, i) <= |s|)
+{
+  if ((i >= |s|) || !(isDigitUnit((s[i] as int)))) then
+    i
+  else
+    digitRunEnd_fun_spec(s, (i + 1))
+}
+
+function digitRunEnd(s: string, i: nat): int
+  requires (i <= |s|)
+{
+  digitRunEnd_fun_spec(s, i)
+}
+by method {
+  var j := i;
+  while ((j < |s|) && isDigitUnit((s[j] as int)))
+    invariant (i <= j)
+    invariant (j <= |s|)
+    invariant digitRunEnd_fun_spec(s, j) == digitRunEnd_fun_spec(s, i)
+    decreases (|s| - j)
+  {
+    j := (j + 1);
+  }
+  return j;
+}
+
+function spaceRunEnd_fun_spec(s: string, i: nat): int
+  requires (i <= |s|)
+  decreases (|s| - i)
+  ensures (i <= spaceRunEnd_fun_spec(s, i))
+  ensures (spaceRunEnd_fun_spec(s, i) <= |s|)
+{
+  if ((i >= |s|) || !(isSpaceUnit((s[i] as int)))) then
+    i
+  else
+    spaceRunEnd_fun_spec(s, (i + 1))
+}
+
+function spaceRunEnd(s: string, i: nat): int
+  requires (i <= |s|)
+{
+  spaceRunEnd_fun_spec(s, i)
+}
+by method {
+  var j := i;
+  while ((j < |s|) && isSpaceUnit((s[j] as int)))
+    invariant (i <= j)
+    invariant (j <= |s|)
+    invariant spaceRunEnd_fun_spec(s, j) == spaceRunEnd_fun_spec(s, i)
+    decreases (|s| - j)
+  {
+    j := (j + 1);
+  }
+  return j;
+}
+
+function solidRunEnd_fun_spec(s: string, i: nat): int
+  requires (i <= |s|)
+  decreases (|s| - i)
+  ensures (i <= solidRunEnd_fun_spec(s, i))
+  ensures (solidRunEnd_fun_spec(s, i) <= |s|)
+{
+  if ((i >= |s|) || isSpaceUnit((s[i] as int))) then
+    i
+  else
+    solidRunEnd_fun_spec(s, (i + 1))
+}
+
+function solidRunEnd(s: string, i: nat): int
+  requires (i <= |s|)
+{
+  solidRunEnd_fun_spec(s, i)
+}
+by method {
+  var j := i;
+  while ((j < |s|) && !(isSpaceUnit((s[j] as int))))
+    invariant (i <= j)
+    invariant (j <= |s|)
+    invariant solidRunEnd_fun_spec(s, j) == solidRunEnd_fun_spec(s, i)
+    decreases (|s| - j)
+  {
+    j := (j + 1);
+  }
+  return j;
+}
+
+function allDigitsFrom_fun_spec(s: string, i: nat): bool
+  decreases (|s| - i)
+{
+  ((i >= |s|) || (isDigitUnit((s[i] as int)) && allDigitsFrom_fun_spec(s, (i + 1))))
+}
+
+function allDigitsFrom(s: string, i: nat): bool
+{
+  allDigitsFrom_fun_spec(s, i)
+}
+by method {
+  var j := i;
+  while ((j < |s|) && isDigitUnit((s[j] as int)))
+    invariant (i <= j)
+    invariant j <= |s| || j == i
+    invariant allDigitsFrom_fun_spec(s, j) == allDigitsFrom_fun_spec(s, i)
+    decreases (|s| - j)
+  {
+    j := (j + 1);
+  }
+  return (j >= |s|);
+}
+
+function noLineEndFrom_fun_spec(s: string, i: nat): bool
+  decreases (|s| - i)
+{
+  ((i >= |s|) || (!(isLineEndUnit((s[i] as int))) && noLineEndFrom_fun_spec(s, (i + 1))))
+}
+
+function noLineEndFrom(s: string, i: nat): bool
+{
+  noLineEndFrom_fun_spec(s, i)
+}
+by method {
+  var j := i;
+  while ((j < |s|) && !(isLineEndUnit((s[j] as int))))
+    invariant (i <= j)
+    invariant j <= |s| || j == i
+    invariant noLineEndFrom_fun_spec(s, j) == noLineEndFrom_fun_spec(s, i)
+    decreases (|s| - j)
+  {
+    j := (j + 1);
+  }
+  return (j >= |s|);
+}
+
+function lowerFrom_fun_spec(s: string, i: nat): string
+  decreases (|s| - i)
+{
+  if (i >= |s|) then
+    ""
+  else
+    var c := (s[i] as int);
+    var head := (if ((c >= 65) && (c <= 90)) then StringFromCharCode((c + 32)) else s[i..(i + 1)]);
+    (head + lowerFrom_fun_spec(s, (i + 1)))
+}
+
+function lowerFrom(s: string, i: nat): string
+{
+  lowerFrom_fun_spec(s, i)
+}
+by method {
+  var acc := "";
+  var j := i;
+  while (j < |s|)
+    invariant (i <= j)
+    invariant j <= |s| || j == i
+    invariant acc + lowerFrom_fun_spec(s, j) == lowerFrom_fun_spec(s, i)
+    decreases (|s| - j)
+  {
+    var c := (s[j] as int);
+    acc := (acc + (if ((c >= 65) && (c <= 90)) then StringFromCharCode((c + 32)) else s[j..(j + 1)]));
+    j := (j + 1);
+  }
+  return acc;
+}
+
+function lastHyphenBefore_fun_spec(s: string, i: nat): int
+  requires (i <= |s|)
+  decreases i
+  ensures (-1 <= lastHyphenBefore_fun_spec(s, i))
+  ensures (lastHyphenBefore_fun_spec(s, i) < i)
+{
+  if ((i == 0) || ((s[(i - 1)] as int) == 45)) then
+    (i - 1)
+  else
+    lastHyphenBefore_fun_spec(s, (i - 1))
+}
+
+function lastHyphenBefore(s: string, i: nat): int
+  requires (i <= |s|)
+{
+  lastHyphenBefore_fun_spec(s, i)
+}
+by method {
+  var j := i;
+  while ((j > 0) && ((s[(j - 1)] as int) != 45))
+    invariant (j <= i)
+    invariant 0 <= j
+    invariant lastHyphenBefore_fun_spec(s, j) == lastHyphenBefore_fun_spec(s, i)
+    decreases j
+  {
+    j := (j - 1);
+  }
+  return (j - 1);
+}
+
+function firstDotFrom_fun_spec(s: string, i: nat): int
+  decreases (|s| - i)
+  ensures ((firstDotFrom_fun_spec(s, i) == -1) || ((i <= firstDotFrom_fun_spec(s, i)) && (firstDotFrom_fun_spec(s, i) < |s|)))
+{
+  if (i >= |s|) then
+    -1
+  else
+    if ((s[i] as int) == 46) then
+      i
+    else
+      firstDotFrom_fun_spec(s, (i + 1))
+}
+
+function firstDotFrom(s: string, i: nat): int
+{
+  firstDotFrom_fun_spec(s, i)
+}
+by method {
+  var j := i;
+  while ((j < |s|) && ((s[j] as int) != 46))
+    invariant (i <= j)
+    invariant j <= |s| || j == i
+    invariant firstDotFrom_fun_spec(s, j) == firstDotFrom_fun_spec(s, i)
+    decreases (|s| - j)
+  {
+    j := (j + 1);
+  }
+  return (if (j < |s|) then j else -1);
+}
+
+function spaceStartBack_fun_spec(s: string, lo: nat, e: int): int
+  requires (lo <= e)
+  requires (e <= |s|)
+  decreases (e - lo)
+  ensures (lo <= spaceStartBack_fun_spec(s, lo, e))
+  ensures (spaceStartBack_fun_spec(s, lo, e) <= e)
+{
+  if ((e > lo) && isSpaceUnit((s[(e - 1)] as int))) then
+    spaceStartBack_fun_spec(s, lo, (e - 1))
+  else
+    e
+}
+
+function spaceStartBack(s: string, lo: nat, e: int): int
+  requires (lo <= e)
+  requires (e <= |s|)
+{
+  spaceStartBack_fun_spec(s, lo, e)
+}
+by method {
+  var j := e;
+  while ((j > lo) && isSpaceUnit((s[(j - 1)] as int)))
+    invariant (lo <= j)
+    invariant (j <= e)
+    invariant spaceStartBack_fun_spec(s, lo, j) == spaceStartBack_fun_spec(s, lo, e)
+    decreases (j - lo)
+  {
+    j := (j - 1);
+  }
+  return j;
+}
+
+function refIndex_fun_spec(refs: seq<Ref>, id: string, i: nat): int
+  decreases (|refs| - i)
+  ensures ((refIndex_fun_spec(refs, id, i) == -1) || ((i <= refIndex_fun_spec(refs, id, i)) && (refIndex_fun_spec(refs, id, i) < |refs|)))
+{
+  if (i >= |refs|) then
+    -1
+  else
+    if (refs[i].id == id) then
+      i
+    else
+      refIndex_fun_spec(refs, id, (i + 1))
+}
+
+function refIndex(refs: seq<Ref>, id: string, i: nat): int
+{
+  refIndex_fun_spec(refs, id, i)
+}
+by method {
+  var j := i;
+  while ((j < |refs|) && (refs[j].id != id))
+    invariant (i <= j)
+    invariant j <= |refs| || j == i
+    invariant refIndex_fun_spec(refs, id, j) == refIndex_fun_spec(refs, id, i)
+    decreases (|refs| - j)
+  {
+    j := (j + 1);
+  }
+  return (if (j < |refs|) then j else -1);
+}
+
+function scanGithubUrls_fun_spec(s: string, i: nat, ctx: RefContext, refs: seq<Ref>): seq<Ref>
+  requires (i <= |s|)
+  decreases (|s| - i)
+{
+  if (i >= |s|) then
+    refs
+  else
+    var h := githubUrlAt(s, i);
+    if !(h.ok) then
+      scanGithubUrls_fun_spec(s, (i + 1), ctx, refs)
+    else
+      var id := githubId(h.owner, h.repo, h.num, ctx.org);
+      scanGithubUrls_fun_spec(s, h.end, ctx, addRef(refs, id, closesBefore(s, i), ""))
+}
+
+function scanGithubUrls(s: string, i: nat, ctx: RefContext, refs: seq<Ref>): seq<Ref>
+  requires (i <= |s|)
+{
+  scanGithubUrls_fun_spec(s, i, ctx, refs)
+}
+by method {
+  var acc := refs;
+  var j := i;
+  while (j < |s|)
+    invariant (i <= j)
+    invariant (j <= |s|)
+    invariant scanGithubUrls_fun_spec(s, j, ctx, acc) == scanGithubUrls_fun_spec(s, i, ctx, refs)
+    decreases (|s| - j)
+  {
+    var i_t0 := githubUrlAt(s, j);
+    var h := i_t0;
+    if h.ok {
+      acc := addRef(acc, githubId(h.owner, h.repo, h.num, ctx.org), closesBefore(s, j), "");
+      j := h.end;
+    } else {
+      j := (j + 1);
+    }
+  }
+  return acc;
+}
+
+function scanIssueRefs_fun_spec(s: string, i: nat, ctx: RefContext, refs: seq<Ref>): seq<Ref>
+  requires (i <= |s|)
+  decreases (|s| - i)
+{
+  if (i >= |s|) then
+    refs
+  else
+    var h := issueRefAt(s, i);
+    if !(h.ok) then
+      scanIssueRefs_fun_spec(s, (i + 1), ctx, refs)
+    else
+      var id := issueRefId(h, ctx);
+      var next := (if (id == "") then refs else addRef(refs, id, closesBefore(s, i), ""));
+      scanIssueRefs_fun_spec(s, h.end, ctx, next)
+}
+
+function scanIssueRefs(s: string, i: nat, ctx: RefContext, refs: seq<Ref>): seq<Ref>
+  requires (i <= |s|)
+{
+  scanIssueRefs_fun_spec(s, i, ctx, refs)
+}
+by method {
+  var acc := refs;
+  var j := i;
+  while (j < |s|)
+    invariant (i <= j)
+    invariant (j <= |s|)
+    invariant scanIssueRefs_fun_spec(s, j, ctx, acc) == scanIssueRefs_fun_spec(s, i, ctx, refs)
+    decreases (|s| - j)
+  {
+    var i_t1 := issueRefAt(s, j);
+    var h := i_t1;
+    if h.ok {
+      var i_t2 := issueRefId(h, ctx);
+      var id := i_t2;
+      if (id != "") {
+        acc := addRef(acc, id, closesBefore(s, j), "");
+      }
+      j := h.end;
+    } else {
+      j := (j + 1);
+    }
+  }
+  return acc;
+}
+
+function knownIssueId_fun_spec(refs: seq<Ref>, num: string, i: nat): string
+  decreases (|refs| - i)
+{
+  if (i >= |refs|) then
+    ""
+  else
+    var id := refs[i].id;
+    var tail := ("-" + num);
+    if ((hasAt(id, 0, "gh-") && (|id| >= |tail|)) && (id[(|id| - |tail|)..|id|] == tail)) then
+      id
+    else
+      knownIssueId_fun_spec(refs, num, (i + 1))
+}
+
+function knownIssueId(refs: seq<Ref>, num: string, i: nat): string
+{
+  knownIssueId_fun_spec(refs, num, i)
+}
+by method {
+  var tail := ("-" + num);
+  var j := i;
+  while (j < |refs|)
+    invariant (i <= j)
+    invariant j <= |refs| || j == i
+    invariant knownIssueId_fun_spec(refs, num, j) == knownIssueId_fun_spec(refs, num, i)
+    decreases (|refs| - j)
+  {
+    var id := refs[j].id;
+    var i_t3 := hasAt(id, 0, "gh-");
+    if ((i_t3 && (|id| >= |tail|)) && (id[(|id| - |tail|)..|id|] == tail)) {
+      return id;
+    }
+    j := (j + 1);
+  }
+  return "";
+}
+
+function scanBareRefs_fun_spec(s: string, i: nat, ctx: RefContext, refs: seq<Ref>): seq<Ref>
+  requires (i <= |s|)
+  decreases (|s| - i)
+{
+  if (i >= |s|) then
+    refs
+  else
+    var h := bareRefAt(s, i);
+    if !(h.ok) then
+      scanBareRefs_fun_spec(s, (i + 1), ctx, refs)
+    else
+      var id := bareRefId(refs, h.num, ctx);
+      var next := (if (id == "") then refs else addRef(refs, id, closesBefore(s, i), ""));
+      scanBareRefs_fun_spec(s, h.end, ctx, next)
+}
+
+function scanBareRefs(s: string, i: nat, ctx: RefContext, refs: seq<Ref>): seq<Ref>
+  requires (i <= |s|)
+{
+  scanBareRefs_fun_spec(s, i, ctx, refs)
+}
+by method {
+  var acc := refs;
+  var j := i;
+  while (j < |s|)
+    invariant (i <= j)
+    invariant (j <= |s|)
+    invariant scanBareRefs_fun_spec(s, j, ctx, acc) == scanBareRefs_fun_spec(s, i, ctx, refs)
+    decreases (|s| - j)
+  {
+    var i_t4 := bareRefAt(s, j);
+    var h := i_t4;
+    if h.ok {
+      var i_t5 := bareRefId(acc, h.num, ctx);
+      var id := i_t5;
+      if (id != "") {
+        acc := addRef(acc, id, closesBefore(s, j), "");
+      }
+      j := h.end;
+    } else {
+      j := (j + 1);
+    }
+  }
+  return acc;
+}
+
+function scanBasecampUrls_fun_spec(s: string, i: nat, refs: seq<Ref>): seq<Ref>
+  requires (i <= |s|)
+  decreases (|s| - i)
+{
+  if (i >= |s|) then
+    refs
+  else
+    var h := basecampUrlAt(s, i);
+    if !(h.ok) then
+      scanBasecampUrls_fun_spec(s, (i + 1), refs)
+    else
+      var id := basecampId(h.isMessage, h.num);
+      scanBasecampUrls_fun_spec(s, h.end, addRef(refs, id, closesBefore(s, i), h.project))
+}
+
+function scanBasecampUrls(s: string, i: nat, refs: seq<Ref>): seq<Ref>
+  requires (i <= |s|)
+{
+  scanBasecampUrls_fun_spec(s, i, refs)
+}
+by method {
+  var acc := refs;
+  var j := i;
+  while (j < |s|)
+    invariant (i <= j)
+    invariant (j <= |s|)
+    invariant scanBasecampUrls_fun_spec(s, j, acc) == scanBasecampUrls_fun_spec(s, i, refs)
+    decreases (|s| - j)
+  {
+    var i_t6 := basecampUrlAt(s, j);
+    var h := i_t6;
+    if h.ok {
+      acc := addRef(acc, basecampId(h.isMessage, h.num), closesBefore(s, j), h.project);
+      j := h.end;
+    } else {
+      j := (j + 1);
+    }
+  }
+  return acc;
+}
+
+function scanBcRefs_fun_spec(s: string, i: nat, refs: seq<Ref>): seq<Ref>
+  requires (i <= |s|)
+  decreases (|s| - i)
+{
+  if (i >= |s|) then
+    refs
+  else
+    var h := bcRefAt(s, i);
+    if !(h.ok) then
+      scanBcRefs_fun_spec(s, (i + 1), refs)
+    else
+      scanBcRefs_fun_spec(s, h.end, addRef(refs, basecampId(false, h.num), closesBefore(s, i), ""))
+}
+
+function scanBcRefs(s: string, i: nat, refs: seq<Ref>): seq<Ref>
+  requires (i <= |s|)
+{
+  scanBcRefs_fun_spec(s, i, refs)
+}
+by method {
+  var acc := refs;
+  var j := i;
+  while (j < |s|)
+    invariant (i <= j)
+    invariant (j <= |s|)
+    invariant scanBcRefs_fun_spec(s, j, acc) == scanBcRefs_fun_spec(s, i, refs)
+    decreases (|s| - j)
+  {
+    var i_t7 := bcRefAt(s, j);
+    var h := i_t7;
+    if h.ok {
+      acc := addRef(acc, basecampId(false, h.num), closesBefore(s, j), "");
+      j := h.end;
+    } else {
+      j := (j + 1);
+    }
+  }
+  return acc;
+}
+
+function lastLineEndIn_fun_spec(s: string, lo: nat, hi: int): int
+  requires (lo <= hi)
+  requires (hi <= |s|)
+  decreases (hi - lo)
+  ensures ((lastLineEndIn_fun_spec(s, lo, hi) == -1) || ((lo <= lastLineEndIn_fun_spec(s, lo, hi)) && (lastLineEndIn_fun_spec(s, lo, hi) < hi)))
+{
+  if (hi <= lo) then
+    -1
+  else
+    if isLineEndUnit((s[(hi - 1)] as int)) then
+      (hi - 1)
+    else
+      lastLineEndIn_fun_spec(s, lo, (hi - 1))
+}
+
+function lastLineEndIn(s: string, lo: nat, hi: int): int
+  requires (lo <= hi)
+  requires (hi <= |s|)
+{
+  lastLineEndIn_fun_spec(s, lo, hi)
+}
+by method {
+  var j := hi;
+  while ((j > lo) && !(isLineEndUnit((s[(j - 1)] as int))))
+    invariant (lo <= j)
+    invariant (j <= hi)
+    invariant lastLineEndIn_fun_spec(s, lo, j) == lastLineEndIn_fun_spec(s, lo, hi)
+    decreases (j - lo)
+  {
+    j := (j - 1);
+  }
+  return (if (j > lo) then (j - 1) else -1);
+}
+
+function headFrom_fun_spec(s: string, a: nat, m: nat): Head
+  requires (a < m)
+  requires (m <= |s|)
+  decreases (|s| - m)
+  ensures (headFrom_fun_spec(s, a, m).ok ==> ((m < headFrom_fun_spec(s, a, m).end) && (headFrom_fun_spec(s, a, m).end <= |s|)))
+{
+  if hasAt(s, m, " \u00B7 ") then
+    var end := headTailEnd(s, (m + 3));
+    if (end >= 0) then
+      var tail := solidRunEnd(s, (m + 3));
+      Head(true, end, s[a..m], s[(m + 3)..tail])
+    else
+      if ((m >= |s|) || isLineEndUnit((s[m] as int))) then
+        noHead()
+      else
+        headFrom_fun_spec(s, a, (m + 1))
+  else
+    if ((m >= |s|) || isLineEndUnit((s[m] as int))) then
+      noHead()
+    else
+      headFrom_fun_spec(s, a, (m + 1))
+}
+
+function headFrom(s: string, a: nat, m: nat): Head
+  requires (a < m)
+  requires (m <= |s|)
+{
+  headFrom_fun_spec(s, a, m)
+}
+by method {
+  var k := m;
+  while (k < |s|)
+    invariant (m <= k)
+    invariant (k <= |s|)
+    invariant headFrom_fun_spec(s, a, k) == headFrom_fun_spec(s, a, m)
+    decreases (|s| - k)
+  {
+    var i_t8 := hasAt(s, k, " \u00B7 ");
+    if i_t8 {
+      var i_t9 := headTailEnd(s, (k + 3));
+      var end := i_t9;
+      if (end >= 0) {
+        var i_t10 := solidRunEnd(s, (k + 3));
+        var tail := i_t10;
+        return Head(true, end, s[a..k], s[(k + 3)..tail]);
+      }
+    }
+    var i_t11 := isLineEndUnit((s[k] as int));
+    if i_t11 {
+      var i_t12 := noHead();
+      return i_t12;
+    }
+    k := (k + 1);
+  }
+  var i_t13 := noHead();
+  return i_t13;
+}
+
+function nextHead_fun_spec(s: string, i: nat): int
+  requires (i <= |s|)
+  decreases (|s| - i)
+  ensures (i <= nextHead_fun_spec(s, i))
+  ensures (nextHead_fun_spec(s, i) <= |s|)
+  ensures ((nextHead_fun_spec(s, i) == |s|) || headAt(s, nextHead_fun_spec(s, i)).ok)
+{
+  if (i >= |s|) then
+    |s|
+  else
+    if headAt(s, i).ok then
+      i
+    else
+      nextHead_fun_spec(s, (i + 1))
+}
+
+function nextHead(s: string, i: nat): int
+  requires (i <= |s|)
+{
+  nextHead_fun_spec(s, i)
+}
+by method {
+  var j := i;
+  while ((j < |s|) && !(headAt(s, j).ok))
+    invariant (i <= j)
+    invariant (j <= |s|)
+    invariant nextHead_fun_spec(s, j) == nextHead_fun_spec(s, i)
+    decreases (|s| - j)
+  {
+    j := (j + 1);
+  }
+  return j;
+}
+
+function commentsFrom_fun_spec(s: string, p: nat): seq<Segment>
+  requires (p <= |s|)
+  requires ((p == |s|) || headAt(s, p).ok)
+  decreases (|s| - p)
+{
+  if (p >= |s|) then
+    []
+  else
+    var h := headAt(s, p);
+    var q := nextHead(s, h.end);
+    ([Segment(h.author, h.at, s[h.end..q])] + commentsFrom_fun_spec(s, q))
+}
+
+function commentsFrom(s: string, p: nat): seq<Segment>
+  requires (p <= |s|)
+  requires ((p == |s|) || headAt(s, p).ok)
+{
+  commentsFrom_fun_spec(s, p)
+}
+by method {
+  var acc: seq<Segment> := [];
+  var q := p;
+  while (q < |s|)
+    invariant (p <= q)
+    invariant (q <= |s|)
+    invariant ((q == |s|) || headAt(s, q).ok)
+    invariant acc + commentsFrom_fun_spec(s, q) == commentsFrom_fun_spec(s, p)
+    decreases (|s| - q)
+  {
+    var i_t14 := headAt(s, q);
+    var h := i_t14;
+    var i_t15 := nextHead(s, h.end);
+    var n := i_t15;
+    acc := (acc + [Segment(h.author, h.at, s[h.end..n])]);
+    q := n;
+  }
+  return acc;
+}
+
+function trimStartAt_fun_spec(s: string, i: nat): int
+  requires (i <= |s|)
+  decreases (|s| - i)
+  ensures (i <= trimStartAt_fun_spec(s, i))
+  ensures (trimStartAt_fun_spec(s, i) <= |s|)
+{
+  if ((i >= |s|) || !(isSpaceUnit((s[i] as int)))) then
+    i
+  else
+    trimStartAt_fun_spec(s, (i + 1))
+}
+
+function trimStartAt(s: string, i: nat): int
+  requires (i <= |s|)
+{
+  trimStartAt_fun_spec(s, i)
+}
+by method {
+  var j := i;
+  while ((j < |s|) && isSpaceUnit((s[j] as int)))
+    invariant (i <= j)
+    invariant (j <= |s|)
+    invariant trimStartAt_fun_spec(s, j) == trimStartAt_fun_spec(s, i)
+    decreases (|s| - j)
+  {
+    j := (j + 1);
+  }
+  return j;
+}
+
+function trimEndAt_fun_spec(s: string, lo: nat, e: int): int
+  requires (lo <= e)
+  requires (e <= |s|)
+  decreases (e - lo)
+  ensures (lo <= trimEndAt_fun_spec(s, lo, e))
+  ensures (trimEndAt_fun_spec(s, lo, e) <= e)
+{
+  if ((e > lo) && isSpaceUnit((s[(e - 1)] as int))) then
+    trimEndAt_fun_spec(s, lo, (e - 1))
+  else
+    e
+}
+
+function trimEndAt(s: string, lo: nat, e: int): int
+  requires (lo <= e)
+  requires (e <= |s|)
+{
+  trimEndAt_fun_spec(s, lo, e)
+}
+by method {
+  var j := e;
+  while ((j > lo) && isSpaceUnit((s[(j - 1)] as int)))
+    invariant (lo <= j)
+    invariant (j <= e)
+    invariant trimEndAt_fun_spec(s, lo, j) == trimEndAt_fun_spec(s, lo, e)
+    decreases (j - lo)
+  {
+    j := (j - 1);
+  }
+  return j;
+}
+
+function hasMarkFrom_fun_spec(s: string, i: nat): bool
+  decreases (|s| - i)
+{
+  ((i < |s|) && (isYamlMark((s[i] as int)) || hasMarkFrom_fun_spec(s, (i + 1))))
+}
+
+function hasMarkFrom(s: string, i: nat): bool
+{
+  hasMarkFrom_fun_spec(s, i)
+}
+by method {
+  var j := i;
+  while ((j < |s|) && !(isYamlMark((s[j] as int))))
+    invariant (i <= j)
+    invariant j <= |s| || j == i
+    invariant hasMarkFrom_fun_spec(s, j) == hasMarkFrom_fun_spec(s, i)
+    decreases (|s| - j)
+  {
+    j := (j + 1);
+  }
+  return (j < |s|);
+}
+
+function hasDoubleQuoteFrom_fun_spec(s: string, i: nat): bool
+  decreases (|s| - i)
+{
+  ((i < |s|) && (((s[i] as int) == 34) || hasDoubleQuoteFrom_fun_spec(s, (i + 1))))
+}
+
+function hasDoubleQuoteFrom(s: string, i: nat): bool
+{
+  hasDoubleQuoteFrom_fun_spec(s, i)
+}
+by method {
+  var j := i;
+  while ((j < |s|) && ((s[j] as int) != 34))
+    invariant (i <= j)
+    invariant j <= |s| || j == i
+    invariant hasDoubleQuoteFrom_fun_spec(s, j) == hasDoubleQuoteFrom_fun_spec(s, i)
+    decreases (|s| - j)
+  {
+    j := (j + 1);
+  }
+  return (j < |s|);
+}
+
+function formatItemsFrom_fun_spec(items: seq<string>, i: nat): string
+  decreases (|items| - i)
+{
+  if (i >= |items|) then
+    ""
+  else
+    var head := formatScalar(items[i]);
+    if ((i + 1) >= |items|) then
+      head
+    else
+      ((head + ", ") + formatItemsFrom_fun_spec(items, (i + 1)))
+}
+
+function formatItemsFrom(items: seq<string>, i: nat): string
+{
+  formatItemsFrom_fun_spec(items, i)
+}
+by method {
+  var acc := "";
+  var j := i;
+  while (j < |items|)
+    invariant (i <= j)
+    invariant j <= |items| || j == i
+    invariant acc + formatItemsFrom_fun_spec(items, j) == formatItemsFrom_fun_spec(items, i)
+    decreases (|items| - j)
+  {
+    var i_t16 := formatScalar(items[j]);
+    acc := ((acc + i_t16) + (if ((j + 1) >= |items|) then "" else ", "));
+    j := (j + 1);
+  }
+  return acc;
+}
+
+function commaFrom_fun_spec(s: string, i: nat): int
+  requires (i <= |s|)
+  decreases (|s| - i)
+  ensures (i <= commaFrom_fun_spec(s, i))
+  ensures (commaFrom_fun_spec(s, i) <= |s|)
+{
+  if ((i >= |s|) || ((s[i] as int) == 44)) then
+    i
+  else
+    commaFrom_fun_spec(s, (i + 1))
+}
+
+function commaFrom(s: string, i: nat): int
+  requires (i <= |s|)
+{
+  commaFrom_fun_spec(s, i)
+}
+by method {
+  var j := i;
+  while ((j < |s|) && ((s[j] as int) != 44))
+    invariant (i <= j)
+    invariant (j <= |s|)
+    invariant commaFrom_fun_spec(s, j) == commaFrom_fun_spec(s, i)
+    decreases (|s| - j)
+  {
+    j := (j + 1);
+  }
+  return j;
+}
+
+function splitItemsFrom_fun_spec(s: string, i: nat): seq<string>
+  requires (i <= |s|)
+  decreases (|s| - i)
+{
+  var c := commaFrom(s, i);
+  var item := parseScalar(s[i..c]);
+  if (c >= |s|) then
+    [item]
+  else
+    ([item] + splitItemsFrom_fun_spec(s, (c + 1)))
+}
+
+function splitItemsFrom(s: string, i: nat): seq<string>
+  requires (i <= |s|)
+{
+  splitItemsFrom_fun_spec(s, i)
+}
+by method {
+  var acc: seq<string> := [];
+  var j := i;
+  var i_t17 := commaFrom(s, j);
+  var c := i_t17;
+  while (c < |s|)
+    invariant (i <= j)
+    invariant (j <= c)
+    invariant (c <= |s|)
+    invariant c == commaFrom(s, j)
+    invariant acc + splitItemsFrom_fun_spec(s, j) == splitItemsFrom_fun_spec(s, i)
+    decreases (|s| - j)
+  {
+    var i_t18 := parseScalar(s[j..c]);
+    acc := (acc + [i_t18]);
+    j := (c + 1);
+    c := commaFrom(s, j);
+  }
+  var i_t19 := parseScalar(s[j..c]);
+  acc := (acc + [i_t19]);
+  return acc;
+}
+
+function keyRunEnd_fun_spec(s: string, i: nat): int
+  requires (i <= |s|)
+  decreases (|s| - i)
+  ensures (i <= keyRunEnd_fun_spec(s, i))
+  ensures (keyRunEnd_fun_spec(s, i) <= |s|)
+{
+  if ((i >= |s|) || !(isKeyUnit((s[i] as int)))) then
+    i
+  else
+    keyRunEnd_fun_spec(s, (i + 1))
+}
+
+function keyRunEnd(s: string, i: nat): int
+  requires (i <= |s|)
+{
+  keyRunEnd_fun_spec(s, i)
+}
+by method {
+  var j := i;
+  while ((j < |s|) && isKeyUnit((s[j] as int)))
+    invariant (i <= j)
+    invariant (j <= |s|)
+    invariant keyRunEnd_fun_spec(s, j) == keyRunEnd_fun_spec(s, i)
+    decreases (|s| - j)
+  {
+    j := (j + 1);
+  }
+  return j;
+}
+
+function entryIndex_fun_spec(entries: seq<YamlEntry>, key: string, i: nat): int
+  decreases (|entries| - i)
+  ensures ((entryIndex_fun_spec(entries, key, i) == -1) || ((i <= entryIndex_fun_spec(entries, key, i)) && (entryIndex_fun_spec(entries, key, i) < |entries|)))
+{
+  if (i >= |entries|) then
+    -1
+  else
+    if (entries[i].key == key) then
+      i
+    else
+      entryIndex_fun_spec(entries, key, (i + 1))
+}
+
+function entryIndex(entries: seq<YamlEntry>, key: string, i: nat): int
+{
+  entryIndex_fun_spec(entries, key, i)
+}
+by method {
+  var j := i;
+  while ((j < |entries|) && (entries[j].key != key))
+    invariant (i <= j)
+    invariant j <= |entries| || j == i
+    invariant entryIndex_fun_spec(entries, key, j) == entryIndex_fun_spec(entries, key, i)
+    decreases (|entries| - j)
+  {
+    j := (j + 1);
+  }
+  return (if (j < |entries|) then j else -1);
+}
+
+function pushItemFrom_fun_spec(entries: seq<YamlEntry>, i: nat, listKey: string, item: string): seq<YamlEntry>
+  decreases (|entries| - i)
+{
+  if (i >= |entries|) then
+    []
+  else
+    var e := entries[i];
+    var head := (if (e.key == listKey) then YamlEntry(e.key, YamlValue(true, "", (e.value.items + [item]))) else e);
+    ([head] + pushItemFrom_fun_spec(entries, (i + 1), listKey, item))
+}
+
+function pushItemFrom(entries: seq<YamlEntry>, i: nat, listKey: string, item: string): seq<YamlEntry>
+{
+  pushItemFrom_fun_spec(entries, i, listKey, item)
+}
+by method {
+  var acc: seq<YamlEntry> := [];
+  var j := i;
+  while (j < |entries|)
+    invariant (i <= j)
+    invariant j <= |entries| || j == i
+    invariant acc + pushItemFrom_fun_spec(entries, j, listKey, item) == pushItemFrom_fun_spec(entries, i, listKey, item)
+    decreases (|entries| - j)
+  {
+    var e := entries[j];
+    var head := (if (e.key == listKey) then YamlEntry(e.key, YamlValue(true, "", (e.value.items + [item]))) else e);
+    acc := (acc + [head]);
+    j := (j + 1);
+  }
+  return acc;
+}
+
+function readLines_fun_spec(lines: seq<string>, i: nat, listKey: string, yaml: Yaml): Yaml
+  decreases (|lines| - i)
+{
+  if (i >= |lines|) then
+    yaml
+  else
+    var line := classifyLine(lines[i]);
+    if line.kind.blank? then
+      readLines_fun_spec(lines, (i + 1), listKey, yaml)
+    else
+      if (line.kind.item? && (listKey != "")) then
+        var entries := pushItem(yaml.entries, listKey, parseScalar(line.rest));
+        readLines_fun_spec(lines, (i + 1), listKey, Yaml(entries, yaml.problems))
+      else
+        if line.kind.pair? then
+          var next := (if (|trimText(line.rest)| == 0) then line.key else "");
+          readLines_fun_spec(lines, (i + 1), next, readPair(yaml, i, line.key, line.rest))
+        else
+          var bad := YamlProblem(i, "bad", trimText(lines[i]));
+          readLines_fun_spec(lines, (i + 1), listKey, Yaml(yaml.entries, (yaml.problems + [bad])))
+}
+
+function readLines(lines: seq<string>, i: nat, listKey: string, yaml: Yaml): Yaml
+{
+  readLines_fun_spec(lines, i, listKey, yaml)
+}
+by method {
+  var acc := yaml;
+  var current := listKey;
+  var j := i;
+  while (j < |lines|)
+    invariant (i <= j)
+    invariant j <= |lines| || j == i
+    invariant readLines_fun_spec(lines, j, current, acc) == readLines_fun_spec(lines, i, listKey, yaml)
+    decreases (|lines| - j)
+  {
+    var i_t20 := classifyLine(lines[j]);
+    var line := i_t20;
+    if (line.kind.item? && (current != "")) {
+      var i_t22 := parseScalar(line.rest);
+      var i_t21 := pushItem(acc.entries, current, i_t22);
+      var entries := i_t21;
+      acc := Yaml(entries, acc.problems);
+    } else if line.kind.pair? {
+      var next := (if (|trimText(line.rest)| == 0) then line.key else "");
+      acc := readPair(acc, j, line.key, line.rest);
+      current := next;
+    } else if (!line.kind.blank?) {
+      var i_t23 := trimText(lines[j]);
+      var bad := YamlProblem(j, "bad", i_t23);
+      acc := Yaml(acc.entries, (acc.problems + [bad]));
+    }
+    j := (j + 1);
+  }
+  return acc;
+}
+
+function idRestFrom_fun_spec(s: string, i: nat): bool
+  decreases (|s| - i)
+{
+  ((i >= |s|) || (var c := (s[i] as int); ((((isIdStartUnit(c) || (c == 46)) || (c == 95)) || (c == 45)) && idRestFrom_fun_spec(s, (i + 1)))))
+}
+
+function idRestFrom(s: string, i: nat): bool
+{
+  idRestFrom_fun_spec(s, i)
+}
+by method {
+  var j := i;
+  while ((j < |s|) && isIdRestUnit((s[j] as int)))
+    invariant (i <= j)
+    invariant j <= |s| || j == i
+    invariant idRestFrom_fun_spec(s, j) == idRestFrom_fun_spec(s, i)
+    decreases (|s| - j)
+  {
+    j := (j + 1);
+  }
+  return (j >= |s|);
+}
+
+function hasSolidFrom_fun_spec(s: string, i: nat): bool
+  decreases (|s| - i)
+{
+  ((i < |s|) && (!(isSpaceUnit((s[i] as int))) || hasSolidFrom_fun_spec(s, (i + 1))))
+}
+
+function hasSolidFrom(s: string, i: nat): bool
+{
+  hasSolidFrom_fun_spec(s, i)
+}
+by method {
+  var j := i;
+  while ((j < |s|) && isSpaceUnit((s[j] as int)))
+    invariant (i <= j)
+    invariant j <= |s| || j == i
+    invariant hasSolidFrom_fun_spec(s, j) == hasSolidFrom_fun_spec(s, i)
+    decreases (|s| - j)
+  {
+    j := (j + 1);
+  }
+  return (j < |s|);
+}
+
+function equalsFrom_fun_spec(s: string, i: nat): int
+  decreases (|s| - i)
+  ensures (equalsFrom_fun_spec(s, i) >= 0)
+{
+  if (i >= |s|) then
+    0
+  else
+    ((if ((s[i] as int) == 61) then 1 else 0) + equalsFrom_fun_spec(s, (i + 1)))
+}
+
+function equalsFrom(s: string, i: nat): int
+{
+  equalsFrom_fun_spec(s, i)
+}
+by method {
+  var n := 0;
+  var j := i;
+  while (j < |s|)
+    invariant (i <= j)
+    invariant (n >= 0)
+    invariant j <= |s| || j == i
+    invariant n + equalsFrom_fun_spec(s, j) == equalsFrom_fun_spec(s, i)
+    decreases (|s| - j)
+  {
+    if ((s[j] as int) == 61) {
+      n := (n + 1);
+    }
+    j := (j + 1);
+  }
+  return n;
+}
+
+function equalsAt_fun_spec(s: string, i: nat): int
+  requires (i <= |s|)
+  decreases (|s| - i)
+  ensures (i <= equalsAt_fun_spec(s, i))
+  ensures (equalsAt_fun_spec(s, i) <= |s|)
+{
+  if ((i >= |s|) || ((s[i] as int) == 61)) then
+    i
+  else
+    equalsAt_fun_spec(s, (i + 1))
+}
+
+function equalsAt(s: string, i: nat): int
+  requires (i <= |s|)
+{
+  equalsAt_fun_spec(s, i)
+}
+by method {
+  var j := i;
+  while ((j < |s|) && ((s[j] as int) != 61))
+    invariant (i <= j)
+    invariant (j <= |s|)
+    invariant equalsAt_fun_spec(s, j) == equalsAt_fun_spec(s, i)
+    decreases (|s| - j)
+  {
+    j := (j + 1);
+  }
+  return j;
+}
+
+function digitsAt_fun_spec(s: string, i: nat, n: nat): bool
+  decreases n
+{
+  ((n == 0) || (((i < |s|) && isDigitUnit((s[i] as int))) && digitsAt_fun_spec(s, (i + 1), (n - 1))))
+}
+
+function digitsAt(s: string, i: nat, n: nat): bool
+{
+  digitsAt_fun_spec(s, i, n)
+}
+by method {
+  var k := 0;
+  while (((k < n) && ((i + k) < |s|)) && isDigitUnit((s[(i + k)] as int)))
+    invariant (0 <= k)
+    invariant (k <= n)
+    invariant digitsAt_fun_spec(s, i + k, n - k) == digitsAt_fun_spec(s, i + 0, n - 0)
+    decreases (n - k)
+  {
+    k := (k + 1);
+  }
+  return (k >= n);
+}
+
+function holdsFrom_fun_spec(xs: seq<string>, x: string, i: nat): bool
+  decreases (|xs| - i)
+{
+  ((i < |xs|) && ((xs[i] == x) || holdsFrom_fun_spec(xs, x, (i + 1))))
+}
+
+function holdsFrom(xs: seq<string>, x: string, i: nat): bool
+{
+  holdsFrom_fun_spec(xs, x, i)
+}
+by method {
+  var j := i;
+  while ((j < |xs|) && (xs[j] != x))
+    invariant (i <= j)
+    invariant j <= |xs| || j == i
+    invariant holdsFrom_fun_spec(xs, x, j) == holdsFrom_fun_spec(xs, x, i)
+    decreases (|xs| - j)
+  {
+    j := (j + 1);
+  }
+  return (j < |xs|);
+}
+
+function compareFrom_fun_spec(a: string, b: string, i: nat): int
+  decreases (|a| - i)
+{
+  if (i >= |a|) then
+    if (i < |b|) then
+      -1
+    else
+      0
+  else
+    if (i >= |b|) then
+      1
+    else
+      var x := (a[i] as int);
+      var y := (b[i] as int);
+      if (x != y) then
+        if (x < y) then
+          -1
+        else
+          1
+      else
+        compareFrom_fun_spec(a, b, (i + 1))
+}
+
+function compareFrom(a: string, b: string, i: nat): int
+{
+  compareFrom_fun_spec(a, b, i)
+}
+by method {
+  var j := i;
+  while (((j < |a|) && (j < |b|)) && ((a[j] as int) == (b[j] as int)))
+    invariant (i <= j)
+    invariant j <= |a| || j == i
+    invariant compareFrom_fun_spec(a, b, j) == compareFrom_fun_spec(a, b, i)
+    decreases (|a| - j)
+  {
+    j := (j + 1);
+  }
+  if (j >= |a|) {
+    return (if (j < |b|) then -1 else 0);
+  }
+  if (j >= |b|) {
+    return 1;
+  }
+  return (if ((a[j] as int) < (b[j] as int)) then -1 else 1);
+}
+
+function allItemsFrom_fun_spec(names: seq<string>, i: nat): bool
+  decreases (|names| - i)
+{
+  ((i >= |names|) || ((names[i] == "items") && allItemsFrom_fun_spec(names, (i + 1))))
+}
+
+function allItemsFrom(names: seq<string>, i: nat): bool
+{
+  allItemsFrom_fun_spec(names, i)
+}
+by method {
+  var j := i;
+  while ((j < |names|) && (names[j] == "items"))
+    invariant (i <= j)
+    invariant j <= |names| || j == i
+    invariant allItemsFrom_fun_spec(names, j) == allItemsFrom_fun_spec(names, i)
+    decreases (|names| - j)
+  {
+    j := (j + 1);
+  }
+  return (j >= |names|);
+}
+
+function projectInUrlFrom_fun_spec(url: string, i: nat): string
+  requires (i <= |url|)
+  decreases (|url| - i)
+{
+  if (i >= |url|) then
+    ""
+  else
+    if hasAt(url, i, "/projects/") then
+      var d := digitRunEnd(url, (i + 10));
+      if ((d > (i + 10)) && hasAt(url, d, "/")) then
+        url[(i + 10)..d]
+      else
+        projectInUrlFrom_fun_spec(url, (i + 1))
+    else
+      projectInUrlFrom_fun_spec(url, (i + 1))
+}
+
+function projectInUrlFrom(url: string, i: nat): string
+  requires (i <= |url|)
+{
+  projectInUrlFrom_fun_spec(url, i)
+}
+by method {
+  var j := i;
+  while (j < |url|)
+    invariant (i <= j)
+    invariant (j <= |url|)
+    invariant projectInUrlFrom_fun_spec(url, j) == projectInUrlFrom_fun_spec(url, i)
+    decreases (|url| - j)
+  {
+    var i_t24 := hasAt(url, j, "/projects/");
+    if i_t24 {
+      var i_t25 := digitRunEnd(url, (j + 10));
+      var d := i_t25;
+      var i_branch0 := (d > (j + 10));
+      if i_branch0 {
+        var i_t26 := hasAt(url, d, "/");
+        i_branch0 := i_t26;
+      }
+      if i_branch0 {
+        return url[(j + 10)..d];
+      }
+    }
+    j := (j + 1);
+  }
+  return "";
+}
+
+function briefCellFrom_fun_spec(s: string, i: nat): string
+  requires (i <= |s|)
+  decreases (|s| - i)
+{
+  if (i >= |s|) then
+    ""
+  else
+    var c := (s[i] as int);
+    if isSpaceUnit(c) then
+      (" " + briefCellFrom_fun_spec(s, spaceRunEnd(s, i)))
+    else
+      ((if (c == 124) then "\\|" else s[i..(i + 1)]) + briefCellFrom_fun_spec(s, (i + 1)))
+}
+
+function briefCellFrom(s: string, i: nat): string
+  requires (i <= |s|)
+{
+  briefCellFrom_fun_spec(s, i)
+}
+by method {
+  var acc := "";
+  var j := i;
+  while (j < |s|)
+    invariant (i <= j)
+    invariant (j <= |s|)
+    invariant j <= |s| || j == i
+    invariant acc + briefCellFrom_fun_spec(s, j) == briefCellFrom_fun_spec(s, i)
+    decreases (|s| - j)
+  {
+    var c := (s[j] as int);
+    var i_t27 := isSpaceUnit(c);
+    if i_t27 {
+      acc := (acc + " ");
+      j := spaceRunEnd(s, j);
+    } else {
+      acc := (acc + (if (c == 124) then "\\|" else s[j..(j + 1)]));
+      j := (j + 1);
+    }
+  }
+  return acc;
+}
+
+function lastSetBefore_fun_spec(flags: seq<bool>, i: nat): int
+  requires (i <= |flags|)
+  decreases i
+  ensures (-1 <= lastSetBefore_fun_spec(flags, i))
+  ensures (lastSetBefore_fun_spec(flags, i) < i)
+{
+  if (i == 0) then
+    -1
+  else
+    if flags[(i - 1)] then
+      (i - 1)
+    else
+      lastSetBefore_fun_spec(flags, (i - 1))
+}
+
+function lastSetBefore(flags: seq<bool>, i: nat): int
+  requires (i <= |flags|)
+{
+  lastSetBefore_fun_spec(flags, i)
+}
+by method {
+  var j := i;
+  while ((j > 0) && !(flags[(j - 1)]))
+    invariant (j <= i)
+    invariant 0 <= j
+    invariant lastSetBefore_fun_spec(flags, j) == lastSetBefore_fun_spec(flags, i)
+    decreases j
+  {
+    j := (j - 1);
+  }
+  return (j - 1);
+}
+
+function numberTextFrom_fun_spec(d: string, i: nat): string
+  requires (i <= |d|)
+  decreases (|d| - i)
+{
+  if (((i + 1) < |d|) && ((d[i] as int) == 48)) then
+    numberTextFrom_fun_spec(d, (i + 1))
+  else
+    d[i..|d|]
+}
+
+function numberTextFrom(d: string, i: nat): string
+  requires (i <= |d|)
+{
+  numberTextFrom_fun_spec(d, i)
+}
+by method {
+  var j := i;
+  while (((j + 1) < |d|) && ((d[j] as int) == 48))
+    invariant (i <= j)
+    invariant (j <= |d|)
+    invariant numberTextFrom_fun_spec(d, j) == numberTextFrom_fun_spec(d, i)
+    decreases (|d| - j)
+  {
+    j := (j + 1);
+  }
+  return d[j..|d|];
+}
+
+function nodeNameFrom_fun_spec(s: string, i: nat): string
+  decreases (|s| - i)
+{
+  if (i >= |s|) then
+    ""
+  else
+    ((if isAlnumUnit((s[i] as int)) then s[i..(i + 1)] else "_") + nodeNameFrom_fun_spec(s, (i + 1)))
+}
+
+function nodeNameFrom(s: string, i: nat): string
+{
+  nodeNameFrom_fun_spec(s, i)
+}
+by method {
+  var acc := "";
+  var j := i;
+  while (j < |s|)
+    invariant (i <= j)
+    invariant j <= |s| || j == i
+    invariant acc + nodeNameFrom_fun_spec(s, j) == nodeNameFrom_fun_spec(s, i)
+    decreases (|s| - j)
+  {
+    var i_t28 := isAlnumUnit((s[j] as int));
+    acc := (acc + (if i_t28 then s[j..(j + 1)] else "_"));
+    j := (j + 1);
+  }
+  return acc;
+}
+
+function labelFrom_fun_spec(s: string, i: nat): string
+  decreases (|s| - i)
+{
+  if (i >= |s|) then
+    ""
+  else
+    var c := (s[i] as int);
+    var head := (if (c == 34) then "#quot;" else (if ((c == 60) || (c == 62)) then "" else s[i..(i + 1)]));
+    (head + labelFrom_fun_spec(s, (i + 1)))
+}
+
+function labelFrom(s: string, i: nat): string
+{
+  labelFrom_fun_spec(s, i)
+}
+by method {
+  var acc := "";
+  var j := i;
+  while (j < |s|)
+    invariant (i <= j)
+    invariant j <= |s| || j == i
+    invariant acc + labelFrom_fun_spec(s, j) == labelFrom_fun_spec(s, i)
+    decreases (|s| - j)
+  {
+    var c := (s[j] as int);
+    acc := (acc + (if (c == 34) then "#quot;" else (if ((c == 60) || (c == 62)) then "" else s[j..(j + 1)])));
+    j := (j + 1);
+  }
+  return acc;
+}
+
+function htmlFrom_fun_spec(s: string, i: nat): string
+  decreases (|s| - i)
+{
+  if (i >= |s|) then
+    ""
+  else
+    var c := (s[i] as int);
+    var head := (if (c == 38) then "&amp;" else (if (c == 60) then "&lt;" else (if (c == 62) then "&gt;" else s[i..(i + 1)])));
+    (head + htmlFrom_fun_spec(s, (i + 1)))
+}
+
+function htmlFrom(s: string, i: nat): string
+{
+  htmlFrom_fun_spec(s, i)
+}
+by method {
+  var acc := "";
+  var j := i;
+  while (j < |s|)
+    invariant (i <= j)
+    invariant j <= |s| || j == i
+    invariant acc + htmlFrom_fun_spec(s, j) == htmlFrom_fun_spec(s, i)
+    decreases (|s| - j)
+  {
+    var c := (s[j] as int);
+    acc := (acc + (if (c == 38) then "&amp;" else (if (c == 60) then "&lt;" else (if (c == 62) then "&gt;" else s[j..(j + 1)]))));
+    j := (j + 1);
+  }
+  return acc;
+}
+
+function edgeIndex_fun_spec(edges: seq<Edge>, from: string, to: string, i: nat): int
+  decreases (|edges| - i)
+  ensures ((edgeIndex_fun_spec(edges, from, to, i) == -1) || ((i <= edgeIndex_fun_spec(edges, from, to, i)) && (edgeIndex_fun_spec(edges, from, to, i) < |edges|)))
+{
+  if (i >= |edges|) then
+    -1
+  else
+    if ((edges[i].from == from) && (edges[i].to == to)) then
+      i
+    else
+      edgeIndex_fun_spec(edges, from, to, (i + 1))
+}
+
+function edgeIndex(edges: seq<Edge>, from: string, to: string, i: nat): int
+{
+  edgeIndex_fun_spec(edges, from, to, i)
+}
+by method {
+  var j := i;
+  while ((j < |edges|) && !(((edges[j].from == from) && (edges[j].to == to))))
+    invariant (i <= j)
+    invariant j <= |edges| || j == i
+    invariant edgeIndex_fun_spec(edges, from, to, j) == edgeIndex_fun_spec(edges, from, to, i)
+    decreases (|edges| - j)
+  {
+    j := (j + 1);
+  }
+  return (if (j < |edges|) then j else -1);
+}
+
+function occursIn_fun_spec(s: string, w: string, i: nat): bool
+  decreases (|s| - i)
+{
+  if ((i + |w|) > |s|) then
+    false
+  else
+    ((s[i..(i + |w|)] == w) || occursIn_fun_spec(s, w, (i + 1)))
+}
+
+function occursIn(s: string, w: string, i: nat): bool
+{
+  occursIn_fun_spec(s, w, i)
+}
+by method {
+  var j := i;
+  while (((j + |w|) <= |s|) && (s[j..(j + |w|)] != w))
+    invariant (i <= j)
+    invariant occursIn_fun_spec(s, w, j) == occursIn_fun_spec(s, w, i)
+    decreases (|s| - j)
+  {
+    j := (j + 1);
+  }
+  return ((j + |w|) <= |s|);
+}
+
+function slugFrom_fun_spec(s: string, i: nat, started: bool, gap: bool): string
+  decreases (|s| - i)
+{
+  if (i >= |s|) then
+    ""
+  else
+    var c := (s[i] as int);
+    var keep := (((c >= 97) && (c <= 122)) || isDigitUnit(c));
+    if !(keep) then
+      slugFrom_fun_spec(s, (i + 1), started, started)
+    else
+      (((if gap then "-" else "") + s[i..(i + 1)]) + slugFrom_fun_spec(s, (i + 1), true, false))
+}
+
+function slugFrom(s: string, i: nat, started: bool, gap: bool): string
+{
+  slugFrom_fun_spec(s, i, started, gap)
+}
+by method {
+  var acc := "";
+  var kept := started;
+  var pending := gap;
+  var j := i;
+  while (j < |s|)
+    invariant (i <= j)
+    invariant j <= |s| || j == i
+    invariant acc + slugFrom_fun_spec(s, j, kept, pending) == slugFrom_fun_spec(s, i, started, gap)
+    decreases (|s| - j)
+  {
+    var c := (s[j] as int);
+    var i_branch1 := ((c >= 97) && (c <= 122));
+    if !(i_branch1) {
+      var i_t29 := isDigitUnit(c);
+      i_branch1 := i_t29;
+    }
+    if i_branch1 {
+      acc := ((acc + (if pending then "-" else "")) + s[j..(j + 1)]);
+      kept := true;
+      pending := false;
+    } else {
+      pending := kept;
+    }
+    j := (j + 1);
+  }
+  return acc;
+}
+
+function plainFrom_fun_spec(s: string, i: nat): string
   requires (i <= |s|)
   decreases (|s| - i)
 {
@@ -2027,12 +2957,35 @@ function plainFrom(s: string, i: nat): string
   else
     var e := brEnd(s, i);
     if (e > 0) then
-      ("\u000A" + plainFrom(s, e))
+      ("\u000A" + plainFrom_fun_spec(s, e))
     else
-      (s[i..(i + 1)] + plainFrom(s, (i + 1)))
+      (s[i..(i + 1)] + plainFrom_fun_spec(s, (i + 1)))
 }
 
-function plainText(html: string): string
+function plainFrom(s: string, i: nat): string
+  requires (i <= |s|)
 {
-  plainFrom(html, 0)
+  plainFrom_fun_spec(s, i)
+}
+by method {
+  var acc := "";
+  var j := i;
+  while (j < |s|)
+    invariant (i <= j)
+    invariant (j <= |s|)
+    invariant j <= |s| || j == i
+    invariant acc + plainFrom_fun_spec(s, j) == plainFrom_fun_spec(s, i)
+    decreases (|s| - j)
+  {
+    var i_t30 := brEnd(s, j);
+    var e := i_t30;
+    if (e > 0) {
+      acc := (acc + "\u000A");
+      j := e;
+    } else {
+      acc := (acc + s[j..(j + 1)]);
+      j := (j + 1);
+    }
+  }
+  return acc;
 }

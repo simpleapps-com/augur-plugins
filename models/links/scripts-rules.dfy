@@ -10,14 +10,12 @@ lemma YearPartMatchesModel(s: string)
   requires |s| >= 8
   ensures yearPart(s) <==> (Marketplace.YearText(s[..4]) && s[4] == '.')
 {
-  digitsFrom_ensures(s[1..4], 0);
 }
 
 lemma SeqFromMatchesModel(s: string, a: nat)
   requires a < |s|
   ensures seqFrom(s, a) <==> Marketplace.SeqText(s[a..])
 {
-  digitsFrom_ensures(s[(a + 1)..|s|], 0);
 }
 
 lemma ShortMonthMatchesModel(s: string)
@@ -54,7 +52,7 @@ lemma IsSkillKeyMatchesModel(k: string)
 lemma IsSkillNameMatchesModel(n: string)
   ensures isSkillName(n) == Marketplace.IsSkillName(n)
 {
-  if |n| >= 1 { nameCodesFrom_ensures(n, 1); }
+
 }
 
 lemma OccursFromMatchesModel(s: string, w: string, i: nat)

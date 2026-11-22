@@ -34,13 +34,19 @@ lemma IsTrackedIssueMatchesModel(isOpen: bool, isGithub: bool, isIssue: bool, wa
 lemma IsIssueIdOfMatchesModel(id: string, prefix: string)
   ensures isIssueIdOf(id, prefix) == WorkPane.IsIssueIdOf(id, prefix)
 {
-  if |id| > |prefix| { idDigitsFrom_ensures(id[|prefix|..|id|], 0); }
 }
 
 lemma HasOwnerMatchesModel(repo: string)
   ensures hasOwner(repo) == WorkPane.HasOwner(repo)
 {
-  slashFrom_ensures(repo, 0);
+}
+
+// ---------------------------------------------------------------- the connector
+
+lemma IsBasecampUrlMatchesModel(url: string)
+  ensures isBasecampUrl(url) == WorkPane.IsBasecampUrl(url)
+{
+  assert BASECAMP_ORIGIN == WorkPane.BasecampOrigin;
 }
 
 lemma IsProjectIdMatchesModel(id: int)
