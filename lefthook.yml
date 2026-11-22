@@ -1,0 +1,13 @@
+pre-commit:
+  commands:
+    banned-strings:
+      run: scripts/check-banned-strings.sh --cached
+
+pre-push:
+  commands:
+    banned-strings:
+      # The script reads the pre-push ref lines from stdin
+      run: scripts/check-banned-strings.sh --push
+      use_stdin: true
+    quality:
+      run: pnpm quality

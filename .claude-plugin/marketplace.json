@@ -30,6 +30,12 @@
       "source": "./plugins/augur-build",
       "category": "development",
       "tags": ["augur"]
+    },
+    {
+      "name": "simpleapps-statusline",
+      "source": "./plugins/simpleapps-statusline",
+      "category": "development",
+      "tags": ["claude-code-only", "mod"]
     }
   ]
 }

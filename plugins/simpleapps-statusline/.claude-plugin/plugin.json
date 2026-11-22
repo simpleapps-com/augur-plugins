@@ -1,0 +1,16 @@
+{
+  "name": "simpleapps-statusline",
+  "displayName": "SimpleApps Status Line",
+  "description": "Claude Code only. Two status lines under the prompt: GitHub user, project, branch, open issues and PRs, Anthropic account and Claude Code version; then the model, session cost, and meters for context and each plan limit.",
+  "version": "2026.11.1",
+  "author": {
+    "name": "SimpleApps",
+    "email": "info@simpleapps.com",
+    "url": "https://www.simpleapps.com"
+  },
+  "homepage": "https://www.simpleapps.com",
+  "repository": "https://github.com/simpleapps-com/augur-plugins",
+  "license": "MIT",
+  "keywords": ["statusline", "claude-code", "mod"],
+  "types": "./types/index.d.ts"
+}

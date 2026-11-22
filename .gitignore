@@ -1,1 +1,13 @@
+node_modules/
+.DS_Store
+*.log
+.env
+.env.*
 .claude/settings.local.json
+# LemmaScript run log and blob cache, and its three-way-merge scratch files (lsc regen)
+.lemmascript/
+*.dfy.base
+*.dfy.merged
+# Mod API types Claude Code generates under --plugin-dir
+plugins/*/.claude-plugin/types/
+plugins/*/tsconfig.json
