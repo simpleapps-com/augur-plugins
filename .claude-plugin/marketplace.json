@@ -36,6 +36,12 @@
       "source": "./plugins/simpleapps-statusline",
       "category": "development",
       "tags": ["claude-code-only", "mod"]
+    },
+    {
+      "name": "simpleapps-work-pane",
+      "source": "./plugins/simpleapps-work-pane",
+      "category": "productivity",
+      "tags": ["claude-code-only", "mod", "basecamp"]
     }
   ]
 }

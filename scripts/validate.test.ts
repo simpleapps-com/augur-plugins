@@ -274,8 +274,11 @@ test("hooks.json: valid JSON, hooks or modules, and every plugin-root file it ru
 test("proofs: proved files are listed, and hand-written Dafny never escapes the proof", async () => {
   const proved = "//@ backend dafny\nexport function f() {}\n";
   const good = await repo({
-    "LemmaScript-files.txt": "scripts/rules.ts 30\n",
+    "LemmaScript-files.txt": "scripts/rules.ts 30\nplugins/demo/scripts/pane-rules.ts\n",
     "scripts/rules.ts": proved,
+    "plugins/demo/scripts/pane-rules.ts": proved,
+    "plugins/demo/scripts/pane-rules.dfy.gen": "function g(): int { 2 }\n",
+    "plugins/demo/scripts/pane-rules.dfy": "function g(): int { 2 }\n",
     "scripts/plain.ts": "export const x = 1;\n",
     "scripts/rules.dfy.gen": "function f(): int { 1 }\n",
     "scripts/rules.dfy": "function f(): int { 1 }\n// assume nothing: comments are fine\n",
@@ -291,11 +294,15 @@ test("proofs: proved files are listed, and hand-written Dafny never escapes the 
     "scripts/orphan.dfy": "method M() { expect true; }\n",
     "models/Model.dfy": "lemma {:axiom} A()\n",
     "models/links/link.dfy": "lemma {:verify false} B() {}\n",
+    "plugins/demo/scripts/pane-rules.ts": proved,
+    "plugins/demo/scripts/pane-rules.dfy": "lemma {:trusted} T() {}\n",
   });
   assert.deepEqual((await validate(bad)).errors, [
     "scripts/orphan.dfy escapes the proof: method M() { expect true; }",
     "scripts/rules.dfy escapes the proof: lemma L() { assume false; }",
     "scripts/unlisted.ts is proved but not listed in LemmaScript-files.txt",
+    "plugins/demo/scripts/pane-rules.dfy escapes the proof: lemma {:trusted} T() {}",
+    "plugins/demo/scripts/pane-rules.ts is proved but not listed in LemmaScript-files.txt",
     "models/Model.dfy escapes the proof: lemma {:axiom} A()",
     "models/links/link.dfy escapes the proof: lemma {:verify false} B() {}",
   ]);

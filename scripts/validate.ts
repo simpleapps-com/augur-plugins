@@ -369,27 +369,29 @@ function addedLines(text: string, base: string): string[] {
  * Proofs: every `//@ backend dafny` file is listed in LemmaScript-files.txt, and no hand-written
  * Dafny (the models, the links, and what was added to a generated `.dfy`) escapes the proof.
  */
-async function checkProofs(run: Run): Promise<void> {
+async function checkProofs(run: Run, plugins: string[]): Promise<void> {
   const listed = new Set(
     ((await readText(join(run.root, "LemmaScript-files.txt"))) ?? "")
       .split("\n")
       // The first word: the file (split always returns at least one item)
       .map((line) => String(line.trim().split(/\s+/)[0])),
   );
-  for (const file of await listDir(join(run.root, "scripts")))
-    await checkProofScript(run, file, listed);
+  // The repo's own scripts, and each plugin's (a mod's proved rules ship with it)
+  for (const dir of ["scripts", ...plugins.map((plugin) => `plugins/${plugin}/scripts`)]) {
+    for (const file of await listDir(join(run.root, dir)))
+      await checkProofScript(run, `${dir}/${file}`, listed);
+  }
   await checkModels(run);
 }
 
-/** One file in scripts/: a proved `.ts` is listed; a `.dfy` adds no escape to its `.dfy.gen`. */
-async function checkProofScript(run: Run, file: string, listed: Set<string>): Promise<void> {
-  const path = join(run.root, "scripts", file);
-  const rel = `scripts/${file}`;
-  if (file.endsWith(".ts") && !listed.has(rel)) {
+/** One script: a proved `.ts` is listed; a `.dfy` adds no escape to its `.dfy.gen`. */
+async function checkProofScript(run: Run, rel: string, listed: Set<string>): Promise<void> {
+  const path = join(run.root, rel);
+  if (rel.endsWith(".ts") && !listed.has(rel)) {
     if ((await readFile(path, "utf8")).startsWith("//@ backend dafny"))
       run.errors.push(`${rel} is proved but not listed in LemmaScript-files.txt`);
   }
-  if (file.endsWith(".dfy")) {
+  if (rel.endsWith(".dfy")) {
     const base = (await readText(`${path}.gen`)) ?? "";
     checkEscapes(run, rel, addedLines(await readFile(path, "utf8"), base));
   }
@@ -431,7 +433,7 @@ export async function validate(root: string): Promise<Result> {
   await checkCommands(run, plugins, skills);
   await checkConnectors(run, plugins);
   await checkHooks(run, plugins);
-  await checkProofs(run);
+  await checkProofs(run, plugins);
   await checkClaudeMd(run);
   return { errors: run.errors, warnings: run.warnings, skillCount: skills.size };
 }

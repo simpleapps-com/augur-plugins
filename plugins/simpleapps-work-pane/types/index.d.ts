@@ -1,0 +1,78 @@
+/** count_my_todos; `fingerprint` changes on any add, close, reassign or edit of an open todo. */
+export type Count = { open: number; complete: boolean; fingerprint?: string };
+
+/** Open Basecamp todos assigned to you and open issues in watched repos. */
+export type Tracked = { basecamp: number; github: number };
+
+/** What changed since the last sync, as the timer last saw it. */
+export type Pending = { basecamp: number; github: number; neverSynced: boolean };
+
+/** The outcome of the last Sync, in words for the pane. */
+export type SyncResult = { at: number; ok: boolean; detail: string };
+
+export type Snapshot = {
+  count?: Count;
+  // One entry per watched repo; null when its count could not be read
+  issues?: Record<string, number | null>;
+  tracked?: Tracked;
+  pending?: Pending;
+  checkedAt?: number;
+  sync?: SyncResult;
+  syncing: boolean;
+  isError: boolean;
+  // What the last check could not read: "Basecamp count", "Basecamp index (…)", a repo, "GitHub changes", "work status"
+  failed?: string[];
+  // What this machine lacks: node, a signed-in gh, the Basecamp connector
+  setup?: string[];
+};
+
+/** A Basecamp todo to fetch with get_todo, with the names get_todo doesn't return. */
+export type Target = { id: number; project_id: number; project_name: string; list: string };
+
+/** list_my_todo_index: every open todo of yours, grouped by list. */
+export type TodoIndex = {
+  lists?: {
+    project_id?: number;
+    project_name?: string;
+    todolist_id?: number;
+    todolist_name?: string;
+    todos?: { id: number; title?: string; updated_at: string; due_at?: string | null }[];
+  }[];
+  count?: number;
+  fingerprint?: string;
+  complete?: boolean;
+};
+
+/** `work status --json`: settings plus every item in work/. */
+export type Status = {
+  org: string;
+  watch_repos: string[];
+  auto_sync: boolean;
+  sync_minutes: number;
+  last_sync: string | null;
+  items: {
+    id: string;
+    source: string;
+    kind: string;
+    status?: string;
+    updated: string;
+    project: string | null;
+    mine: boolean;
+  }[];
+  // Site briefs in work/briefs/ and their hubs' Basecamp projects
+  briefs?: { hub: string; projects: string[] }[];
+};
+
+/** `work refresh --json`. */
+export type RefreshReport = {
+  ok: boolean;
+  locked: boolean;
+  failed: { step: string; detail: string } | null;
+  basecamp: { id: string; project: string | null }[];
+};
+
+declare module "claude-code" {
+  interface PluginState {
+    "simpleapps-work-pane": { snapshot: Snapshot };
+  }
+}

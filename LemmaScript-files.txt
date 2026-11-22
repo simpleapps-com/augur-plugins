@@ -1,1 +1,3 @@
 scripts/rules.ts
+plugins/simpleapps-work-pane/scripts/pane-rules.ts
+plugins/simpleapps-work-pane/scripts/work-rules.ts

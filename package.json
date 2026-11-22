@@ -16,15 +16,17 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc -p tsconfig.json",
-    "test": "node --test --experimental-test-coverage --test-coverage-lines=100 --test-coverage-branches=100 --test-coverage-functions=100 --test-coverage-exclude='**/*.test.ts' 'scripts/**/*.test.ts'",
+    "test": "node --test --experimental-test-coverage --test-coverage-lines=100 --test-coverage-branches=100 --test-coverage-functions=100 --test-coverage-exclude='**/*.test.ts' 'scripts/**/*.test.ts' 'tests/**/*.test.ts'",
     "knip": "knip",
-    "proofs": "lsc check --backend=dafny && dafny verify --unicode-char:false --allow-deprecation models/Marketplace.dfy models/links/*.dfy",
+    "proofs": "lsc check --backend=dafny && dafny verify --unicode-char:false --allow-deprecation models/*.dfy models/links/*.dfy",
     "prepare": "lefthook install",
     "quality": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm knip && pnpm test && pnpm validate"
   },
   "knip": {
     "entry": [
       "scripts/*.ts",
+      "tests/**/*.test.ts",
+      "plugins/*/scripts/work.ts",
       "plugins/*/hooks/register.tsx",
       "plugins/*/tests/*.test.ts"
     ],

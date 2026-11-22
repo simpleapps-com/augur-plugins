@@ -22,6 +22,7 @@ See the wiki for full dev docs:
 - [Skill-Authoring](../../wiki/Skill-Authoring.md): writing skills with progressive disclosure, chat-safe rules, links to Anthropic's docs
 - [Proofs](../../wiki/Proofs.md): LemmaScript + Dafny, the model, links, running the proofs
 - [Mods](../../wiki/Mods.md): Claude Code-only plugins that run code, security, layout, API, testing
+- [Work-Pane](../../wiki/Work-Pane.md): the Work pane mod and its scripts: where it runs, work/, references, check and Sync
 - [Platform-Support](../../wiki/Platform-Support.md): what each surface loads, adding the marketplace, connectors, updates
 - [Development](../../wiki/Development.md): layout, setup, banned-strings check, validation, adding a plugin
 - [Testing](../../wiki/Testing.md): automated checks and the per-surface checklist
