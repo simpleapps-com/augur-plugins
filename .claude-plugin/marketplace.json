@@ -6,5 +6,12 @@
     "email": "info@simpleapps.com",
     "url": "https://www.simpleapps.com"
   },
-  "plugins": []
+  "plugins": [
+    {
+      "name": "augur-intelligence",
+      "source": "./plugins/augur-intelligence",
+      "category": "productivity",
+      "tags": ["erp"]
+    }
+  ]
 }

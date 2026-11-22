@@ -4,7 +4,11 @@ Claude plugins for Augur, from SimpleApps. Add the marketplace once and install 
 
 ## Plugins
 
-None yet. Each plugin lands in its own release.
+| Plugin | For | Install in Claude Code |
+|--------|-----|------------------------|
+| [Augur Intelligence](plugins/augur-intelligence/README.md) | Business users asking plain-language questions about their company's ERP data | `/plugin install augur-intelligence --marketplace simpleapps-com/augur-plugins` |
+
+On claude.ai, Desktop, and Cowork, add the marketplace (below), then install plugins from it.
 
 ## Add the marketplace
 
