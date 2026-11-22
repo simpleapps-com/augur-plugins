@@ -21,7 +21,7 @@ export default [
   },
   {
     // The scripts are TypeScript, run by Node's type stripping
-    files: ["**/*.mjs", "scripts/**/*.ts"],
+    files: ["**/*.mjs", "scripts/**/*.ts", "plugins/*/scripts/**/*.ts", "tests/**/*.ts"],
     languageOptions: { globals: globals.node },
     rules: {
       // Team limit is 10; augur-config warns at 15
@@ -34,7 +34,7 @@ export default [
     // Platform standard (augur-doctor): flag calls to deprecated APIs. It needs type information,
     // so it covers the scripts tsconfig.json checks; a mod's `claude-code` types exist only after
     // `claude --plugin-dir` generates them.
-    files: ["scripts/**/*.ts"],
+    files: ["scripts/**/*.ts", "plugins/*/scripts/**/*.ts", "tests/**/*.ts"],
     languageOptions: {
       parserOptions: { projectService: true, tsconfigRootDir: import.meta.dirname },
     },
