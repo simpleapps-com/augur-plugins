@@ -1,0 +1,16 @@
+{
+  "name": "augur-api",
+  "displayName": "Augur API",
+  "description": "Site admins read and manage their site's ERP and e-commerce data through the Augur services, with Claude asking before every change.",
+  "version": "2026.11.1",
+  "author": {
+    "name": "SimpleApps",
+    "email": "info@simpleapps.com",
+    "url": "https://www.simpleapps.com"
+  },
+  "homepage": "https://www.simpleapps.com",
+  "repository": "https://github.com/simpleapps-com/augur-plugins",
+  "license": "MIT",
+  "keywords": ["erp", "ecommerce", "site-admin", "api"],
+  "privacyPolicyUrl": "https://www.simpleapps.com/privacy"
+}
