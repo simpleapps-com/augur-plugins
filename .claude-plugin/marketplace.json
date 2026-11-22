@@ -12,6 +12,12 @@
       "source": "./plugins/augur-intelligence",
       "category": "productivity",
       "tags": ["erp"]
+    },
+    {
+      "name": "augur-api",
+      "source": "./plugins/augur-api",
+      "category": "productivity",
+      "tags": ["erp", "ecommerce"]
     }
   ]
 }
