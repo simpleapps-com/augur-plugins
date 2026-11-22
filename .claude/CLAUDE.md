@@ -4,7 +4,7 @@ The `augur` Claude plugin marketplace (public repo). Plugins live in `plugins/<n
 
 ## Quick reference
 
-- Validate: `claude plugin validate repo` (CI runs the same, without `--strict` until the first plugin lands)
+- Validate: `claude plugin validate repo --strict` (CI runs the same; any warning fails). Per plugin: `claude plugin validate repo/plugins/<name> --profile directory`
 - Versions: each plugin's CalVer lives only in its `plugin.json`; MUST NOT set `version` in `marketplace.json`
 - Banned strings: MUST run `git -C repo config core.hooksPath .githooks` once per clone. The hooks run `scripts/check-banned-strings.sh` on pre-commit and pre-push, reading `{project}/.simpleapps/banned-strings.txt` (never committed). A missing or empty list blocks the commit
 - MUST NOT commit anything private: this repo is public
