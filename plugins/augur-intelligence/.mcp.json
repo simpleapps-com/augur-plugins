@@ -1,8 +1,10 @@
 {
   "mcpServers": {
-    "intelligence": {
+    "Augur Intelligence": {
       "type": "http",
-      "url": "https://intelligence.augur-mcp.com/mcp"
+      "url": "https://intelligence.augur-mcp.com/mcp",
+      "title": "Augur Intelligence",
+      "description": "Ask plain-language questions about your company's ERP data."
     }
   }
 }

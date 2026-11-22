@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "SimpleApps Basecamp": {
+      "type": "http",
+      "url": "https://basecamp.augur-mcp.com/mcp",
+      "title": "SimpleApps Basecamp",
+      "description": "Basecamp 2 for SimpleApps staff."
+    }
+  }
+}
