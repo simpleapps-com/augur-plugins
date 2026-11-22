@@ -1,8 +1,10 @@
 {
   "mcpServers": {
-    "api": {
+    "Augur API": {
       "type": "http",
-      "url": "https://api.augur-mcp.com/mcp"
+      "url": "https://api.augur-mcp.com/mcp",
+      "title": "Augur API",
+      "description": "Read and manage your site's ERP and e-commerce data."
     }
   }
 }

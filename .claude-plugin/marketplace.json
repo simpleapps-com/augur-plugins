@@ -18,6 +18,12 @@
       "source": "./plugins/augur-api",
       "category": "productivity",
       "tags": ["erp", "ecommerce"]
+    },
+    {
+      "name": "simpleapps-work",
+      "source": "./plugins/simpleapps-work",
+      "category": "productivity",
+      "tags": ["basecamp"]
     }
   ]
 }
