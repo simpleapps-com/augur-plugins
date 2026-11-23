@@ -1,7 +1,7 @@
 {
   "name": "simpleapps-work",
   "displayName": "SimpleApps Work",
-  "description": "For SimpleApps staff: work with Basecamp 2 from any Claude surface.",
+  "description": "For SimpleApps staff: work with Basecamp 2 from any Claude surface, and track each piece of work from issue to shipped.",
   "version": "2026.11.2",
   "author": {
     "name": "SimpleApps",
@@ -11,5 +11,5 @@
   "homepage": "https://www.simpleapps.com",
   "repository": "https://github.com/simpleapps-com/augur-plugins",
   "license": "MIT",
-  "keywords": ["basecamp", "project-management", "meetings"]
+  "keywords": ["basecamp", "project-management", "meetings", "work-tracking"]
 }

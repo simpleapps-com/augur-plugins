@@ -26,6 +26,8 @@ Key words MUST, SHOULD, MAY per RFC 2119.
 
 How to organise and write the model (layers, one definition per fact, bugs as lemmas, complete specs): [references/writing-the-model.md](references/writing-the-model.md).
 
+The `code` skill's `/code model` applies this to a piece of work: it writes the model and lemmas from a WIP, issue, spec or the session, maps each acceptance criterion to a lemma, and checks the model verifies, before any code.
+
 ## The loop: new work and fixes
 
 The model MUST change before any code. A plan whose first step writes code is wrong: fix the plan first.

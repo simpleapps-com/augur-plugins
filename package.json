@@ -20,6 +20,7 @@
     "test": "node --test --experimental-test-coverage --test-coverage-lines=100 --test-coverage-branches=100 --test-coverage-functions=100 --test-coverage-exclude='**/*.test.ts' 'scripts/**/*.test.ts' 'tests/**/*.test.ts'",
     "knip": "knip",
     "proofs": "lsc check --backend=dafny && dafny verify --unicode-char:false --allow-deprecation models/*.dfy models/links/*.dfy",
+    "proofs:model": "dafny verify --unicode-char:false --allow-deprecation models/*.dfy",
     "prepare": "lefthook install",
     "quality": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm knip && pnpm test && pnpm validate"
   },

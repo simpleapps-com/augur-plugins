@@ -20,7 +20,7 @@ The code is the ground truth; this session is the hint where to start. Use what 
 
 **Priority:** fix inaccuracies and critical gaps first (a missing required page, outdated instructions, wrong claims), then clarity and organisation. An accurate wiki with rough prose beats a polished one that delays shipping. MUST NOT polish pages that are already accurate and clear.
 
-**Writes and waits.** Steps 1 to 5 read and plan only: nothing is written before the user approves the proposal in step 5. Run the steps in order without stopping, except at the four waits: the user's answers to questions about a missing page (step 4), their approval of the proposal (step 5), and in step 7 their approval of further pruning or their choice on the budget. `curate` MUST NOT commit or push, MUST NOT change a `wiki-*` key except `wiki-token-budget` and `wiki-token-budget-reason` as step 7 allows, and MUST NOT change a `repo-*` or `code-*` setting.
+**Writes and waits.** Steps 1 to 5 read and plan only: nothing is written before the user approves the proposal in step 5. Run the steps in order without stopping, except at the four waits: the user's answers to questions about a missing page (step 4), their approval of the proposal (step 5), and in step 7 their approval of further pruning or their choice on the budget. `curate` MUST NOT commit or push, MUST NOT change a `wiki-*` key except `wiki-token-budget` and `wiki-token-budget-reason` as step 7 allows, and MUST NOT change a `repo-*`, `code-*` or `wip-*` setting.
 
 ## 1. Budget
 
