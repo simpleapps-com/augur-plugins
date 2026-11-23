@@ -14,6 +14,8 @@
 //   - proofs: every proved file is listed in LemmaScript-files.txt, and no hand-written Dafny
 //     uses assume, {:axiom}, {:verify false}, {:trusted} or expect
 //   - CLAUDE.md under 200 lines
+//   - shared blocks (`<!-- shared:<name> -->` … `<!-- /shared:<name> -->`) in SKILL.md files are
+//     closed, and every copy of a name is identical, so safeguards copied between skills cannot drift
 //
 // Rules: wiki/Plugin-Format.md and wiki/Skill-Authoring.md. Every decision about a value is a
 // proved function in `rules.ts` (model: models/Marketplace.dfy); this file only reads files and
@@ -40,6 +42,10 @@ const CONNECTOR_BANNED = ["headers", "headersHelper", "oauth"];
 /** Proof escapes a hand-written line MUST NOT use: each makes Dafny accept what it did not prove. */
 const PROOF_ESCAPES = /\bassume\b|\{:axiom\}|\{:verify false\}|\{:trusted\}|\bexpect\b/;
 
+/** A shared block, and any marker at all (to find markers outside a matched block). */
+const SHARED_BLOCK = /<!-- shared:([a-z-]+) -->([\s\S]*?)<!-- \/shared:\1 -->/g;
+const SHARED_MARKER = /<!--\s*\/?shared:/g;
+
 /** Parsed JSON whose shape is checked field by field. */
 type Json = Record<string, unknown>;
 
@@ -49,6 +55,7 @@ interface Run {
   pluginsDir: string;
   errors: string[];
   warnings: string[];
+  shared: { name: string; rel: string; block: string }[];
 }
 
 export interface Result {
@@ -228,6 +235,7 @@ async function checkSkill(
   const fm = checkFrontmatter(run, text, rel, skillName, `directory="${skillName}"`);
   if (!fm) return false;
   checkSkillFields(run, fm, rel);
+  collectShared(run, rel, text);
 
   const words = text.split(/\s+/).filter(Boolean).length;
   const budget = budgetOf(words);
@@ -238,6 +246,31 @@ async function checkSkill(
   else if (budget === "near")
     run.warnings.push(`Approaching token limit: ${rel} is ${words} words (limit 3750)`);
   return true;
+}
+
+/** Record a SKILL.md's shared blocks; every marker MUST belong to a matched block. */
+function collectShared(run: Run, rel: string, text: string): void {
+  const blocks = [...text.matchAll(SHARED_BLOCK)];
+  if (blocks.length * 2 !== [...text.matchAll(SHARED_MARKER)].length)
+    run.errors.push(`Shared-block marker outside a matched block in ${rel}`);
+  for (const match of blocks)
+    run.shared.push({ name: String(match[1]), rel, block: String(match[2]) });
+}
+
+/** Every shared block has at least two copies, and every copy matches the first one found. */
+function checkShared(run: Run): void {
+  const first = new Map<string, { rel: string; block: string; copies: number }>();
+  for (const copy of run.shared) {
+    const seen = first.get(copy.name);
+    if (!seen) first.set(copy.name, { ...copy, copies: 1 });
+    else {
+      seen.copies += 1;
+      if (seen.block !== copy.block)
+        run.errors.push(`Shared block "${copy.name}" in ${copy.rel} differs from ${seen.rel}`);
+    }
+  }
+  for (const [name, seen] of first)
+    if (seen.copies < 2) run.errors.push(`Shared block "${name}" has only one copy (${seen.rel})`);
 }
 
 async function checkSkills(run: Run, plugins: string[]): Promise<Set<string>> {
@@ -426,10 +459,17 @@ async function checkClaudeMd(run: Run): Promise<void> {
 
 /** Validate the repo at `root`. */
 export async function validate(root: string): Promise<Result> {
-  const run: Run = { root, pluginsDir: join(root, "plugins"), errors: [], warnings: [] };
+  const run: Run = {
+    root,
+    pluginsDir: join(root, "plugins"),
+    errors: [],
+    warnings: [],
+    shared: [],
+  };
   const plugins = await listPlugins(run);
   await checkPlugins(run, plugins);
   const skills = await checkSkills(run, plugins);
+  checkShared(run);
   await checkCommands(run, plugins, skills);
   await checkConnectors(run, plugins);
   await checkHooks(run, plugins);
