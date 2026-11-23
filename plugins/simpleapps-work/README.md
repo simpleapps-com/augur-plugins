@@ -4,6 +4,12 @@ For SimpleApps staff. Work with Basecamp 2 from claude.ai, Claude Desktop, Cowor
 
 **Staff only.** Anyone can install the plugin, but only a SimpleApps staff account can sign in. Claude acts as you in Basecamp, so your comments and posts show under your name.
 
+## Skills
+
+| Skill | Use it for |
+|-------|------------|
+| `wip` | Tracking a piece of work from a GitHub issue or Basecamp item to shipped, in a local WIP file that is never committed. `/wip <issue or Basecamp link>` creates the WIP (request, acceptance criteria, attachment summaries) and investigates it, or refreshes an existing one. `/wip triage` shows the repo's issues, PRs and WIPs; `/wip investigate` and `/wip implement` research and build against the criteria; `/wip process` marks shipped work and retires old WIPs. It never writes to git or GitHub: with Augur Build installed, `/repo` commits and ships. Everything but drafting needs Claude Code; in chat it drafts a WIP from a Basecamp item, or from a GitHub issue you paste |
+
 ## Install
 
 **claude.ai, Claude Desktop, and Cowork** (Pro, Max, Ultra, Team, or Enterprise plan):
