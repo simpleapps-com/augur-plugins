@@ -104,7 +104,7 @@ When a topic grows detail needed only while working on one code path, move the d
 
 The pages listed in `wiki-required-pages` (default `Deployment, Testing`) MUST exist:
 
-- **Deployment:** how the project ships, in up to three sections: `## Submit`, `## Deploy`, `## Publish`. Where the project has shipping commands, they follow this page, and refuse to guess when it is missing.
+- **Deployment:** how the project ships, for people: submitting, staging, releasing. The `repo` skill reads only its `repo-*` settings (HTML comments), never runs the prose, and without `repo-release` or `repo-deploy` refuses to guess and offers a draft.
 - **Testing:** test tiers, test data, and a checklist of concrete, checkable conditions by area. It grows with every session that learns something about testing.
 
 ## Maintenance

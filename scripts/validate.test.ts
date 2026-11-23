@@ -318,6 +318,33 @@ test("CLAUDE.md warns past 180 lines, fails past 200, and may be absent", async 
   assert.deepEqual(absent.errors, []);
 });
 
+test("shared blocks: two or more identical copies pass; differing, lone or stray fail", async () => {
+  const block = (body) => `\n<!-- shared:git -->\n${body}\n<!-- /shared:git -->\n`;
+  const alpha = "plugins/demo/skills/alpha/SKILL.md";
+  const beta = "plugins/demo/skills/beta/SKILL.md";
+  const same = await validate(
+    await repo({ [alpha]: skill("alpha") + block("rule"), [beta]: skill("beta") + block("rule") }),
+  );
+  assert.deepEqual(same.errors, []);
+  const differs = await validate(
+    await repo({ [alpha]: skill("alpha") + block("rule"), [beta]: skill("beta") + block("other") }),
+  );
+  assert.deepEqual(differs.errors, [`Shared block "git" in ${beta} differs from ${alpha}`]);
+  const lone = await validate(await repo({ [alpha]: skill("alpha") + block("rule") }));
+  assert.deepEqual(lone.errors, [`Shared block "git" has only one copy (${alpha})`]);
+  const unclosed = await validate(
+    await repo({ [alpha]: skill("alpha") + "<!-- shared:git -->\n" }),
+  );
+  assert.deepEqual(unclosed.errors, [`Shared-block marker outside a matched block in ${alpha}`]);
+  const stray = await validate(
+    await repo({
+      [alpha]: skill("alpha") + block("rule") + "<!-- /shared:git -->\n",
+      [beta]: skill("beta") + block("rule"),
+    }),
+  );
+  assert.deepEqual(stray.errors, [`Shared-block marker outside a matched block in ${alpha}`]);
+});
+
 test("an empty folder reports only the missing marketplace", async () => {
   const root = await mkdtemp(join(tmpdir(), "validate-empty-"));
   roots.push(root);

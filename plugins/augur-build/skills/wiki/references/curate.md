@@ -20,7 +20,7 @@ The code is the ground truth; this session is the hint where to start. Use what 
 
 **Priority:** fix inaccuracies and critical gaps first (a missing required page, outdated instructions, wrong claims), then clarity and organisation. An accurate wiki with rough prose beats a polished one that delays shipping. MUST NOT polish pages that are already accurate and clear.
 
-**Writes and waits.** Steps 1 to 5 read and plan only: nothing is written before the user approves the proposal in step 5. Run the steps in order without stopping, except at the four waits: the user's answers to questions about a missing page (step 4), their approval of the proposal (step 5), and in step 7 their approval of further pruning or their choice on the budget. `curate` MUST NOT commit or push, and MUST NOT change a `wiki-*` key except `wiki-token-budget` and `wiki-token-budget-reason` as step 7 allows.
+**Writes and waits.** Steps 1 to 5 read and plan only: nothing is written before the user approves the proposal in step 5. Run the steps in order without stopping, except at the four waits: the user's answers to questions about a missing page (step 4), their approval of the proposal (step 5), and in step 7 their approval of further pruning or their choice on the budget. `curate` MUST NOT commit or push, MUST NOT change a `wiki-*` key except `wiki-token-budget` and `wiki-token-budget-reason` as step 7 allows, and MUST NOT change a `repo-*` or `code-*` setting.
 
 ## 1. Budget
 
@@ -53,7 +53,7 @@ Check each page against the conventions and the code:
 
 For each page in `wiki-required-pages` (default `Deployment, Testing`) that does not exist, drafting it is the highest-priority proposal. Draft it in this context only; it is written in step 6, once approved.
 
-**Deployment** holds the steps the project's shipping commands run, if it has them, in up to three sections: `## Submit` (commit and open a PR, or push), `## Deploy` (to staging), `## Publish` (a release). Include only the sections the project has.
+**Deployment** explains, for people, how the project submits (commit and open a PR, or push), deploys to staging, and releases. The `repo` skill's `repo-*` settings live on it too; propose them through `/repo publish` or `/repo deploy`, which draft them, not here.
 
 1. Scan for the process: CI workflows, package scripts (`deploy`, `release`, `build`), deploy configs, version files and their scheme, tag-triggered workflows, branch rules. In a pnpm workspace, Submit MUST include running `pnpm install` at the root after any package change and committing the updated lockfile (CI installs with `--frozen-lockfile`).
 2. Draft from what was found.
@@ -71,6 +71,7 @@ List the improvements in priority order, so the user can draw the line:
 ```
 N. [ACTION] Page.md: what changes
    Why: what it fixes or improves
+   To: <path in the code repo>   (RELOCATE only: where the detail file goes)
 ```
 
 Actions: CORRECT, EXTEND, CONSOLIDATE, PRUNE, REORGANIZE, TIGHTEN, RELOCATE, CREATE. A CREATE includes adding the page to `_Sidebar.md`, `Home.md` and the index page. Ask the user to confirm; they MAY approve all, some, or change the plan. Wait for the answer.
