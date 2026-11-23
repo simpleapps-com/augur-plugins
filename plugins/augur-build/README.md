@@ -8,6 +8,7 @@ For developers, including third parties, building on Augur. Augur Build will car
 
 | Skill | Use it for |
 |-------|------------|
+| `wiki` | Working with a project's markdown wiki (a `wiki/` git folder, such as a GitHub wiki clone): `/wiki load`, `sync`, `audit` or `curate`. The project's wiki can replace an action's steps (a `Wiki-Maintenance.md` section per action) and change its settings (comments in `Home.md`). Loading, syncing, auditing and curating need Claude Code; in chat it applies the wiki conventions to pasted text |
 | `lemma-driven-design` | A coding design pattern like test-driven design, with proofs: the model and its lemma first, the proof red, the code, the proof green, then tests. For TypeScript it uses LemmaScript and Dafny. Running a prover needs a terminal (Claude Code); in chat it helps plan and review models, specs and code |
 
 ## Install
