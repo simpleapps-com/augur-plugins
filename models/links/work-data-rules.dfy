@@ -48,54 +48,92 @@ lemma AsSegmentsCons(s: Segment, ss: seq<Segment>)
 {
 }
 
+// ---------------------------------------------------------------- the three shared scans
+// The only scan inductions in this file: the code's runEnd, runStart and listEnd are Text's
+// ScanEnd, RunStart and ListEnd for every test. Each named scan below then links in two calls:
+// this, and Text's Ext lemma, which meets the code's test with the model's.
+
+lemma RunEndMatchesModel(s: string, i: nat)
+  requires i <= |s|
+  ensures forall ok: int -> bool :: runEnd(s, i, ok) == Text.ScanEnd(s, i, ok)
+{
+  forall ok: int -> bool ensures runEnd(s, i, ok) == Text.ScanEnd(s, i, ok) { RunEndIsScanEnd(s, i, ok); }
+}
+
+lemma RunEndIsScanEnd(s: string, i: nat, ok: int -> bool)
+  requires i <= |s|
+  ensures runEnd(s, i, ok) == Text.ScanEnd(s, i, ok)
+  decreases |s| - i
+{
+  if i < |s| { RunEndIsScanEnd(s, i + 1, ok); }
+}
+
+lemma RunStartMatchesModel(s: string, lo: nat, e: nat)
+  requires lo <= e <= |s|
+  ensures forall ok: int -> bool :: runStart(s, lo, e, ok) == Text.RunStart(s, lo, e, ok)
+  decreases e - lo
+{
+  if lo < e { RunStartMatchesModel(s, lo, e - 1); }
+}
+
+lemma ListEndMatchesModel<T>(xs: seq<T>, i: nat)
+  requires i <= |xs|
+  ensures forall ok: T -> bool :: listEnd(xs, i, ok) == Text.ListEnd(xs, i, ok)
+  decreases |xs| - i
+{
+  if i < |xs| { ListEndMatchesModel(xs, i + 1); }
+}
+
 // ---------------------------------------------------------------- characters and runs
 
 lemma RepoRunEndMatchesModel(s: string, i: nat)
   requires i <= |s|
   ensures repoRunEnd(s, i) == WorkData.RepoRunEnd(s, i)
-  decreases |s| - i
 {
-  if i < |s| { RepoRunEndMatchesModel(s, i + 1); }
+  RunEndMatchesModel(s, i);
+  Text.ScanEndExt(s, i);
 }
 
 lemma DigitRunEndMatchesModel(s: string, i: nat)
   requires i <= |s|
   ensures digitRunEnd(s, i) == WorkData.DigitRunEnd(s, i)
-  decreases |s| - i
 {
-  if i < |s| { DigitRunEndMatchesModel(s, i + 1); }
+  RunEndMatchesModel(s, i);
+  Text.ScanEndExt(s, i);
 }
 
 lemma SpaceRunEndMatchesModel(s: string, i: nat)
   requires i <= |s|
   ensures spaceRunEnd(s, i) == WorkData.SpaceRunEnd(s, i)
-  decreases |s| - i
 {
-  if i < |s| { SpaceRunEndMatchesModel(s, i + 1); }
+  RunEndMatchesModel(s, i);
+  Text.ScanEndExt(s, i);
 }
 
 lemma SolidRunEndMatchesModel(s: string, i: nat)
   requires i <= |s|
   ensures solidRunEnd(s, i) == WorkData.SolidRunEnd(s, i)
-  decreases |s| - i
 {
-  if i < |s| { SolidRunEndMatchesModel(s, i + 1); }
+  RunEndMatchesModel(s, i);
+  Text.ScanEndExt(s, i);
 }
 
 lemma AllDigitsFromMatchesModel(s: string, i: nat)
   requires i <= |s|
   ensures allDigitsFrom(s, i) == WorkData.AllDigits(s[i..])
-  decreases |s| - i
 {
-  if i < |s| { AllDigitsFromMatchesModel(s, i + 1); assert s[i..] == [s[i]] + s[i + 1..]; }
+  RunEndMatchesModel(s, i);
+  Text.ScanEndExt(s, i);
+  Text.ScanAllSlice(s, i, WorkData.Digit);
 }
 
 lemma NoLineEndFromMatchesModel(s: string, i: nat)
   requires i <= |s|
   ensures noLineEndFrom(s, i) == WorkData.NoLineEnd(s[i..])
-  decreases |s| - i
 {
-  if i < |s| { NoLineEndFromMatchesModel(s, i + 1); assert s[i..] == [s[i]] + s[i + 1..]; }
+  RunEndMatchesModel(s, i);
+  Text.ScanEndExt(s, i);
+  Text.ScanAllSlice(s, i, WorkData.InLine);
 }
 
 lemma LowerFromMatchesModel(s: string, i: nat)
@@ -144,16 +182,17 @@ lemma NumberedIdMatchesModel(owner: string, repo: string, num: string, org: stri
 lemma LastHyphenMatchesModel(s: string, i: nat)
   requires i <= |s|
   ensures lastHyphenBefore(s, i) == WorkData.LastHyphen(s, i)
-  decreases i
 {
-  if i > 0 { LastHyphenMatchesModel(s, i - 1); }
+  RunStartMatchesModel(s, 0, i);
+  Text.RunStartExt(s, 0, i);
 }
 
 lemma FirstDotMatchesModel(s: string, i: nat)
+  requires i <= |s|
   ensures firstDotFrom(s, i) == WorkData.FirstDot(s, i)
-  decreases |s| - i
 {
-  if i < |s| { FirstDotMatchesModel(s, i + 1); }
+  RunEndMatchesModel(s, i);
+  Text.ScanEndExt(s, i);
 }
 
 lemma ParseGithubIdMatchesModel(id: string, org: string)
@@ -183,9 +222,9 @@ lemma TodoLabelMatchesModel(id: string)
 lemma SpaceStartMatchesModel(s: string, lo: nat, e: nat)
   requires lo <= e <= |s|
   ensures spaceStartBack(s, lo, e) == WorkData.SpaceStart(s, lo, e)
-  decreases e - lo
 {
-  if e > lo { SpaceStartMatchesModel(s, lo, e - 1); }
+  RunStartMatchesModel(s, lo, e);
+  Text.RunStartExt(s, lo, e);
 }
 
 lemma KeywordEndsAtMatchesModel(s: string, lo: nat, e: nat, k: string)
@@ -231,6 +270,16 @@ lemma KeywordsUnfold(s: string, lo: nat, e: nat)
   }
 }
 
+// closesBefore unfolded: the code alone, proved apart so the model's scan facts are not in its
+// context (with them, this one step ran near the time limit and timed out in a full run).
+lemma ClosesBeforeIsAny(s: string, start: nat, lo: nat, e1: nat, e: nat)
+  requires start <= |s| && lo == (if start >= 24 then start - 24 else 0)
+  requires e1 == spaceStartBack(s, lo, start)
+  requires e == if e1 > lo && s[e1 - 1] == ':' then spaceStartBack(s, lo, e1 - 1) else e1
+  ensures closesBefore(s, start) == anyKeywordEndsAt(s, lo, e)
+{
+}
+
 lemma {:vcs_split_on_every_assert} ClosesBeforeMatchesModel(s: string, start: nat)
   requires start <= |s|
   ensures closesBefore(s, start) == WorkData.ClosesBefore(s, start)
@@ -261,7 +310,7 @@ lemma {:vcs_split_on_every_assert} ClosesBeforeMatchesModel(s: string, start: na
     keywordEndsAt(s, lo, e, "fixes") || keywordEndsAt(s, lo, e, "fixed") ||
     keywordEndsAt(s, lo, e, "resolve") || keywordEndsAt(s, lo, e, "resolves") ||
     keywordEndsAt(s, lo, e, "resolved");
-  assert closesBefore(s, start) == anyKeywordEndsAt(s, lo, e);
+  ClosesBeforeIsAny(s, start, lo, e1, e);
   assert anyKeywordEndsAt(s, lo, e) == code;
   assert code == AnyKeyword(s, lo, e);
 }
@@ -358,10 +407,11 @@ lemma RefContextMatchesModel(isGithub: bool, ref: string, org: string)
 }
 
 lemma RefIndexMatchesModel(refs: seq<Ref>, id: string, i: nat)
+  requires i <= |refs|
   ensures refIndex(refs, id, i) == WorkData.RefIndex(AsRefs(refs), id, i)
-  decreases |refs| - i
 {
-  if i < |refs| { RefIndexMatchesModel(refs, id, i + 1); }
+  ListEndMatchesModel(refs, i);
+  Text.ListEndExt(refs, AsRefs(refs), i);
 }
 
 lemma AddRefMatchesModel(refs: seq<Ref>, id: string, closes: bool, project: string)
@@ -510,9 +560,9 @@ lemma ExtractRefsMatchesModel(s: string, ctx: RefContext)
 lemma LastLineEndMatchesModel(s: string, lo: nat, hi: nat)
   requires lo <= hi <= |s|
   ensures lastLineEndIn(s, lo, hi) == WorkData.LastLineEnd(s, lo, hi)
-  decreases hi
 {
-  if hi > lo { LastLineEndMatchesModel(s, lo, hi - 1); }
+  RunStartMatchesModel(s, lo, hi);
+  Text.RunStartExt(s, lo, hi);
 }
 
 lemma HeadTailEndMatchesModel(s: string, t: nat)
@@ -604,41 +654,25 @@ function AsProblems(ps: seq<YamlProblem>): seq<WorkData.YamlProblem>
 
 function AsYaml(y: Yaml): WorkData.Yaml { WorkData.Yaml(AsEntries(y.entries), AsProblems(y.problems)) }
 
-lemma TrimStartMatchesModel(s: string, i: nat)
-  requires i <= |s|
-  ensures trimStartAt(s, i) == WorkData.TrimStart(s, i)
-  decreases |s| - i
-{
-  if i < |s| { TrimStartMatchesModel(s, i + 1); }
-}
-
-lemma TrimEndMatchesModel(s: string, lo: nat, e: nat)
-  requires lo <= e <= |s|
-  ensures trimEndAt(s, lo, e) == WorkData.TrimEnd(s, lo, e)
-  decreases e - lo
-{
-  if e > lo { TrimEndMatchesModel(s, lo, e - 1); }
-}
-
 lemma TrimMatchesModel(s: string)
   ensures trimText(s) == WorkData.Trim(s)
 {
-  TrimStartMatchesModel(s, 0);
-  TrimEndMatchesModel(s, trimStartAt(s, 0), |s|);
+  SpaceRunEndMatchesModel(s, 0);
+  SpaceStartMatchesModel(s, spaceRunEnd(s, 0), |s|);
 }
 
 lemma HasMarkFromMatchesModel(s: string, i: nat)
+  requires i <= |s|
   ensures hasMarkFrom(s, i) <==> exists k :: i <= k < |s| && WorkData.Mark(s[k] as int)
-  decreases |s| - i
 {
-  if i < |s| { HasMarkFromMatchesModel(s, i + 1); }
+  RunEndMatchesModel(s, i);
 }
 
 lemma HasDoubleQuoteFromMatchesModel(s: string, i: nat)
+  requires i <= |s|
   ensures hasDoubleQuoteFrom(s, i) <==> exists k :: i <= k < |s| && s[k] == '"'
-  decreases |s| - i
 {
-  if i < |s| { HasDoubleQuoteFromMatchesModel(s, i + 1); }
+  RunEndMatchesModel(s, i);
 }
 
 lemma FormatScalarMatchesModel(text: string)
@@ -678,9 +712,9 @@ lemma ParseScalarMatchesModel(raw: string)
 lemma CommaFromMatchesModel(s: string, i: nat)
   requires i <= |s|
   ensures commaFrom(s, i) == WorkData.CommaFrom(s, i)
-  decreases |s| - i
 {
-  if i < |s| { CommaFromMatchesModel(s, i + 1); }
+  RunEndMatchesModel(s, i);
+  Text.ScanEndExt(s, i);
 }
 
 lemma SplitItemsMatchesModel(s: string, i: nat)
@@ -715,9 +749,9 @@ lemma ParseValueMatchesModel(raw: string)
 lemma KeyRunEndMatchesModel(s: string, i: nat)
   requires i <= |s|
   ensures keyRunEnd(s, i) == WorkData.KeyRunEnd(s, i)
-  decreases |s| - i
 {
-  if i < |s| { KeyRunEndMatchesModel(s, i + 1); }
+  RunEndMatchesModel(s, i);
+  Text.ScanEndExt(s, i);
 }
 
 lemma ItemStartMatchesModel(line: string)
@@ -745,10 +779,11 @@ lemma ClassifyLineMatchesModel(line: string)
 }
 
 lemma EntryIndexMatchesModel(es: seq<YamlEntry>, key: string, i: nat)
+  requires i <= |es|
   ensures entryIndex(es, key, i) == WorkData.EntryIndex(AsEntries(es), key, i)
-  decreases |es| - i
 {
-  if i < |es| { EntryIndexMatchesModel(es, key, i + 1); }
+  ListEndMatchesModel(es, i);
+  Text.ListEndExt(es, AsEntries(es), i);
 }
 
 lemma SetEntryMatchesModel(es: seq<YamlEntry>, key: string, value: YamlValue)
@@ -829,23 +864,24 @@ lemma ParseYamlMatchesModel(lines: seq<string>)
 // ---------------------------------------------------------------- field formats
 
 lemma IdRestFromMatchesModel(s: string, i: nat)
+  requires i <= |s|
   ensures idRestFrom(s, i) <==> forall k :: i <= k < |s| ==> WorkData.IdChar(s[k] as int)
-  decreases |s| - i
 {
-  if i < |s| { IdRestFromMatchesModel(s, i + 1); }
+  RunEndMatchesModel(s, i);
+  Text.ScanReaches(s, i, |s|, isIdRestUnit);
 }
 
 lemma IsIdTextMatchesModel(s: string)
   ensures isIdText(s) == WorkData.IsId(s)
 {
-  IdRestFromMatchesModel(s, 1);
+  if |s| > 0 { IdRestFromMatchesModel(s, 1); }
 }
 
 lemma HasSolidFromMatchesModel(s: string, i: nat)
+  requires i <= |s|
   ensures hasSolidFrom(s, i) <==> exists k :: i <= k < |s| && !WorkData.Space(s[k] as int)
-  decreases |s| - i
 {
-  if i < |s| { HasSolidFromMatchesModel(s, i + 1); }
+  RunEndMatchesModel(s, i);
 }
 
 lemma EqualsFromMatchesModel(s: string, i: nat)
@@ -859,9 +895,9 @@ lemma EqualsFromMatchesModel(s: string, i: nat)
 lemma EqualsAtMatchesModel(s: string, i: nat)
   requires i <= |s|
   ensures equalsAt(s, i) == WorkData.FirstEquals(s, i)
-  decreases |s| - i
 {
-  if i < |s| { EqualsAtMatchesModel(s, i + 1); }
+  RunEndMatchesModel(s, i);
+  Text.ScanEndExt(s, i);
 }
 
 lemma DigitsAtMatchesModel(s: string, i: nat, n: nat)
@@ -929,9 +965,10 @@ lemma MatchesFormatMatchesModel(format: string, v: string)
 lemma HoldsFromMatchesModel(xs: seq<string>, x: string, i: nat)
   requires i <= |xs|
   ensures holdsFrom(xs, x, i) == (x in xs[i..])
-  decreases |xs| - i
 {
-  if i < |xs| { HoldsFromMatchesModel(xs, x, i + 1); assert xs[i..] == [xs[i]] + xs[i + 1..]; }
+  ListEndMatchesModel(xs, i);
+  var t := xs[i..];
+  if x in t { var k :| 0 <= k < |t| && t[k] == x; assert xs[i + k] == x; }
 }
 
 lemma HoldsMatchesModel(xs: seq<string>, x: string)
@@ -1058,10 +1095,10 @@ lemma IsVisibleNameMatchesModel(name: string)
 }
 
 lemma AllItemsFromMatchesModel(names: seq<string>, i: nat)
+  requires i <= |names|
   ensures allItemsFrom(names, i) <==> forall k :: i <= k < |names| ==> names[k] == "items"
-  decreases |names| - i
 {
-  if i < |names| { AllItemsFromMatchesModel(names, i + 1); }
+  ListEndMatchesModel(names, i);
 }
 
 lemma IsEmptyHubMatchesModel(others: seq<string>, visibleItems: int)
@@ -1271,10 +1308,11 @@ lemma HtmlTextMatchesModel(text: string)
 }
 
 lemma EdgeIndexMatchesModel(es: seq<Edge>, from: string, to: string, i: nat)
+  requires i <= |es|
   ensures edgeIndex(es, from, to, i) == WorkData.EdgeIndex(AsEdges(es), from, to, i)
-  decreases |es| - i
 {
-  if i < |es| { EdgeIndexMatchesModel(es, from, to, i + 1); }
+  ListEndMatchesModel(es, i);
+  Text.ListEndExt(es, AsEdges(es), i);
 }
 
 lemma AddEdgeMatchesModel(es: seq<Edge>, from: string, to: string, closes: bool)

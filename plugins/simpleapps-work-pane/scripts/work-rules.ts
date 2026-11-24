@@ -74,96 +74,120 @@ export function hasAt(s: string, i: number, w: string): boolean {
   return i + w.length <= s.length && s.slice(i, i + w.length) === w;
 }
 
-/** Where the run of repo characters that starts at `i` ends. */
-function repoRunEnd(s: string, i: number): number {
+/** `\S`: not whitespace. */
+function isSolidUnit(c: number): boolean {
+  //@ verify
+  return !isSpaceUnit(c);
+}
+
+/** Not a line end: what `.` matches. */
+function isInLineUnit(c: number): boolean {
+  //@ verify
+  return !isLineEndUnit(c);
+}
+
+// ---------------------------------------------------------------- scans
+// Every scan here is one of these three, each proved once for any test (model: Text.ListEnd,
+// Text.ScanEnd, Text.RunStart). A named scan below is one call with its own test. Named apart
+// from rules.ts' scanEnd and pane-rules.ts' pane scans: every proved file is one Dafny program.
+
+/** Where the run of code units passing `ok` that starts at `i` ends: the first index from `i`
+    whose code unit fails `ok`, or the end. */
+function runEnd(s: string, i: number, ok: (c: number) => boolean): number {
   //@ verify
   //@ pure
   //@ type i nat
   //@ requires i <= s.length
   //@ ensures i <= \result && \result <= s.length
   let j = i;
-  while (j < s.length && isRepoUnit(s.charCodeAt(j))) {
+  while (j < s.length && ok(s.charCodeAt(j))) {
     //@ invariant i <= j && j <= s.length
     //@ decreases s.length - j
     j = j + 1;
   }
   return j;
+}
+
+/** Where the run of code units passing `ok` that ends at `e` starts, no lower than `lo`. */
+function runStart(s: string, lo: number, e: number, ok: (c: number) => boolean): number {
+  //@ verify
+  //@ pure
+  //@ type lo nat
+  //@ type e nat
+  //@ requires lo <= e && e <= s.length
+  //@ ensures lo <= \result && \result <= e
+  let j = e;
+  while (j > lo && ok(s.charCodeAt(j - 1))) {
+    //@ invariant lo <= j && j <= e
+    //@ decreases j - lo
+    j = j - 1;
+  }
+  return j;
+}
+
+/** Where the run of elements passing `ok` that starts at `i` ends; a search for x is the run of
+    elements that are not x. */
+function listEnd<T>(xs: T[], i: number, ok: (x: T) => boolean): number {
+  //@ verify
+  //@ pure
+  //@ type i nat
+  //@ requires i <= xs.length
+  //@ ensures i <= \result && \result <= xs.length
+  let j = i;
+  while (j < xs.length && ok(xs[j]!)) {
+    //@ invariant i <= j && j <= xs.length
+    //@ decreases xs.length - j
+    j = j + 1;
+  }
+  return j;
+}
+
+/** Where the run of repo characters that starts at `i` ends. */
+function repoRunEnd(s: string, i: number): number {
+  //@ verify
+  //@ type i nat
+  //@ requires i <= s.length
+  return runEnd(s, i, isRepoUnit);
 }
 
 /** Where the run of digits that starts at `i` ends. */
 function digitRunEnd(s: string, i: number): number {
   //@ verify
-  //@ pure
   //@ type i nat
   //@ requires i <= s.length
-  //@ ensures i <= \result && \result <= s.length
-  let j = i;
-  while (j < s.length && isDigitUnit(s.charCodeAt(j))) {
-    //@ invariant i <= j && j <= s.length
-    //@ decreases s.length - j
-    j = j + 1;
-  }
-  return j;
+  return runEnd(s, i, isDigitUnit);
 }
 
-/** Where the run of whitespace that starts at `i` ends. */
+/** Where the run of whitespace that starts at `i` ends; also where `trim` starts. */
 function spaceRunEnd(s: string, i: number): number {
   //@ verify
-  //@ pure
   //@ type i nat
   //@ requires i <= s.length
-  //@ ensures i <= \result && \result <= s.length
-  let j = i;
-  while (j < s.length && isSpaceUnit(s.charCodeAt(j))) {
-    //@ invariant i <= j && j <= s.length
-    //@ decreases s.length - j
-    j = j + 1;
-  }
-  return j;
+  return runEnd(s, i, isSpaceUnit);
 }
 
 /** Where the run of non-whitespace (`\S`) that starts at `i` ends. */
 function solidRunEnd(s: string, i: number): number {
   //@ verify
-  //@ pure
   //@ type i nat
   //@ requires i <= s.length
-  //@ ensures i <= \result && \result <= s.length
-  let j = i;
-  while (j < s.length && !isSpaceUnit(s.charCodeAt(j))) {
-    //@ invariant i <= j && j <= s.length
-    //@ decreases s.length - j
-    j = j + 1;
-  }
-  return j;
+  return runEnd(s, i, isSolidUnit);
 }
 
 /** Every code unit of `s` from `i` on is a digit. */
 function allDigitsFrom(s: string, i: number): boolean {
   //@ verify
-  //@ pure
   //@ type i nat
-  let j = i;
-  while (j < s.length && isDigitUnit(s.charCodeAt(j))) {
-    //@ invariant i <= j
-    //@ decreases s.length - j
-    j = j + 1;
-  }
-  return j >= s.length;
+  //@ requires i <= s.length
+  return runEnd(s, i, isDigitUnit) === s.length;
 }
 
 /** No code unit of `s` from `i` on is a line end. */
 function noLineEndFrom(s: string, i: number): boolean {
   //@ verify
-  //@ pure
   //@ type i nat
-  let j = i;
-  while (j < s.length && !isLineEndUnit(s.charCodeAt(j))) {
-    //@ invariant i <= j
-    //@ decreases s.length - j
-    j = j + 1;
-  }
-  return j >= s.length;
+  //@ requires i <= s.length
+  return runEnd(s, i, isInLineUnit) === s.length;
 }
 
 /** `s` from `i` on with A-Z lowered; nothing else changes (every input here is ASCII). */
@@ -213,32 +237,20 @@ function numberedId(owner: string, repo: string, num: string, org: string): stri
 /** The last index before `i` that holds a hyphen, or -1. */
 function lastHyphenBefore(s: string, i: number): number {
   //@ verify
-  //@ pure
   //@ type i nat
   //@ requires i <= s.length
   //@ ensures -1 <= \result && \result < i
   // At 0 there is nothing before: -1, the same `j - 1` a hyphen at 0 would give
-  let j = i;
-  while (j > 0 && s.charCodeAt(j - 1) !== 45) {
-    //@ invariant j <= i
-    //@ decreases j
-    j = j - 1;
-  }
-  return j - 1;
+  return runStart(s, 0, i, (c: number) => c !== 45) - 1;
 }
 
 /** The first index at or after `i` that holds a dot, or -1. */
 function firstDotFrom(s: string, i: number): number {
   //@ verify
-  //@ pure
   //@ type i nat
+  //@ requires i <= s.length
   //@ ensures \result === -1 || (i <= \result && \result < s.length)
-  let j = i;
-  while (j < s.length && s.charCodeAt(j) !== 46) {
-    //@ invariant i <= j
-    //@ decreases s.length - j
-    j = j + 1;
-  }
+  const j = runEnd(s, i, (c: number) => c !== 46);
   return j < s.length ? j : -1;
 }
 
@@ -278,20 +290,13 @@ export function todoLabel(id: string): string {
 // `\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s*:?\s*$`, ignoring case, on the 24 code units
 // before the reference: a reference right after "Fixes" or "closes:" closes its target.
 
-/** The start of the whitespace that ends at `e`, not before `lo`. */
+/** The start of the whitespace that ends at `e`, not before `lo`; also where `trim` ends. */
 function spaceStartBack(s: string, lo: number, e: number): number {
   //@ verify
-  //@ pure
   //@ type lo nat
+  //@ type e nat
   //@ requires lo <= e && e <= s.length
-  //@ ensures lo <= \result && \result <= e
-  let j = e;
-  while (j > lo && isSpaceUnit(s.charCodeAt(j - 1))) {
-    //@ invariant lo <= j && j <= e
-    //@ decreases j - lo
-    j = j - 1;
-  }
-  return j;
+  return runStart(s, lo, e, isSpaceUnit);
 }
 
 /** The keyword `k` (lowercase) ends at `e`, ignoring case, at a word start no earlier than `lo`. */
@@ -566,15 +571,10 @@ export function refContext(isGithub: boolean, ref: string, org: string): RefCont
 /** The index of the reference to `id` at or after `i`, or -1. */
 function refIndex(refs: Ref[], id: string, i: number): number {
   //@ verify
-  //@ pure
   //@ type i nat
+  //@ requires i <= refs.length
   //@ ensures \result === -1 || (i <= \result && \result < refs.length)
-  let j = i;
-  while (j < refs.length && refs[j]!.id !== id) {
-    //@ invariant i <= j
-    //@ decreases refs.length - j
-    j = j + 1;
-  }
+  const j = listEnd(refs, i, (r: Ref) => r.id !== id);
   return j < refs.length ? j : -1;
 }
 
@@ -778,16 +778,11 @@ function noHead(): Head {
 /** The last line end in `[from, to)`, or -1. */
 function lastLineEndIn(s: string, lo: number, hi: number): number {
   //@ verify
-  //@ pure
   //@ type lo nat
+  //@ type hi nat
   //@ requires lo <= hi && hi <= s.length
   //@ ensures \result === -1 || (lo <= \result && \result < hi)
-  let j = hi;
-  while (j > lo && !isLineEndUnit(s.charCodeAt(j - 1))) {
-    //@ invariant lo <= j && j <= hi
-    //@ decreases j - lo
-    j = j - 1;
-  }
+  const j = runStart(s, lo, hi, isInLineUnit);
   return j > lo ? j - 1 : -1;
 }
 
@@ -899,43 +894,11 @@ export function splitSegments(body: string, author: string, at: string): Segment
 // The strict YAML subset work/ files use: `key: value`, `key: [a, b]`, and `key:` followed by
 // `  - item` lines. Written by `formatScalar`/`formatList`, read back by `parseYaml`.
 
-/** Where `s`'s leading whitespace ends. */
-function trimStartAt(s: string, i: number): number {
-  //@ verify
-  //@ pure
-  //@ type i nat
-  //@ requires i <= s.length
-  //@ ensures i <= \result && \result <= s.length
-  let j = i;
-  while (j < s.length && isSpaceUnit(s.charCodeAt(j))) {
-    //@ invariant i <= j && j <= s.length
-    //@ decreases s.length - j
-    j = j + 1;
-  }
-  return j;
-}
-
-/** Where `s`'s trailing whitespace starts, not before `lo`. */
-function trimEndAt(s: string, lo: number, e: number): number {
-  //@ verify
-  //@ pure
-  //@ type lo nat
-  //@ requires lo <= e && e <= s.length
-  //@ ensures lo <= \result && \result <= e
-  let j = e;
-  while (j > lo && isSpaceUnit(s.charCodeAt(j - 1))) {
-    //@ invariant lo <= j && j <= e
-    //@ decreases j - lo
-    j = j - 1;
-  }
-  return j;
-}
-
-/** `String.prototype.trim`. */
+/** `String.prototype.trim`: the whitespace runs at each end, cut. */
 export function trimText(s: string): string {
   //@ verify
-  const a = trimStartAt(s, 0);
-  return s.slice(a, trimEndAt(s, a, s.length));
+  const a = spaceRunEnd(s, 0);
+  return s.slice(a, spaceStartBack(s, a, s.length));
 }
 
 /** A code unit YAML would read as syntax: `: # , [ ] " '`. */
@@ -947,29 +910,17 @@ function isYamlMark(c: number): boolean {
 /** `s` from `i` on holds a YAML mark. */
 function hasMarkFrom(s: string, i: number): boolean {
   //@ verify
-  //@ pure
   //@ type i nat
-  let j = i;
-  while (j < s.length && !isYamlMark(s.charCodeAt(j))) {
-    //@ invariant i <= j
-    //@ decreases s.length - j
-    j = j + 1;
-  }
-  return j < s.length;
+  //@ requires i <= s.length
+  return runEnd(s, i, (c: number) => !isYamlMark(c)) < s.length;
 }
 
 /** `s` from `i` on holds a double quote. */
 function hasDoubleQuoteFrom(s: string, i: number): boolean {
   //@ verify
-  //@ pure
   //@ type i nat
-  let j = i;
-  while (j < s.length && s.charCodeAt(j) !== 34) {
-    //@ invariant i <= j
-    //@ decreases s.length - j
-    j = j + 1;
-  }
-  return j < s.length;
+  //@ requires i <= s.length
+  return runEnd(s, i, (c: number) => c !== 34) < s.length;
 }
 
 /** One value as written: as it is, or quoted when it is empty, holds a mark, or starts or ends with whitespace; single quotes when it holds a double quote. */
@@ -1020,17 +971,9 @@ export function parseScalar(raw: string): string {
 /** Where the comma at or after `i` is, or the end. */
 function commaFrom(s: string, i: number): number {
   //@ verify
-  //@ pure
   //@ type i nat
   //@ requires i <= s.length
-  //@ ensures i <= \result && \result <= s.length
-  let j = i;
-  while (j < s.length && s.charCodeAt(j) !== 44) {
-    //@ invariant i <= j && j <= s.length
-    //@ decreases s.length - j
-    j = j + 1;
-  }
-  return j;
+  return runEnd(s, i, (c: number) => c !== 44);
 }
 
 /** The comma-separated parts of `s` from `i` on, each read as a value. */
@@ -1090,17 +1033,9 @@ function isKeyUnit(c: number): boolean {
 /** Where the run of key characters that starts at `i` ends. */
 function keyRunEnd(s: string, i: number): number {
   //@ verify
-  //@ pure
   //@ type i nat
   //@ requires i <= s.length
-  //@ ensures i <= \result && \result <= s.length
-  let j = i;
-  while (j < s.length && isKeyUnit(s.charCodeAt(j))) {
-    //@ invariant i <= j && j <= s.length
-    //@ decreases s.length - j
-    j = j + 1;
-  }
-  return j;
+  return runEnd(s, i, isKeyUnit);
 }
 
 /** `^\s+-\s+(.+)$`: the item's text from the greedy match, or -1 when the line is not one. */
@@ -1153,15 +1088,10 @@ export interface Yaml {
 /** The index of `key` at or after `i`, or -1. */
 function entryIndex(entries: YamlEntry[], key: string, i: number): number {
   //@ verify
-  //@ pure
   //@ type i nat
+  //@ requires i <= entries.length
   //@ ensures \result === -1 || (i <= \result && \result < entries.length)
-  let j = i;
-  while (j < entries.length && entries[j]!.key !== key) {
-    //@ invariant i <= j
-    //@ decreases entries.length - j
-    j = j + 1;
-  }
+  const j = listEnd(entries, i, (e: YamlEntry) => e.key !== key);
   return j < entries.length ? j : -1;
 }
 
@@ -1263,15 +1193,9 @@ function isIdRestUnit(c: number): boolean {
 /** `[a-z0-9._-]` from `i` on. */
 function idRestFrom(s: string, i: number): boolean {
   //@ verify
-  //@ pure
   //@ type i nat
-  let j = i;
-  while (j < s.length && isIdRestUnit(s.charCodeAt(j))) {
-    //@ invariant i <= j
-    //@ decreases s.length - j
-    j = j + 1;
-  }
-  return j >= s.length;
+  //@ requires i <= s.length
+  return runEnd(s, i, isIdRestUnit) === s.length;
 }
 
 /** An id: `^[a-z0-9][a-z0-9._-]*$`. */
@@ -1283,15 +1207,9 @@ export function isIdText(s: string): boolean {
 /** `s` holds a non-whitespace code unit from `i` on (`\S`). */
 function hasSolidFrom(s: string, i: number): boolean {
   //@ verify
-  //@ pure
   //@ type i nat
-  let j = i;
-  while (j < s.length && isSpaceUnit(s.charCodeAt(j))) {
-    //@ invariant i <= j
-    //@ decreases s.length - j
-    j = j + 1;
-  }
-  return j < s.length;
+  //@ requires i <= s.length
+  return spaceRunEnd(s, i) < s.length;
 }
 
 /** The number of `=` in `s` from `i` on. */
@@ -1314,17 +1232,9 @@ function equalsFrom(s: string, i: number): number {
 /** The first `=` at or after `i`, or the end. */
 function equalsAt(s: string, i: number): number {
   //@ verify
-  //@ pure
   //@ type i nat
   //@ requires i <= s.length
-  //@ ensures i <= \result && \result <= s.length
-  let j = i;
-  while (j < s.length && s.charCodeAt(j) !== 61) {
-    //@ invariant i <= j && j <= s.length
-    //@ decreases s.length - j
-    j = j + 1;
-  }
-  return j;
+  return runEnd(s, i, (c: number) => c !== 61);
 }
 
 /** An alias: `^[^=]+=[^=]+$`, one `=` with text on both sides. */
@@ -1473,15 +1383,9 @@ function matchesValueFormat(format: string, v: string): boolean {
 /** `xs` holds `x` from `i` on. */
 function holdsFrom(xs: string[], x: string, i: number): boolean {
   //@ verify
-  //@ pure
   //@ type i nat
-  let j = i;
-  while (j < xs.length && xs[j] !== x) {
-    //@ invariant i <= j
-    //@ decreases xs.length - j
-    j = j + 1;
-  }
-  return j < xs.length;
+  //@ requires i <= xs.length
+  return listEnd(xs, i, (y: string) => y !== x) < xs.length;
 }
 
 /** `xs` holds `x`. */
@@ -1607,15 +1511,9 @@ export function isVisibleName(name: string): boolean {
 /** Every name from `i` on is `items`. */
 function allItemsFrom(names: string[], i: number): boolean {
   //@ verify
-  //@ pure
   //@ type i nat
-  let j = i;
-  while (j < names.length && names[j] === "items") {
-    //@ invariant i <= j
-    //@ decreases names.length - j
-    j = j + 1;
-  }
-  return j >= names.length;
+  //@ requires i <= names.length
+  return listEnd(names, i, (n: string) => n === "items") === names.length;
 }
 
 /** A hub holds nothing: besides README.md, at most an `items/` with nothing visible in it. */
@@ -1941,15 +1839,10 @@ export interface Edge {
 
 function edgeIndex(edges: Edge[], from: string, to: string, i: number): number {
   //@ verify
-  //@ pure
   //@ type i nat
+  //@ requires i <= edges.length
   //@ ensures \result === -1 || (i <= \result && \result < edges.length)
-  let j = i;
-  while (j < edges.length && !(edges[j]!.from === from && edges[j]!.to === to)) {
-    //@ invariant i <= j
-    //@ decreases edges.length - j
-    j = j + 1;
-  }
+  const j = listEnd(edges, i, (e: Edge) => !(e.from === from && e.to === to));
   return j < edges.length ? j : -1;
 }
 

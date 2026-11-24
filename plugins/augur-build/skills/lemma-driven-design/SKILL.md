@@ -63,7 +63,7 @@ For an import, the model is written and verified first and lands as its own comm
 - **Prove what runs.** The proof is about the shipped code, never a copy of it. Where the prover's idea of a type differs from the runtime's (unbounded integers for floats, recursion with no stack limit), keep proved code to what both agree on, and write long walks as loops.
 - **Real dependencies in tests.** A hand-made mock of a library or service can hide its real errors; use its real error types, or run it in memory.
 - **Facts about the data become types.** A stated fact ("an id is at least 1") is a type made where the value enters, and proved functions still restate it as a precondition.
-- **Shared code is proved once,** at the highest layer it fits; specific values are proved to satisfy the general rule.
+- **General before specific.** When two proofs share a shape, prove it once over a parameter (a test, a type, a bound) and have each case use it; specific values are proved to satisfy the general rule. One general proof is less to maintain, verifies faster, and makes the next case free. See `references/writing-the-model.md` "General before specific".
 - **Pin the tools, and budget the time.** Pin the prover and its solver: a solver upgrade alone can make proofs time out. A full proof run SHOULD finish in minutes; one much slower than its last run is a defect.
 - **Say what a proof says, no more.** A function is proved only for its clauses. Record what is left unproved.
 

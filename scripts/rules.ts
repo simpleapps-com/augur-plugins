@@ -25,34 +25,28 @@ function isNameCode(c: number): boolean {
   return isLowerCode(c) || isDigitCode(c) || c === 45;
 }
 
-/** Every code unit of `s` from `i` on is a digit. */
-function digitsFrom(s: string, i: number): boolean {
+/** A code unit that is not a space. */
+function isNonSpaceCode(c: number): boolean {
   //@ verify
-  //@ pure
-  //@ type i nat
-  //@ requires i >= 0
-  let j = i;
-  while (j < s.length && isDigitCode(s.charCodeAt(j))) {
-    //@ invariant i <= j
-    //@ decreases s.length - j
-    j = j + 1;
-  }
-  return j >= s.length;
+  //@ ensures \result <==> c !== 32
+  return c !== 32;
 }
 
-/** Every code unit of `s` from `i` on is a name character. */
-function nameCodesFrom(s: string, i: number): boolean {
+/** Where the run of code units passing `ok` that starts at `i` ends: the first index from `i`
+    whose code unit fails `ok`, or the end. Every scan in these rules is this one, proved once
+    (model: Marketplace.ScanEnd). */
+function scanEnd(s: string, i: number, ok: (c: number) => boolean): number {
   //@ verify
   //@ pure
   //@ type i nat
-  //@ requires i >= 0
+  //@ requires i <= s.length
   let j = i;
-  while (j < s.length && isNameCode(s.charCodeAt(j))) {
-    //@ invariant i <= j
+  while (j < s.length && ok(s.charCodeAt(j))) {
+    //@ invariant i <= j && j <= s.length
     //@ decreases s.length - j
     j = j + 1;
   }
-  return j >= s.length;
+  return j;
 }
 
 /** The year and its dot: a digit 1-9, three digits, then "." at 4. */
@@ -60,7 +54,7 @@ function yearPart(s: string): boolean {
   //@ verify
   //@ requires s.length >= 8
   const first = s.charCodeAt(0);
-  return first >= 49 && first <= 57 && digitsFrom(s.slice(1, 4), 0) && s.charCodeAt(4) === 46;
+  return first >= 49 && first <= 57 && scanEnd(s, 1, isDigitCode) >= 4 && s.charCodeAt(4) === 46;
 }
 
 /** The release number from `a` on: a digit 1-9, then digits to the end. */
@@ -69,7 +63,7 @@ function seqFrom(s: string, a: number): boolean {
   //@ type a nat
   //@ requires a < s.length
   const first = s.charCodeAt(a);
-  return first >= 49 && first <= 57 && digitsFrom(s.slice(a + 1, s.length), 0);
+  return first >= 49 && first <= 57 && scanEnd(s, a + 1, isDigitCode) === s.length;
 }
 
 /** A one-digit month (1-9) at 5, its dot at 6, the release from 7. */
@@ -112,7 +106,12 @@ export function isSkillKey(k: string): boolean {
 /** `n` is a skill name: 1 to 64 characters, a-z first, then a-z, 0-9 and hyphens. */
 export function isSkillName(n: string): boolean {
   //@ verify
-  return n.length >= 1 && n.length <= 64 && isLowerCode(n.charCodeAt(0)) && nameCodesFrom(n, 1);
+  return (
+    n.length >= 1 &&
+    n.length <= 64 &&
+    isLowerCode(n.charCodeAt(0)) &&
+    scanEnd(n, 1, isNameCode) === n.length
+  );
 }
 
 /** `w` occurs in `s` at `i` or later. */
@@ -157,26 +156,11 @@ export function budgetOf(words: number): Budget {
   return "fits";
 }
 
-/** Where the host label that starts at `i` ends: the first non-label code unit, or the end. */
-function labelEnd(u: string, i: number): number {
-  //@ verify
-  //@ pure
-  //@ type i nat
-  //@ requires i <= u.length
-  let j = i;
-  while (j < u.length && isNameCode(u.charCodeAt(j))) {
-    //@ invariant i <= j && j <= u.length
-    //@ decreases u.length - j
-    j = j + 1;
-  }
-  return j;
-}
-
 /** `u` is `https://<label>.augur-mcp.com/...` (model: Marketplace.IsConnectorUrl). */
 export function isConnectorUrl(u: string): boolean {
   //@ verify
   if (u.length < 8 || u.slice(0, 8) !== "https://") return false;
-  const j = labelEnd(u, 8);
+  const j = scanEnd(u, 8, isNameCode);
   return j > 8 && j + 15 <= u.length && u.slice(j, j + 15) === ".augur-mcp.com/";
 }
 
@@ -188,23 +172,9 @@ export function isSecretKey(k: string): boolean {
   return k === "licenceKey" || k === "licenseKey";
 }
 
-/** `s` has a space at `i` or later. */
-function spaceFrom(s: string, i: number): boolean {
-  //@ verify
-  //@ pure
-  //@ type i nat
-  let j = i;
-  while (j < s.length && s.charCodeAt(j) !== 32) {
-    //@ invariant i <= j
-    //@ decreases s.length - j
-    j = j + 1;
-  }
-  return j < s.length;
-}
-
 /** An LSP server's command: a binary, never empty, with no spaces unless it is an absolute path
     (Claude Code's rule; model: Marketplace.IsLspCommand). */
 export function isLspCommand(c: string): boolean {
   //@ verify
-  return c.length > 0 && (c.charCodeAt(0) === 47 || !spaceFrom(c, 0));
+  return c.length > 0 && (c.charCodeAt(0) === 47 || scanEnd(c, 0, isNonSpaceCode) === c.length);
 }

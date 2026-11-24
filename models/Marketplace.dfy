@@ -3,9 +3,13 @@
 // in `models/links/scripts-rules.dfy`. Nothing is generated from this file.
 //
 // Each rule's source of truth: wiki Plugin-Format (versions, connectors) and Skill-Authoring
-// (skill frontmatter), which in turn cite Anthropic's docs.
+// (skill frontmatter), which in turn cite Anthropic's docs. Scans come from the shared layer,
+// Text.dfy.
+
+include "Text.dfy"
 
 module Marketplace {
+  import opened Text
 
   // ---------------------------------------------------------------- characters
   // Text is UTF-16 code units, as in JavaScript (lemmascript.json "javascript-utf16").
@@ -13,6 +17,7 @@ module Marketplace {
   predicate DigitCode(c: int) { 48 <= c <= 57 }          // 0-9
   predicate LowerCode(c: int) { 97 <= c <= 122 }         // a-z
   predicate NameCode(c: int) { LowerCode(c) || DigitCode(c) || c == 45 }  // a-z, 0-9, -
+  predicate NonSpaceCode(c: int) { c != 32 }                               // not a space
 
   predicate DigitText(s: string)
   {
@@ -116,31 +121,11 @@ module Marketplace {
   const Scheme: string := "https://"
   const Domain: string := ".augur-mcp.com/"
 
-  // Where the host label that starts at `i` ends: the first index from `i` that is not a
-  // label character, or the end.
-  function LabelEnd(u: string, i: nat): nat
-    requires i <= |u|
-    ensures i <= LabelEnd(u, i) <= |u|
-    decreases |u| - i
-  {
-    if i == |u| || !NameCode(u[i] as int) then i else LabelEnd(u, i + 1)
-  }
-
-  // The label ends at j when everything from i to j is a label character and j is not.
-  lemma LabelEndIs(u: string, i: nat, j: nat)
-    requires i <= j <= |u|
-    requires forall k :: i <= k < j ==> NameCode(u[k] as int)
-    requires j == |u| || !NameCode(u[j] as int)
-    ensures LabelEnd(u, i) == j
-    decreases j - i
-  {
-    if i < j { LabelEndIs(u, i + 1, j); }
-  }
-
+  // The host label starts at 8 and ends where the scan for label characters stops.
   predicate IsConnectorUrl(u: string)
   {
     |u| >= 8 && u[..8] == Scheme &&
-    var j := LabelEnd(u, 8);
+    var j := ScanEnd(u, 8, NameCode);
     j > 8 && j + 15 <= |u| && u[j..j + 15] == Domain
   }
 
@@ -151,11 +136,11 @@ module Marketplace {
     ensures !IsConnectorUrl("https://evil.example.com/.augur-mcp.com/")
   {
     var u := "https://intelligence.augur-mcp.com/mcp";
-    LabelEndIs(u, 8, 20);
+    ScanEndIs(u, 8, 20, NameCode);
     var v := "https://augur-mcp.com/mcp";
-    LabelEndIs(v, 8, 17);
+    ScanEndIs(v, 8, 17, NameCode);
     var w := "https://evil.example.com/.augur-mcp.com/";
-    LabelEndIs(w, 8, 12);
+    ScanEndIs(w, 8, 12, NameCode);
     assert w[12..27] != Domain by { assert w[13] != Domain[1]; }
   }
 
@@ -171,16 +156,11 @@ module Marketplace {
   }
 
   // An LSP server's command is a binary: no spaces, unless it is an absolute path (Claude Code's
-  // rule: "No spaces unless the value starts with `/`"), and never empty.
-  predicate SpaceFrom(s: string, i: nat)
-    decreases |s| - i
-  {
-    i < |s| && (s[i] as int == 32 || SpaceFrom(s, i + 1))
-  }
-
+  // rule: "No spaces unless the value starts with `/`"), and never empty. "No spaces" is the scan
+  // for non-space code units reaching the end.
   predicate IsLspCommand(c: string)
   {
-    |c| > 0 && (c[0] as int == 47 || !SpaceFrom(c, 0))
+    |c| > 0 && (c[0] as int == 47 || ScanEnd(c, 0, NonSpaceCode) == |c|)
   }
 
   lemma LspCommandExamples()
@@ -189,6 +169,7 @@ module Marketplace {
     ensures !IsLspCommand("intelephense --stdio")
     ensures !IsLspCommand("")
   {
-    assert SpaceFrom("intelephense --stdio", 12);
+    ScanEndIs("intelephense", 0, 12, NonSpaceCode);
+    ScanEndIs("intelephense --stdio", 0, 12, NonSpaceCode);
   }
 }

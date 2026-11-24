@@ -31,14 +31,58 @@ lemma IsTrackedIssueMatchesModel(isOpen: bool, isGithub: bool, isIssue: bool, wa
 {
 }
 
+// ---------------------------------------------------------------- the three shared scans
+// The only scan inductions in this file: the code's paneRunEnd, paneRunStart and paneListEnd are
+// Text's ScanEnd, RunStart and ListEnd for every test. Each scan below links in a call to one of
+// these and, where the code passes its own test or its own records, Text's Ext lemma.
+
+lemma PaneRunEndMatchesModel(s: string, i: nat)
+  requires i <= |s|
+  ensures forall ok: int -> bool :: paneRunEnd(s, i, ok) == Text.ScanEnd(s, i, ok)
+{
+  forall ok: int -> bool ensures paneRunEnd(s, i, ok) == Text.ScanEnd(s, i, ok) { PaneRunEndIs(s, i, ok); }
+}
+
+lemma PaneRunEndIs(s: string, i: nat, ok: int -> bool)
+  requires i <= |s|
+  ensures paneRunEnd(s, i, ok) == Text.ScanEnd(s, i, ok)
+  decreases |s| - i
+{
+  if i < |s| { PaneRunEndIs(s, i + 1, ok); }
+}
+
+lemma PaneRunStartMatchesModel(s: string, lo: nat, e: nat)
+  requires lo <= e <= |s|
+  ensures forall ok: int -> bool :: paneRunStart(s, lo, e, ok) == Text.RunStart(s, lo, e, ok)
+  decreases e - lo
+{
+  if lo < e { PaneRunStartMatchesModel(s, lo, e - 1); }
+}
+
+lemma PaneListEndMatchesModel<T>(xs: seq<T>, i: nat)
+  requires i <= |xs|
+  ensures forall ok: T -> bool :: paneListEnd(xs, i, ok) == Text.ListEnd(xs, i, ok)
+  decreases |xs| - i
+{
+  if i < |xs| { PaneListEndMatchesModel(xs, i + 1); }
+}
+
 lemma IsIssueIdOfMatchesModel(id: string, prefix: string)
   ensures isIssueIdOf(id, prefix) == WorkPane.IsIssueIdOf(id, prefix)
 {
+  if |id| > |prefix| {
+    var t := id[|prefix|..];
+    assert id[|prefix|..|id|] == t;
+    PaneRunEndMatchesModel(t, 0);
+    Text.ScanReaches(t, 0, |t|, isIdDigitUnit);
+    assert idDigitsFrom(t, 0) <==> forall k :: 0 <= k < |t| ==> isIdDigitUnit(t[k] as int);
+  }
 }
 
 lemma HasOwnerMatchesModel(repo: string)
   ensures hasOwner(repo) == WorkPane.HasOwner(repo)
 {
+  PaneRunEndMatchesModel(repo, 0);
 }
 
 // ---------------------------------------------------------------- the connector
@@ -233,9 +277,9 @@ lemma AsClosedCons(c: ClosedTodo, rest: seq<ClosedTodo>)
 lemma NameStartBeforeMatchesModel(repo: string, i: nat)
   requires i <= |repo|
   ensures nameStartBefore(repo, i) == WorkPane.NameStart(repo, i)
-  decreases i
 {
-  if i > 0 && repo[i - 1] as int != 47 { NameStartBeforeMatchesModel(repo, i - 1); }
+  PaneRunStartMatchesModel(repo, 0, i);
+  Text.RunStartExt(repo, 0, i);
 }
 
 lemma RepoNameMatchesModel(repo: string)
@@ -245,13 +289,12 @@ lemma RepoNameMatchesModel(repo: string)
 }
 
 lemma WatchedFromMatchesModel(id: string, names: seq<string>, i: nat)
+  requires i <= |names|
   ensures watchedFrom(id, names, i) == WorkPane.WatchedFrom(id, names, i)
-  decreases |names| - i
 {
-  if i < |names| {
-    IsIssueIdOfMatchesModel(id, "gh-" + names[i] + "-");
-    WatchedFromMatchesModel(id, names, i + 1);
-  }
+  PaneListEndMatchesModel(names, i);
+  forall n: string { IsIssueIdOfMatchesModel(id, "gh-" + n + "-"); }
+  Text.ListEndExt(names, names, i);
 }
 
 lemma InWatchedNamesMatchesModel(id: string, names: seq<string>)
@@ -299,10 +342,11 @@ lemma FailedPartsMatchesModel(countFailed: bool, countProblem: string, indexFail
 }
 
 lemma TodoAtMatchesModel(todos: seq<IndexTodo>, id: int, i: nat)
+  requires i <= |todos|
   ensures todoAt(todos, id, i) == WorkPane.TodoAt(AsRemotes(todos), id, i)
-  decreases |todos| - i
 {
-  if i < |todos| { TodoAtMatchesModel(todos, id, i + 1); }
+  PaneListEndMatchesModel(todos, i);
+  Text.ListEndExt(todos, AsRemotes(todos), i);
 }
 
 lemma UniqueTodosFromMatchesModel(acc: seq<IndexTodo>, todos: seq<IndexTodo>, i: nat)
@@ -355,10 +399,11 @@ lemma EditedFromMatchesModel(remote: seq<IndexTodo>, local: seq<LocalTodo>, i: n
 }
 
 lemma RemoteHasFromMatchesModel(remote: seq<IndexTodo>, id: int, i: nat)
+  requires i <= |remote|
   ensures remoteHasFrom(remote, id, i) == WorkPane.RemoteHasFrom(AsRemotes(remote), id, i)
-  decreases |remote| - i
 {
-  if i < |remote| { RemoteHasFromMatchesModel(remote, id, i + 1); }
+  PaneListEndMatchesModel(remote, i);
+  Text.ListEndExt(remote, AsRemotes(remote), i);
 }
 
 lemma LeftFromMatchesModel(local: seq<LocalTodo>, remote: seq<IndexTodo>, linked: bool, i: nat)
@@ -442,10 +487,11 @@ lemma SkipClosedMatchesModel(targets: seq<PaneTarget>, closed: seq<ClosedTodo>, 
 }
 
 lemma IdFromMatchesModel(ids: seq<int>, id: int, i: nat)
+  requires i <= |ids|
   ensures idFrom(ids, id, i) == WorkPane.IdFrom(ids, id, i)
-  decreases |ids| - i
 {
-  if i < |ids| { IdFromMatchesModel(ids, id, i + 1); }
+  PaneListEndMatchesModel(ids, i);
+  Text.ListEndExt(ids, ids, i);
 }
 
 lemma KeptFromMatchesModel(closed: seq<ClosedTodo>, ids: seq<int>, now: int, i: nat)

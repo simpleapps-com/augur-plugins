@@ -4,18 +4,38 @@
 include "../../scripts/rules.dfy"
 include "../Marketplace.dfy"
 
+// ---------------------------------------------------------------- scans
+// The one induction in this file: the code's scan is the model's, for any test. Every rule
+// below reuses it and the model's general scan lemmas (ScanReaches, ScanEndAgree).
+
+lemma ScanEndMatchesModel(s: string, i: nat, ok: int -> bool)
+  requires i <= |s|
+  ensures scanEnd(s, i, ok) == Text.ScanEnd(s, i, ok)
+  decreases |s| - i
+{
+  if i < |s| { ScanEndMatchesModel(s, i + 1, ok); }
+}
+
 // ---------------------------------------------------------------- CalVer
 
 lemma YearPartMatchesModel(s: string)
   requires |s| >= 8
   ensures yearPart(s) <==> (Marketplace.YearText(s[..4]) && s[4] == '.')
 {
+  ScanEndMatchesModel(s, 1, isDigitCode);
+  Text.ScanReaches(s, 1, 4, isDigitCode);
 }
 
 lemma SeqFromMatchesModel(s: string, a: nat)
   requires a < |s|
   ensures seqFrom(s, a) <==> Marketplace.SeqText(s[a..])
 {
+  ScanEndMatchesModel(s, a + 1, isDigitCode);
+  Text.ScanReaches(s, a + 1, |s|, isDigitCode);
+  var q := s[a..];
+  if Marketplace.SeqText(q) {
+    forall k | a + 1 <= k < |s| ensures isDigitCode(s[k] as int) { assert s[k] == q[k - a]; }
+  }
 }
 
 lemma ShortMonthMatchesModel(s: string)
@@ -52,7 +72,10 @@ lemma IsSkillKeyMatchesModel(k: string)
 lemma IsSkillNameMatchesModel(n: string)
   ensures isSkillName(n) == Marketplace.IsSkillName(n)
 {
-
+  if |n| >= 1 {
+    ScanEndMatchesModel(n, 1, isNameCode);
+    Text.ScanReaches(n, 1, |n|, isNameCode);
+  }
 }
 
 lemma OccursFromMatchesModel(s: string, w: string, i: nat)
@@ -83,21 +106,13 @@ lemma BudgetOfMatchesModel(words: nat)
 
 // ---------------------------------------------------------------- connectors
 
-lemma LabelEndMatchesModel(u: string, i: nat)
-  requires i <= |u|
-  ensures labelEnd(u, i) == Marketplace.LabelEnd(u, i)
-  decreases |u| - i
-{
-  if i < |u| {
-    isNameCode_ensures(u[i] as int);
-    LabelEndMatchesModel(u, i + 1);
-  }
-}
-
 lemma IsConnectorUrlMatchesModel(u: string)
   ensures isConnectorUrl(u) == Marketplace.IsConnectorUrl(u)
 {
-  if |u| >= 8 { LabelEndMatchesModel(u, 8); }
+  if |u| >= 8 {
+    ScanEndMatchesModel(u, 8, isNameCode);
+    Text.ScanEndAgree(u, 8, isNameCode, Marketplace.NameCode);
+  }
 }
 
 // ---------------------------------------------------------------- LSP plugins (GH36)
@@ -107,15 +122,9 @@ lemma IsSecretKeyMatchesModel(k: string)
 {
 }
 
-lemma SpaceFromMatchesModel(s: string, i: nat)
-  ensures spaceFrom(s, i) == Marketplace.SpaceFrom(s, i)
-  decreases |s| - i
-{
-  if i < |s| { SpaceFromMatchesModel(s, i + 1); }
-}
-
 lemma IsLspCommandMatchesModel(c: string)
   ensures isLspCommand(c) == Marketplace.IsLspCommand(c)
 {
-  SpaceFromMatchesModel(c, 0);
+  ScanEndMatchesModel(c, 0, isNonSpaceCode);
+  Text.ScanEndAgree(c, 0, isNonSpaceCode, Marketplace.NonSpaceCode);
 }

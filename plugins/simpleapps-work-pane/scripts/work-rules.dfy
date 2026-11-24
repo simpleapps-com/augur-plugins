@@ -80,6 +80,52 @@ function hasAt(s: string, i: nat, w: string): bool
   (((i + |w|) <= |s|) && (s[i..(i + |w|)] == w))
 }
 
+function isSolidUnit(c: int): bool
+{
+  !(isSpaceUnit(c))
+}
+
+function isInLineUnit(c: int): bool
+{
+  !(isLineEndUnit(c))
+}
+
+function repoRunEnd(s: string, i: nat): int
+  requires (i <= |s|)
+{
+  runEnd(s, i, isRepoUnit)
+}
+
+function digitRunEnd(s: string, i: nat): int
+  requires (i <= |s|)
+{
+  runEnd(s, i, isDigitUnit)
+}
+
+function spaceRunEnd(s: string, i: nat): int
+  requires (i <= |s|)
+{
+  runEnd(s, i, isSpaceUnit)
+}
+
+function solidRunEnd(s: string, i: nat): int
+  requires (i <= |s|)
+{
+  runEnd(s, i, isSolidUnit)
+}
+
+function allDigitsFrom(s: string, i: nat): bool
+  requires (i <= |s|)
+{
+  (runEnd(s, i, isDigitUnit) == |s|)
+}
+
+function noLineEndFrom(s: string, i: nat): bool
+  requires (i <= |s|)
+{
+  (runEnd(s, i, isInLineUnit) == |s|)
+}
+
 function lower(s: string): string
 {
   lowerFrom(s, 0)
@@ -102,6 +148,35 @@ function numberedId(owner: string, repo: string, num: string, org: string): stri
     basecampId(false, num)
   else
     githubId(owner, repo, num, org)
+}
+
+function lastHyphenBefore(s: string, i: nat): int
+  requires (i <= |s|)
+{
+  (runStart(s, 0, i, (c: int) => (c != 45)) - 1)
+}
+
+lemma lastHyphenBefore_ensures(s: string, i: nat)
+  requires (i <= |s|)
+  ensures (-1 <= lastHyphenBefore(s, i))
+  ensures (lastHyphenBefore(s, i) < i)
+{
+}
+
+function firstDotFrom(s: string, i: nat): int
+  requires (i <= |s|)
+{
+  var j := runEnd(s, i, (c: int) => (c != 46));
+  if (j < |s|) then
+    j
+  else
+    -1
+}
+
+lemma firstDotFrom_ensures(s: string, i: nat)
+  requires (i <= |s|)
+  ensures ((firstDotFrom(s, i) == -1) || ((i <= firstDotFrom(s, i)) && (firstDotFrom(s, i) < |s|)))
+{
 }
 
 function parseGithubId(id: string, org: string): GithubParts
@@ -132,6 +207,13 @@ function todoLabel(id: string): string
     ("BC" + id[8..|id|])
   else
     id
+}
+
+function spaceStartBack(s: string, lo: nat, e: nat): int
+  requires (lo <= e)
+  requires (e <= |s|)
+{
+  runStart(s, lo, e, isSpaceUnit)
 }
 
 function keywordEndsAt(s: string, lo: nat, e: int, k: string): bool
@@ -413,6 +495,22 @@ function refContext(isGithub: bool, ref: string, org: string): RefContext
           RefContext(true, ref[0..o], ref[(o + 1)..r], org)
 }
 
+function refIndex(refs: seq<Ref>, id: string, i: nat): int
+  requires (i <= |refs|)
+{
+  var j := listEnd(refs, i, (r: Ref) => (r.id != id));
+  if (j < |refs|) then
+    j
+  else
+    -1
+}
+
+lemma refIndex_ensures(refs: seq<Ref>, id: string, i: nat)
+  requires (i <= |refs|)
+  ensures ((refIndex(refs, id, i) == -1) || ((i <= refIndex(refs, id, i)) && (refIndex(refs, id, i) < |refs|)))
+{
+}
+
 function mergeAt(refs: seq<Ref>, k: nat, closes: bool, project: string): seq<Ref>
   requires (k < |refs|)
 {
@@ -464,6 +562,24 @@ function extractRefs(s: string, ctx: RefContext): seq<Ref>
 function noHead(): Head
 {
   Head(false, 0, "", "")
+}
+
+function lastLineEndIn(s: string, lo: nat, hi: nat): int
+  requires (lo <= hi)
+  requires (hi <= |s|)
+{
+  var j := runStart(s, lo, hi, isInLineUnit);
+  if (j > lo) then
+    (j - 1)
+  else
+    -1
+}
+
+lemma lastLineEndIn_ensures(s: string, lo: nat, hi: nat)
+  requires (lo <= hi)
+  requires (hi <= |s|)
+  ensures ((lastLineEndIn(s, lo, hi) == -1) || ((lo <= lastLineEndIn(s, lo, hi)) && (lastLineEndIn(s, lo, hi) < hi)))
+{
 }
 
 function headTailEnd(s: string, t: nat): int
@@ -518,13 +634,25 @@ function splitSegments(body: string, author: string, at: string): seq<Segment>
 
 function trimText(s: string): string
 {
-  var a := trimStartAt(s, 0);
-  s[a..trimEndAt(s, a, |s|)]
+  var a := spaceRunEnd(s, 0);
+  s[a..spaceStartBack(s, a, |s|)]
 }
 
 function isYamlMark(c: int): bool
 {
   (((((((c == 58) || (c == 35)) || (c == 44)) || (c == 91)) || (c == 93)) || (c == 34)) || (c == 39))
+}
+
+function hasMarkFrom(s: string, i: nat): bool
+  requires (i <= |s|)
+{
+  (runEnd(s, i, (c: int) => !(isYamlMark(c))) < |s|)
+}
+
+function hasDoubleQuoteFrom(s: string, i: nat): bool
+  requires (i <= |s|)
+{
+  (runEnd(s, i, (c: int) => (c != 34)) < |s|)
 }
 
 function formatScalar(text: string): string
@@ -561,6 +689,12 @@ function parseScalar(raw: string): string
         v
 }
 
+function commaFrom(s: string, i: nat): int
+  requires (i <= |s|)
+{
+  runEnd(s, i, (c: int) => (c != 44))
+}
+
 function parseValue(raw: string): YamlValue
 {
   var v := trimText(raw);
@@ -577,6 +711,12 @@ function parseValue(raw: string): YamlValue
 function isKeyUnit(c: int): bool
 {
   (((c >= 97) && (c <= 122)) || (c == 95))
+}
+
+function keyRunEnd(s: string, i: nat): int
+  requires (i <= |s|)
+{
+  runEnd(s, i, isKeyUnit)
 }
 
 function itemStart(line: string): int
@@ -624,6 +764,22 @@ function classifyLine(line: string): YamlLine
         YamlLine(LineKind.bad, "", "")
 }
 
+function entryIndex(entries: seq<YamlEntry>, key: string, i: nat): int
+  requires (i <= |entries|)
+{
+  var j := listEnd(entries, i, (e: YamlEntry) => (e.key != key));
+  if (j < |entries|) then
+    j
+  else
+    -1
+}
+
+lemma entryIndex_ensures(entries: seq<YamlEntry>, key: string, i: nat)
+  requires (i <= |entries|)
+  ensures ((entryIndex(entries, key, i) == -1) || ((i <= entryIndex(entries, key, i)) && (entryIndex(entries, key, i) < |entries|)))
+{
+}
+
 function setEntry(entries: seq<YamlEntry>, key: string, value: YamlValue): seq<YamlEntry>
 {
   var k := entryIndex(entries, key, 0);
@@ -661,9 +817,27 @@ function isIdRestUnit(c: int): bool
   (((isIdStartUnit(c) || (c == 46)) || (c == 95)) || (c == 45))
 }
 
+function idRestFrom(s: string, i: nat): bool
+  requires (i <= |s|)
+{
+  (runEnd(s, i, isIdRestUnit) == |s|)
+}
+
 function isIdText(s: string): bool
 {
   (((|s| > 0) && isIdStartUnit((s[0] as int))) && idRestFrom(s, 1))
+}
+
+function hasSolidFrom(s: string, i: nat): bool
+  requires (i <= |s|)
+{
+  (spaceRunEnd(s, i) < |s|)
+}
+
+function equalsAt(s: string, i: nat): int
+  requires (i <= |s|)
+{
+  runEnd(s, i, (c: int) => (c != 61))
 }
 
 function isAliasText(s: string): bool
@@ -806,6 +980,12 @@ function matchesValueFormat(format: string, v: string): bool
           ((format == "stamp") && isStampText(v))
 }
 
+function holdsFrom(xs: seq<string>, x: string, i: nat): bool
+  requires (i <= |xs|)
+{
+  (listEnd(xs, i, (y: string) => (y != x)) < |xs|)
+}
+
 function holds(xs: seq<string>, x: string): bool
 {
   holdsFrom(xs, x, 0)
@@ -924,6 +1104,12 @@ function isAutoHub(summary: string): bool
 function isVisibleName(name: string): bool
 {
   !(hasAt(name, 0, "."))
+}
+
+function allItemsFrom(names: seq<string>, i: nat): bool
+  requires (i <= |names|)
+{
+  (listEnd(names, i, (n: string) => (n == "items")) == |names|)
 }
 
 function isEmptyHub(others: seq<string>, visibleItems: int): bool
@@ -1140,6 +1326,22 @@ function htmlText(text: string): string
   htmlFrom(text, 0)
 }
 
+function edgeIndex(edges: seq<Edge>, from: string, to: string, i: nat): int
+  requires (i <= |edges|)
+{
+  var j := listEnd(edges, i, (e: Edge) => !(((e.from == from) && (e.to == to))));
+  if (j < |edges|) then
+    j
+  else
+    -1
+}
+
+lemma edgeIndex_ensures(edges: seq<Edge>, from: string, to: string, i: nat)
+  requires (i <= |edges|)
+  ensures ((edgeIndex(edges, from, to, i) == -1) || ((i <= edgeIndex(edges, from, to, i)) && (edgeIndex(edges, from, to, i) < |edges|)))
+{
+}
+
 function addEdge(edges: seq<Edge>, from: string, to: string, closes: bool): seq<Edge>
 {
   var k := edgeIndex(edges, from, to, 0);
@@ -1324,29 +1526,27 @@ function isWorkStale(hasCheck: bool, checkMs: int, hasSync: bool, syncMs: int, n
   ((!(hasCheck) && !(hasSync)) || ((now - latestOk(hasCheck, checkMs, hasSync, syncMs)) > ((3 * minutes) * 60000)))
 }
 
-function repoRunEnd_fun_spec(s: string, i: nat): int
+function runEnd_fun_spec(s: string, i: nat, ok: (int) -> bool): int
   requires (i <= |s|)
-  decreases (|s| - i)
-  ensures (i <= repoRunEnd_fun_spec(s, i))
-  ensures (repoRunEnd_fun_spec(s, i) <= |s|)
+  ensures i <= runEnd_fun_spec(s, i, ok) <= |s|
+  decreases |s| - i
 {
-  if ((i >= |s|) || !(isRepoUnit((s[i] as int)))) then
-    i
-  else
-    repoRunEnd_fun_spec(s, (i + 1))
+  // What the loop computes: the first index from i whose code unit fails ok, or the end.
+  if i == |s| || !ok(s[i] as int) then i else runEnd_fun_spec(s, i + 1, ok)
 }
 
-function repoRunEnd(s: string, i: nat): int
+function runEnd(s: string, i: nat, ok: (int) -> bool): int
   requires (i <= |s|)
+  ensures i <= runEnd(s, i, ok) <= |s|
 {
-  repoRunEnd_fun_spec(s, i)
+  runEnd_fun_spec(s, i, ok)
 }
 by method {
   var j := i;
-  while ((j < |s|) && isRepoUnit((s[j] as int)))
+  while ((j < |s|) && ok((s[j] as int)))
     invariant (i <= j)
     invariant (j <= |s|)
-    invariant repoRunEnd_fun_spec(s, j) == repoRunEnd_fun_spec(s, i)
+    invariant runEnd_fun_spec(s, j, ok) == runEnd_fun_spec(s, i, ok)
     decreases (|s| - j)
   {
     j := (j + 1);
@@ -1354,140 +1554,62 @@ by method {
   return j;
 }
 
-function digitRunEnd_fun_spec(s: string, i: nat): int
-  requires (i <= |s|)
-  decreases (|s| - i)
-  ensures (i <= digitRunEnd_fun_spec(s, i))
-  ensures (digitRunEnd_fun_spec(s, i) <= |s|)
+function runStart_fun_spec(s: string, lo: nat, e: nat, ok: (int) -> bool): int
+  requires (lo <= e)
+  requires (e <= |s|)
+  ensures lo <= runStart_fun_spec(s, lo, e, ok) <= e
+  decreases e - lo
 {
-  if ((i >= |s|) || !(isDigitUnit((s[i] as int)))) then
-    i
-  else
-    digitRunEnd_fun_spec(s, (i + 1))
+  // What the loop computes: the lowest j from e down to lo with every code unit in [j, e) passing.
+  if e == lo || !ok(s[e - 1] as int) then e else runStart_fun_spec(s, lo, e - 1, ok)
 }
 
-function digitRunEnd(s: string, i: nat): int
-  requires (i <= |s|)
+function runStart(s: string, lo: nat, e: nat, ok: (int) -> bool): int
+  requires (lo <= e)
+  requires (e <= |s|)
+  ensures lo <= runStart(s, lo, e, ok) <= e
 {
-  digitRunEnd_fun_spec(s, i)
+  runStart_fun_spec(s, lo, e, ok)
 }
 by method {
-  var j := i;
-  while ((j < |s|) && isDigitUnit((s[j] as int)))
-    invariant (i <= j)
-    invariant (j <= |s|)
-    invariant digitRunEnd_fun_spec(s, j) == digitRunEnd_fun_spec(s, i)
-    decreases (|s| - j)
+  var j := e;
+  while ((j > lo) && ok((s[(j - 1)] as int)))
+    invariant (lo <= j)
+    invariant (j <= e)
+    invariant runStart_fun_spec(s, lo, j, ok) == runStart_fun_spec(s, lo, e, ok)
+    decreases (j - lo)
   {
-    j := (j + 1);
+    j := (j - 1);
   }
   return j;
 }
 
-function spaceRunEnd_fun_spec(s: string, i: nat): int
-  requires (i <= |s|)
-  decreases (|s| - i)
-  ensures (i <= spaceRunEnd_fun_spec(s, i))
-  ensures (spaceRunEnd_fun_spec(s, i) <= |s|)
+function listEnd_fun_spec<T>(xs: seq<T>, i: nat, ok: (T) -> bool): int
+  requires (i <= |xs|)
+  ensures i <= listEnd_fun_spec(xs, i, ok) <= |xs|
+  decreases |xs| - i
 {
-  if ((i >= |s|) || !(isSpaceUnit((s[i] as int)))) then
-    i
-  else
-    spaceRunEnd_fun_spec(s, (i + 1))
+  // What the loop computes: the first index from i whose element fails ok, or the end.
+  if i == |xs| || !ok(xs[i]) then i else listEnd_fun_spec(xs, i + 1, ok)
 }
 
-function spaceRunEnd(s: string, i: nat): int
-  requires (i <= |s|)
+function listEnd<T>(xs: seq<T>, i: nat, ok: (T) -> bool): int
+  requires (i <= |xs|)
+  ensures i <= listEnd(xs, i, ok) <= |xs|
 {
-  spaceRunEnd_fun_spec(s, i)
+  listEnd_fun_spec(xs, i, ok)
 }
 by method {
   var j := i;
-  while ((j < |s|) && isSpaceUnit((s[j] as int)))
+  while ((j < |xs|) && ok(xs[j]))
     invariant (i <= j)
-    invariant (j <= |s|)
-    invariant spaceRunEnd_fun_spec(s, j) == spaceRunEnd_fun_spec(s, i)
-    decreases (|s| - j)
+    invariant (j <= |xs|)
+    invariant listEnd_fun_spec(xs, j, ok) == listEnd_fun_spec(xs, i, ok)
+    decreases (|xs| - j)
   {
     j := (j + 1);
   }
   return j;
-}
-
-function solidRunEnd_fun_spec(s: string, i: nat): int
-  requires (i <= |s|)
-  decreases (|s| - i)
-  ensures (i <= solidRunEnd_fun_spec(s, i))
-  ensures (solidRunEnd_fun_spec(s, i) <= |s|)
-{
-  if ((i >= |s|) || isSpaceUnit((s[i] as int))) then
-    i
-  else
-    solidRunEnd_fun_spec(s, (i + 1))
-}
-
-function solidRunEnd(s: string, i: nat): int
-  requires (i <= |s|)
-{
-  solidRunEnd_fun_spec(s, i)
-}
-by method {
-  var j := i;
-  while ((j < |s|) && !(isSpaceUnit((s[j] as int))))
-    invariant (i <= j)
-    invariant (j <= |s|)
-    invariant solidRunEnd_fun_spec(s, j) == solidRunEnd_fun_spec(s, i)
-    decreases (|s| - j)
-  {
-    j := (j + 1);
-  }
-  return j;
-}
-
-function allDigitsFrom_fun_spec(s: string, i: nat): bool
-  decreases (|s| - i)
-{
-  ((i >= |s|) || (isDigitUnit((s[i] as int)) && allDigitsFrom_fun_spec(s, (i + 1))))
-}
-
-function allDigitsFrom(s: string, i: nat): bool
-{
-  allDigitsFrom_fun_spec(s, i)
-}
-by method {
-  var j := i;
-  while ((j < |s|) && isDigitUnit((s[j] as int)))
-    invariant (i <= j)
-    invariant j <= |s| || j == i
-    invariant allDigitsFrom_fun_spec(s, j) == allDigitsFrom_fun_spec(s, i)
-    decreases (|s| - j)
-  {
-    j := (j + 1);
-  }
-  return (j >= |s|);
-}
-
-function noLineEndFrom_fun_spec(s: string, i: nat): bool
-  decreases (|s| - i)
-{
-  ((i >= |s|) || (!(isLineEndUnit((s[i] as int))) && noLineEndFrom_fun_spec(s, (i + 1))))
-}
-
-function noLineEndFrom(s: string, i: nat): bool
-{
-  noLineEndFrom_fun_spec(s, i)
-}
-by method {
-  var j := i;
-  while ((j < |s|) && !(isLineEndUnit((s[j] as int))))
-    invariant (i <= j)
-    invariant j <= |s| || j == i
-    invariant noLineEndFrom_fun_spec(s, j) == noLineEndFrom_fun_spec(s, i)
-    decreases (|s| - j)
-  {
-    j := (j + 1);
-  }
-  return (j >= |s|);
 }
 
 function lowerFrom_fun_spec(s: string, i: nat): string
@@ -1519,128 +1641,6 @@ by method {
     j := (j + 1);
   }
   return acc;
-}
-
-function lastHyphenBefore_fun_spec(s: string, i: nat): int
-  requires (i <= |s|)
-  decreases i
-  ensures (-1 <= lastHyphenBefore_fun_spec(s, i))
-  ensures (lastHyphenBefore_fun_spec(s, i) < i)
-{
-  if ((i == 0) || ((s[(i - 1)] as int) == 45)) then
-    (i - 1)
-  else
-    lastHyphenBefore_fun_spec(s, (i - 1))
-}
-
-function lastHyphenBefore(s: string, i: nat): int
-  requires (i <= |s|)
-{
-  lastHyphenBefore_fun_spec(s, i)
-}
-by method {
-  var j := i;
-  while ((j > 0) && ((s[(j - 1)] as int) != 45))
-    invariant (j <= i)
-    invariant 0 <= j
-    invariant lastHyphenBefore_fun_spec(s, j) == lastHyphenBefore_fun_spec(s, i)
-    decreases j
-  {
-    j := (j - 1);
-  }
-  return (j - 1);
-}
-
-function firstDotFrom_fun_spec(s: string, i: nat): int
-  decreases (|s| - i)
-  ensures ((firstDotFrom_fun_spec(s, i) == -1) || ((i <= firstDotFrom_fun_spec(s, i)) && (firstDotFrom_fun_spec(s, i) < |s|)))
-{
-  if (i >= |s|) then
-    -1
-  else
-    if ((s[i] as int) == 46) then
-      i
-    else
-      firstDotFrom_fun_spec(s, (i + 1))
-}
-
-function firstDotFrom(s: string, i: nat): int
-{
-  firstDotFrom_fun_spec(s, i)
-}
-by method {
-  var j := i;
-  while ((j < |s|) && ((s[j] as int) != 46))
-    invariant (i <= j)
-    invariant j <= |s| || j == i
-    invariant firstDotFrom_fun_spec(s, j) == firstDotFrom_fun_spec(s, i)
-    decreases (|s| - j)
-  {
-    j := (j + 1);
-  }
-  return (if (j < |s|) then j else -1);
-}
-
-function spaceStartBack_fun_spec(s: string, lo: nat, e: int): int
-  requires (lo <= e)
-  requires (e <= |s|)
-  decreases (e - lo)
-  ensures (lo <= spaceStartBack_fun_spec(s, lo, e))
-  ensures (spaceStartBack_fun_spec(s, lo, e) <= e)
-{
-  if ((e > lo) && isSpaceUnit((s[(e - 1)] as int))) then
-    spaceStartBack_fun_spec(s, lo, (e - 1))
-  else
-    e
-}
-
-function spaceStartBack(s: string, lo: nat, e: int): int
-  requires (lo <= e)
-  requires (e <= |s|)
-{
-  spaceStartBack_fun_spec(s, lo, e)
-}
-by method {
-  var j := e;
-  while ((j > lo) && isSpaceUnit((s[(j - 1)] as int)))
-    invariant (lo <= j)
-    invariant (j <= e)
-    invariant spaceStartBack_fun_spec(s, lo, j) == spaceStartBack_fun_spec(s, lo, e)
-    decreases (j - lo)
-  {
-    j := (j - 1);
-  }
-  return j;
-}
-
-function refIndex_fun_spec(refs: seq<Ref>, id: string, i: nat): int
-  decreases (|refs| - i)
-  ensures ((refIndex_fun_spec(refs, id, i) == -1) || ((i <= refIndex_fun_spec(refs, id, i)) && (refIndex_fun_spec(refs, id, i) < |refs|)))
-{
-  if (i >= |refs|) then
-    -1
-  else
-    if (refs[i].id == id) then
-      i
-    else
-      refIndex_fun_spec(refs, id, (i + 1))
-}
-
-function refIndex(refs: seq<Ref>, id: string, i: nat): int
-{
-  refIndex_fun_spec(refs, id, i)
-}
-by method {
-  var j := i;
-  while ((j < |refs|) && (refs[j].id != id))
-    invariant (i <= j)
-    invariant j <= |refs| || j == i
-    invariant refIndex_fun_spec(refs, id, j) == refIndex_fun_spec(refs, id, i)
-    decreases (|refs| - j)
-  {
-    j := (j + 1);
-  }
-  return (if (j < |refs|) then j else -1);
 }
 
 function scanGithubUrls_fun_spec(s: string, i: nat, ctx: RefContext, refs: seq<Ref>): seq<Ref>
@@ -1894,40 +1894,6 @@ by method {
   return acc;
 }
 
-function lastLineEndIn_fun_spec(s: string, lo: nat, hi: int): int
-  requires (lo <= hi)
-  requires (hi <= |s|)
-  decreases (hi - lo)
-  ensures ((lastLineEndIn_fun_spec(s, lo, hi) == -1) || ((lo <= lastLineEndIn_fun_spec(s, lo, hi)) && (lastLineEndIn_fun_spec(s, lo, hi) < hi)))
-{
-  if (hi <= lo) then
-    -1
-  else
-    if isLineEndUnit((s[(hi - 1)] as int)) then
-      (hi - 1)
-    else
-      lastLineEndIn_fun_spec(s, lo, (hi - 1))
-}
-
-function lastLineEndIn(s: string, lo: nat, hi: int): int
-  requires (lo <= hi)
-  requires (hi <= |s|)
-{
-  lastLineEndIn_fun_spec(s, lo, hi)
-}
-by method {
-  var j := hi;
-  while ((j > lo) && !(isLineEndUnit((s[(j - 1)] as int))))
-    invariant (lo <= j)
-    invariant (j <= hi)
-    invariant lastLineEndIn_fun_spec(s, lo, j) == lastLineEndIn_fun_spec(s, lo, hi)
-    decreases (j - lo)
-  {
-    j := (j - 1);
-  }
-  return (if (j > lo) then (j - 1) else -1);
-}
-
 function headFrom_fun_spec(s: string, a: nat, m: nat): Head
   requires (a < m)
   requires (m <= |s|)
@@ -2059,114 +2025,6 @@ by method {
   return acc;
 }
 
-function trimStartAt_fun_spec(s: string, i: nat): int
-  requires (i <= |s|)
-  decreases (|s| - i)
-  ensures (i <= trimStartAt_fun_spec(s, i))
-  ensures (trimStartAt_fun_spec(s, i) <= |s|)
-{
-  if ((i >= |s|) || !(isSpaceUnit((s[i] as int)))) then
-    i
-  else
-    trimStartAt_fun_spec(s, (i + 1))
-}
-
-function trimStartAt(s: string, i: nat): int
-  requires (i <= |s|)
-{
-  trimStartAt_fun_spec(s, i)
-}
-by method {
-  var j := i;
-  while ((j < |s|) && isSpaceUnit((s[j] as int)))
-    invariant (i <= j)
-    invariant (j <= |s|)
-    invariant trimStartAt_fun_spec(s, j) == trimStartAt_fun_spec(s, i)
-    decreases (|s| - j)
-  {
-    j := (j + 1);
-  }
-  return j;
-}
-
-function trimEndAt_fun_spec(s: string, lo: nat, e: int): int
-  requires (lo <= e)
-  requires (e <= |s|)
-  decreases (e - lo)
-  ensures (lo <= trimEndAt_fun_spec(s, lo, e))
-  ensures (trimEndAt_fun_spec(s, lo, e) <= e)
-{
-  if ((e > lo) && isSpaceUnit((s[(e - 1)] as int))) then
-    trimEndAt_fun_spec(s, lo, (e - 1))
-  else
-    e
-}
-
-function trimEndAt(s: string, lo: nat, e: int): int
-  requires (lo <= e)
-  requires (e <= |s|)
-{
-  trimEndAt_fun_spec(s, lo, e)
-}
-by method {
-  var j := e;
-  while ((j > lo) && isSpaceUnit((s[(j - 1)] as int)))
-    invariant (lo <= j)
-    invariant (j <= e)
-    invariant trimEndAt_fun_spec(s, lo, j) == trimEndAt_fun_spec(s, lo, e)
-    decreases (j - lo)
-  {
-    j := (j - 1);
-  }
-  return j;
-}
-
-function hasMarkFrom_fun_spec(s: string, i: nat): bool
-  decreases (|s| - i)
-{
-  ((i < |s|) && (isYamlMark((s[i] as int)) || hasMarkFrom_fun_spec(s, (i + 1))))
-}
-
-function hasMarkFrom(s: string, i: nat): bool
-{
-  hasMarkFrom_fun_spec(s, i)
-}
-by method {
-  var j := i;
-  while ((j < |s|) && !(isYamlMark((s[j] as int))))
-    invariant (i <= j)
-    invariant j <= |s| || j == i
-    invariant hasMarkFrom_fun_spec(s, j) == hasMarkFrom_fun_spec(s, i)
-    decreases (|s| - j)
-  {
-    j := (j + 1);
-  }
-  return (j < |s|);
-}
-
-function hasDoubleQuoteFrom_fun_spec(s: string, i: nat): bool
-  decreases (|s| - i)
-{
-  ((i < |s|) && (((s[i] as int) == 34) || hasDoubleQuoteFrom_fun_spec(s, (i + 1))))
-}
-
-function hasDoubleQuoteFrom(s: string, i: nat): bool
-{
-  hasDoubleQuoteFrom_fun_spec(s, i)
-}
-by method {
-  var j := i;
-  while ((j < |s|) && ((s[j] as int) != 34))
-    invariant (i <= j)
-    invariant j <= |s| || j == i
-    invariant hasDoubleQuoteFrom_fun_spec(s, j) == hasDoubleQuoteFrom_fun_spec(s, i)
-    decreases (|s| - j)
-  {
-    j := (j + 1);
-  }
-  return (j < |s|);
-}
-
 function formatItemsFrom_fun_spec(items: seq<string>, i: nat): string
   decreases (|items| - i)
 {
@@ -2198,36 +2056,6 @@ by method {
     j := (j + 1);
   }
   return acc;
-}
-
-function commaFrom_fun_spec(s: string, i: nat): int
-  requires (i <= |s|)
-  decreases (|s| - i)
-  ensures (i <= commaFrom_fun_spec(s, i))
-  ensures (commaFrom_fun_spec(s, i) <= |s|)
-{
-  if ((i >= |s|) || ((s[i] as int) == 44)) then
-    i
-  else
-    commaFrom_fun_spec(s, (i + 1))
-}
-
-function commaFrom(s: string, i: nat): int
-  requires (i <= |s|)
-{
-  commaFrom_fun_spec(s, i)
-}
-by method {
-  var j := i;
-  while ((j < |s|) && ((s[j] as int) != 44))
-    invariant (i <= j)
-    invariant (j <= |s|)
-    invariant commaFrom_fun_spec(s, j) == commaFrom_fun_spec(s, i)
-    decreases (|s| - j)
-  {
-    j := (j + 1);
-  }
-  return j;
 }
 
 function splitItemsFrom_fun_spec(s: string, i: nat): seq<string>
@@ -2268,66 +2096,6 @@ by method {
   var i_t19 := parseScalar(s[j..c]);
   acc := (acc + [i_t19]);
   return acc;
-}
-
-function keyRunEnd_fun_spec(s: string, i: nat): int
-  requires (i <= |s|)
-  decreases (|s| - i)
-  ensures (i <= keyRunEnd_fun_spec(s, i))
-  ensures (keyRunEnd_fun_spec(s, i) <= |s|)
-{
-  if ((i >= |s|) || !(isKeyUnit((s[i] as int)))) then
-    i
-  else
-    keyRunEnd_fun_spec(s, (i + 1))
-}
-
-function keyRunEnd(s: string, i: nat): int
-  requires (i <= |s|)
-{
-  keyRunEnd_fun_spec(s, i)
-}
-by method {
-  var j := i;
-  while ((j < |s|) && isKeyUnit((s[j] as int)))
-    invariant (i <= j)
-    invariant (j <= |s|)
-    invariant keyRunEnd_fun_spec(s, j) == keyRunEnd_fun_spec(s, i)
-    decreases (|s| - j)
-  {
-    j := (j + 1);
-  }
-  return j;
-}
-
-function entryIndex_fun_spec(entries: seq<YamlEntry>, key: string, i: nat): int
-  decreases (|entries| - i)
-  ensures ((entryIndex_fun_spec(entries, key, i) == -1) || ((i <= entryIndex_fun_spec(entries, key, i)) && (entryIndex_fun_spec(entries, key, i) < |entries|)))
-{
-  if (i >= |entries|) then
-    -1
-  else
-    if (entries[i].key == key) then
-      i
-    else
-      entryIndex_fun_spec(entries, key, (i + 1))
-}
-
-function entryIndex(entries: seq<YamlEntry>, key: string, i: nat): int
-{
-  entryIndex_fun_spec(entries, key, i)
-}
-by method {
-  var j := i;
-  while ((j < |entries|) && (entries[j].key != key))
-    invariant (i <= j)
-    invariant j <= |entries| || j == i
-    invariant entryIndex_fun_spec(entries, key, j) == entryIndex_fun_spec(entries, key, i)
-    decreases (|entries| - j)
-  {
-    j := (j + 1);
-  }
-  return (if (j < |entries|) then j else -1);
 }
 
 function pushItemFrom_fun_spec(entries: seq<YamlEntry>, i: nat, listKey: string, item: string): seq<YamlEntry>
@@ -2419,52 +2187,6 @@ by method {
   return acc;
 }
 
-function idRestFrom_fun_spec(s: string, i: nat): bool
-  decreases (|s| - i)
-{
-  ((i >= |s|) || (var c := (s[i] as int); ((((isIdStartUnit(c) || (c == 46)) || (c == 95)) || (c == 45)) && idRestFrom_fun_spec(s, (i + 1)))))
-}
-
-function idRestFrom(s: string, i: nat): bool
-{
-  idRestFrom_fun_spec(s, i)
-}
-by method {
-  var j := i;
-  while ((j < |s|) && isIdRestUnit((s[j] as int)))
-    invariant (i <= j)
-    invariant j <= |s| || j == i
-    invariant idRestFrom_fun_spec(s, j) == idRestFrom_fun_spec(s, i)
-    decreases (|s| - j)
-  {
-    j := (j + 1);
-  }
-  return (j >= |s|);
-}
-
-function hasSolidFrom_fun_spec(s: string, i: nat): bool
-  decreases (|s| - i)
-{
-  ((i < |s|) && (!(isSpaceUnit((s[i] as int))) || hasSolidFrom_fun_spec(s, (i + 1))))
-}
-
-function hasSolidFrom(s: string, i: nat): bool
-{
-  hasSolidFrom_fun_spec(s, i)
-}
-by method {
-  var j := i;
-  while ((j < |s|) && isSpaceUnit((s[j] as int)))
-    invariant (i <= j)
-    invariant j <= |s| || j == i
-    invariant hasSolidFrom_fun_spec(s, j) == hasSolidFrom_fun_spec(s, i)
-    decreases (|s| - j)
-  {
-    j := (j + 1);
-  }
-  return (j < |s|);
-}
-
 function equalsFrom_fun_spec(s: string, i: nat): int
   decreases (|s| - i)
   ensures (equalsFrom_fun_spec(s, i) >= 0)
@@ -2497,36 +2219,6 @@ by method {
   return n;
 }
 
-function equalsAt_fun_spec(s: string, i: nat): int
-  requires (i <= |s|)
-  decreases (|s| - i)
-  ensures (i <= equalsAt_fun_spec(s, i))
-  ensures (equalsAt_fun_spec(s, i) <= |s|)
-{
-  if ((i >= |s|) || ((s[i] as int) == 61)) then
-    i
-  else
-    equalsAt_fun_spec(s, (i + 1))
-}
-
-function equalsAt(s: string, i: nat): int
-  requires (i <= |s|)
-{
-  equalsAt_fun_spec(s, i)
-}
-by method {
-  var j := i;
-  while ((j < |s|) && ((s[j] as int) != 61))
-    invariant (i <= j)
-    invariant (j <= |s|)
-    invariant equalsAt_fun_spec(s, j) == equalsAt_fun_spec(s, i)
-    decreases (|s| - j)
-  {
-    j := (j + 1);
-  }
-  return j;
-}
-
 function digitsAt_fun_spec(s: string, i: nat, n: nat): bool
   decreases n
 {
@@ -2548,29 +2240,6 @@ by method {
     k := (k + 1);
   }
   return (k >= n);
-}
-
-function holdsFrom_fun_spec(xs: seq<string>, x: string, i: nat): bool
-  decreases (|xs| - i)
-{
-  ((i < |xs|) && ((xs[i] == x) || holdsFrom_fun_spec(xs, x, (i + 1))))
-}
-
-function holdsFrom(xs: seq<string>, x: string, i: nat): bool
-{
-  holdsFrom_fun_spec(xs, x, i)
-}
-by method {
-  var j := i;
-  while ((j < |xs|) && (xs[j] != x))
-    invariant (i <= j)
-    invariant j <= |xs| || j == i
-    invariant holdsFrom_fun_spec(xs, x, j) == holdsFrom_fun_spec(xs, x, i)
-    decreases (|xs| - j)
-  {
-    j := (j + 1);
-  }
-  return (j < |xs|);
 }
 
 function compareFrom_fun_spec(a: string, b: string, i: nat): int
@@ -2617,29 +2286,6 @@ by method {
     return 1;
   }
   return (if ((a[j] as int) < (b[j] as int)) then -1 else 1);
-}
-
-function allItemsFrom_fun_spec(names: seq<string>, i: nat): bool
-  decreases (|names| - i)
-{
-  ((i >= |names|) || ((names[i] == "items") && allItemsFrom_fun_spec(names, (i + 1))))
-}
-
-function allItemsFrom(names: seq<string>, i: nat): bool
-{
-  allItemsFrom_fun_spec(names, i)
-}
-by method {
-  var j := i;
-  while ((j < |names|) && (names[j] == "items"))
-    invariant (i <= j)
-    invariant j <= |names| || j == i
-    invariant allItemsFrom_fun_spec(names, j) == allItemsFrom_fun_spec(names, i)
-    decreases (|names| - j)
-  {
-    j := (j + 1);
-  }
-  return (j >= |names|);
 }
 
 function projectInUrlFrom_fun_spec(url: string, i: nat): string
@@ -2882,36 +2528,6 @@ by method {
     j := (j + 1);
   }
   return acc;
-}
-
-function edgeIndex_fun_spec(edges: seq<Edge>, from: string, to: string, i: nat): int
-  decreases (|edges| - i)
-  ensures ((edgeIndex_fun_spec(edges, from, to, i) == -1) || ((i <= edgeIndex_fun_spec(edges, from, to, i)) && (edgeIndex_fun_spec(edges, from, to, i) < |edges|)))
-{
-  if (i >= |edges|) then
-    -1
-  else
-    if ((edges[i].from == from) && (edges[i].to == to)) then
-      i
-    else
-      edgeIndex_fun_spec(edges, from, to, (i + 1))
-}
-
-function edgeIndex(edges: seq<Edge>, from: string, to: string, i: nat): int
-{
-  edgeIndex_fun_spec(edges, from, to, i)
-}
-by method {
-  var j := i;
-  while ((j < |edges|) && !(((edges[j].from == from) && (edges[j].to == to))))
-    invariant (i <= j)
-    invariant j <= |edges| || j == i
-    invariant edgeIndex_fun_spec(edges, from, to, j) == edgeIndex_fun_spec(edges, from, to, i)
-    decreases (|edges| - j)
-  {
-    j := (j + 1);
-  }
-  return (if (j < |edges|) then j else -1);
 }
 
 function occursIn_fun_spec(s: string, w: string, i: nat): bool

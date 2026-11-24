@@ -48,19 +48,73 @@ export function isTrackedIssue(
   return isOpen && isGithub && isIssue && watched;
 }
 
-/** Every code unit of `s` from `i` on is a digit 0-9. */
-function idDigitsFrom(s: string, i: number): boolean {
+// ---------------------------------------------------------------- scans
+// Every scan here is one of these three, each proved once for any test (model: Text.ScanEnd,
+// Text.RunStart, Text.ListEnd). Named apart from work-rules.ts' runEnd, runStart and listEnd:
+// every proved file is one Dafny program.
+
+/** Where the run of code units passing `ok` that starts at `i` ends. */
+function paneRunEnd(s: string, i: number, ok: (c: number) => boolean): number {
   //@ verify
   //@ pure
   //@ type i nat
-  //@ requires i >= 0
+  //@ requires i <= s.length
+  //@ ensures i <= \result && \result <= s.length
   let j = i;
-  while (j < s.length && s.charCodeAt(j) >= 48 && s.charCodeAt(j) <= 57) {
-    //@ invariant i <= j
+  while (j < s.length && ok(s.charCodeAt(j))) {
+    //@ invariant i <= j && j <= s.length
     //@ decreases s.length - j
     j = j + 1;
   }
-  return j >= s.length;
+  return j;
+}
+
+/** Where the run of code units passing `ok` that ends at `e` starts, no lower than `lo`. */
+function paneRunStart(s: string, lo: number, e: number, ok: (c: number) => boolean): number {
+  //@ verify
+  //@ pure
+  //@ type lo nat
+  //@ type e nat
+  //@ requires lo <= e && e <= s.length
+  //@ ensures lo <= \result && \result <= e
+  let j = e;
+  while (j > lo && ok(s.charCodeAt(j - 1))) {
+    //@ invariant lo <= j && j <= e
+    //@ decreases j - lo
+    j = j - 1;
+  }
+  return j;
+}
+
+/** Where the run of elements passing `ok` that starts at `i` ends; a search for x is the run of
+    elements that are not x. */
+function paneListEnd<T>(xs: T[], i: number, ok: (x: T) => boolean): number {
+  //@ verify
+  //@ pure
+  //@ type i nat
+  //@ requires i <= xs.length
+  //@ ensures i <= \result && \result <= xs.length
+  let j = i;
+  while (j < xs.length && ok(xs[j]!)) {
+    //@ invariant i <= j && j <= xs.length
+    //@ decreases xs.length - j
+    j = j + 1;
+  }
+  return j;
+}
+
+/** A code unit 0-9. */
+function isIdDigitUnit(c: number): boolean {
+  //@ verify
+  return c >= 48 && c <= 57;
+}
+
+/** Every code unit of `s` from `i` on is a digit 0-9. */
+function idDigitsFrom(s: string, i: number): boolean {
+  //@ verify
+  //@ type i nat
+  //@ requires i <= s.length
+  return paneRunEnd(s, i, isIdDigitUnit) === s.length;
 }
 
 /** `id` is `prefix` (`gh-<repo>-`, lowercased) followed by one or more digits. */
@@ -76,16 +130,9 @@ export function isIssueIdOf(id: string, prefix: string): boolean {
 /** `repo` has a "/" at `i` or later. */
 function slashFrom(repo: string, i: number): boolean {
   //@ verify
-  //@ pure
   //@ type i nat
-  //@ requires i >= 0
-  let j = i;
-  while (j < repo.length && repo.charCodeAt(j) !== 47) {
-    //@ invariant i <= j
-    //@ decreases repo.length - j
-    j = j + 1;
-  }
-  return j < repo.length;
+  //@ requires i <= repo.length
+  return paneRunEnd(repo, i, (c: number) => c !== 47) < repo.length;
 }
 
 /** A watched repo named with its owner (`org/repo`); a bare name is in the person's org. */
@@ -350,17 +397,9 @@ export function staleShown(
 /** Where the name after the last "/" before `i` starts: one past that slash, or 0. */
 function nameStartBefore(repo: string, i: number): number {
   //@ verify
-  //@ pure
   //@ type i nat
   //@ requires i <= repo.length
-  //@ ensures 0 <= \result && \result <= i
-  let j = i;
-  while (j > 0 && repo.charCodeAt(j - 1) !== 47) {
-    //@ invariant 0 <= j && j <= i
-    //@ decreases j
-    j = j - 1;
-  }
-  return j;
+  return paneRunStart(repo, 0, i, (c: number) => c !== 47);
 }
 
 /** A watched repo's name: after its last "/" (`acme/tool` is `tool`), or all of it. */
@@ -372,15 +411,9 @@ export function repoName(repo: string): string {
 /** One of `names` from `i` on has `id` as one of its issues (`gh-<name>-<n>`). */
 function watchedFrom(id: string, names: string[], i: number): boolean {
   //@ verify
-  //@ pure
   //@ type i nat
-  let j = i;
-  while (j < names.length && !isIssueIdOf(id, "gh-" + names[j]! + "-")) {
-    //@ invariant i <= j
-    //@ decreases names.length - j
-    j = j + 1;
-  }
-  return j < names.length;
+  //@ requires i <= names.length
+  return paneListEnd(names, i, (n: string) => !isIssueIdOf(id, "gh-" + n + "-")) < names.length;
 }
 
 /** `id` is an issue of a watched repo; `id` and `names` are lowered, `names` are repo names. */
@@ -487,15 +520,10 @@ export interface IndexTodo {
 /** Where the todo `id` is in `todos` at or after `i`, or -1. */
 function todoAt(todos: IndexTodo[], id: number, i: number): number {
   //@ verify
-  //@ pure
   //@ type i nat
+  //@ requires i <= todos.length
   //@ ensures \result === -1 || (i <= \result && \result < todos.length)
-  let j = i;
-  while (j < todos.length && todos[j]!.id !== id) {
-    //@ invariant i <= j
-    //@ decreases todos.length - j
-    j = j + 1;
-  }
+  const j = paneListEnd(todos, i, (t: IndexTodo) => t.id !== id);
   return j < todos.length ? j : -1;
 }
 
@@ -578,15 +606,9 @@ function editedFrom(remote: IndexTodo[], local: LocalTodo[], i: number): PaneTar
 /** `remote` from `i` on holds the todo `id`. */
 function remoteHasFrom(remote: IndexTodo[], id: number, i: number): boolean {
   //@ verify
-  //@ pure
   //@ type i nat
-  let j = i;
-  while (j < remote.length && remote[j]!.id !== id) {
-    //@ invariant i <= j
-    //@ decreases remote.length - j
-    j = j + 1;
-  }
-  return j < remote.length;
+  //@ requires i <= remote.length
+  return paneListEnd(remote, i, (t: IndexTodo) => t.id !== id) < remote.length;
 }
 
 /** The local todos from `i` on that left your list (or, with `linked`, every other one). */
@@ -738,15 +760,9 @@ export function skipClosed(targets: PaneTarget[], closed: ClosedTodo[], now: num
 /** `ids` holds `id` at or after `i`. */
 function idFrom(ids: number[], id: number, i: number): boolean {
   //@ verify
-  //@ pure
   //@ type i nat
-  let j = i;
-  while (j < ids.length && ids[j] !== id) {
-    //@ invariant i <= j
-    //@ decreases ids.length - j
-    j = j + 1;
-  }
-  return j < ids.length;
+  //@ requires i <= ids.length
+  return paneListEnd(ids, i, (x: number) => x !== id) < ids.length;
 }
 
 /** The entries from `i` on still within 7 days and not closed again now. */

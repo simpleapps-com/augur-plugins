@@ -6,6 +6,7 @@ How to organise a model and write lemmas that are worth having, for any prover.
 
 - [Layers: one definition per fact](#layers-one-definition-per-fact)
 - [Lemmas worth having](#lemmas-worth-having)
+- [General before specific](#general-before-specific)
 - [Bugs as lemmas](#bugs-as-lemmas)
 - [Constants and external facts](#constants-and-external-facts)
 - [Keeping it small](#keeping-it-small)
@@ -14,6 +15,8 @@ How to organise a model and write lemmas that are worth having, for any prover.
 - [Review](#review)
 
 ## Layers: one definition per fact
+
+"Lower" here means fewer dependencies (included by more files), not less general: the most general facts belong lowest, because everything can use them.
 
 - **Each fact is defined once, at the lowest layer it belongs to.** A typical order: foundation (option and result types), utilities (characters, strings, lists, dates), platform (facts every part of the system shares), each area, and a system file for properties that span areas.
 - **An area reuses a lower fact or proves its own definition equal to it; it never restates it.** Two definitions of one fact drift.
@@ -28,6 +31,19 @@ How to organise a model and write lemmas that are worth having, for any prover.
 - **Prove both directions.** A flag meaning "may be incomplete" needs two lemmas: complete whenever the data fits, and unflagged only with room to spare.
 - **Check completeness against an oracle.** Where an exhaustive or reference implementation exists (a sort, a parser), compare against it: a true spec can still miss a property, such as stability.
 - **Pin a property contract to one result.** When a function is specified by properties rather than an equation, add a uniqueness lemma so the properties imply the exact value.
+
+## General before specific
+
+A proof that moves up a level, from one case to every case of its shape, is better than the cases proved apart.
+
+- **Look for the shape before writing a second proof.** Two functions that differ only in a test, a type or a bound are one function with a parameter. Prove the general one; each case is a call.
+- **Prove the general lemmas once,** beside the general definition: what it returns, a uniqueness lemma, and one that turns a result into the forall a caller wants. A case then needs no induction of its own.
+- **Let code pass its own test.** Prove that two tests agreeing on every input give the same result, so the code's test function links to the model's predicate without a lemma per case. Make it pointwise over two lists, and it also links code records to the model's mapped records.
+- **State it for every test when the code passes a lambda.** A lambda in the code is a different function value from the model's, even with the same body, so it cannot be named in a lemma call. State the link and the agreement lemma for every test at once (`forall ok :: …`); the prover then meets the two lambdas by their bodies.
+- **Pass functions where the tool translates them.** LemmaScript translates a function-typed parameter (`ok: (c: number) => boolean`) and a lambda to Dafny `int -> bool`, and a generic `xs: T[]` scan too, if each lambda passed to it types its parameter. Where a tool cannot, keep the general definition in the model and link each loop to it.
+- **Go up again when a shape repeats.** A text is a sequence, so the text scan can be the list scan over code units: one definition, one set of lemmas, for both.
+- **Generalising finds duplicates.** Folding scans into one shows when two names are one fact (a "trim start" that was the whitespace-run end); keep one definition and delete the other.
+- **Example:** augur-plugins had about 30 hand-written scan and search loops across three proved files, each with its own spec, invariants and link induction. Three general loops (forward text scan, backward text scan, list search) in a shared lowest model layer replaced them; each case is now one call, each link two lemma calls, and a new scan costs nothing.
 
 ## Bugs as lemmas
 
