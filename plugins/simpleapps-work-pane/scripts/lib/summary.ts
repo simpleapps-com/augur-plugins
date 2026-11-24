@@ -19,6 +19,7 @@ import {
   rowsLeftOut,
   shortRef,
   splitSegments,
+  tableCell,
   waitsOn,
 } from "../work-rules.ts";
 import type { Data } from "./frontmatter.ts";
@@ -34,7 +35,6 @@ const day = (when: string) => when.slice(0, 10);
 const daysBetween = (from: string, to: string) =>
   Math.floor((Date.parse(to) - Date.parse(from)) / DAY);
 const unique = <T>(values: T[]) => [...new Set(values)];
-const cell = (value: string | number) => String(value).replace(/\|/g, "\\|");
 
 /** Who an item belongs to: its assignees, else its author. */
 const owners = (data: Data) => {
@@ -185,7 +185,7 @@ function blockingSection(
   const rows = blocking.map((f) => [
     itemCell(f),
     f.hub,
-    cell(f.blocked.join(", ")),
+    tableCell(f.blocked.join(", ")),
     f.waiting.since,
     f.dependents.map((d) => ref(d.id)).join(", "),
   ]);
@@ -208,7 +208,7 @@ function peopleSection(blocking: Fact[]): string[] {
   }
   const rows = [...byPerson]
     .sort(([, a], [, b]) => b.items - a.items || impactOrder(0, 0, 0, 0, a.since, b.since))
-    .map(([person, entry]) => [cell(person), entry.items, entry.since]);
+    .map(([person, entry]) => [tableCell(person), entry.items, entry.since]);
   return section(
     "Who is waiting on you",
     "People held up by your items, and the oldest unanswered wait.",
@@ -222,7 +222,7 @@ function hubTable(hubs: (Doc & { rel: string })[], facts: Fact[]): string[] {
     .map((hub) => ({ hub, inHub: facts.filter((f) => f.hub === hub.data.id) }))
     .filter(({ inHub }) => inHub.length)
     .map(({ hub, inHub }) => [
-      `[${cell(text(hub.data.title))}](${hub.rel})`,
+      `[${tableCell(text(hub.data.title))}](${hub.rel})`,
       inHub.length,
       inHub.filter((f) => f.mine && f.blocked.length).length || "",
       unique(inHub.flatMap((f) => f.unfetched)).length || "",
@@ -329,7 +329,7 @@ export function buildSummary(root: string, today: string, me: string[], aliases:
     dependents: dependentsByTarget(items, meSet, canon),
   };
   const ref = (id: string) => shortRef(id, org);
-  const itemCell = (f: Fact) => `[${ref(f.id)}](${f.file}) ${cell(f.title)}`;
+  const itemCell = (f: Fact) => `[${ref(f.id)}](${f.file}) ${tableCell(f.title)}`;
   const facts = items.map((item) => describe(item, root, ctx));
   const mine = facts.filter((f) => f.mine);
   // Without `me` nothing is known to be yours, so nobody can be waiting on you

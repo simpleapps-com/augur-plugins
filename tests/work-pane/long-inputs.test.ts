@@ -12,7 +12,7 @@ import type { Api, GitHubRecord } from "../../plugins/simpleapps-work-pane/scrip
 import { hasOwner, isIssueIdOf } from "../../plugins/simpleapps-work-pane/scripts/pane-rules.ts";
 import {
   addEdge,
-  briefCell,
+  tableCell,
   chartLabel,
   classifyLine,
   closesBefore,
@@ -55,7 +55,7 @@ test("text rules run on 100,000 code units", () => {
   assert.equal(htmlText("<&>".repeat(N / 3)), "&lt;&amp;&gt;".repeat(N / 3));
   assert.equal(chartLabel('"<'.repeat(N / 2)), "#quot;".repeat(N / 2));
   assert.equal(nodeId("a-".repeat(N / 2)), `n_${"a_".repeat(N / 2)}`);
-  assert.equal(briefCell(`a|${" ".repeat(N)}b`), "a\\| b");
+  assert.equal(tableCell(`a|${" ".repeat(N)}b`), "a\\| b");
   assert.equal(plainText("a<br>".repeat(N / 5)), "a\n".repeat(N / 5));
   assert.equal(slug(`A${"!".repeat(N)}B`), "a-b");
   assert.equal(numberText(`${"0".repeat(N)}7`), "7");

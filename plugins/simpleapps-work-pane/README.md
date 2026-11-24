@@ -75,6 +75,10 @@ In the frontmatter of `work/README.md`:
 
 A Sync fetches the Basecamp todos that changed, then runs `work refresh`, which imports them, syncs each hub's GitHub issues, follows references two layers out, removes empty auto-created hubs, rewrites the site briefs, the digest (`work/README.md`), the list (`work/LIST.md`) and the chart (`work/chart.md`), and validates the whole folder. It holds `work/.lock` while it runs and logs one line to `work/sync.log`.
 
+`work/LIST.md` is two tables, one row per item:
+- **Basecamp todos** assigned to you: Site (the hub's first `sites` entry, else the hub id), BC, Title; by site, then newest first.
+- **GitHub issues** open in a watched repo: Repo, Issue, Title; by repo, then issue number.
+
 Every check the pane runs logs one line to `work/check.log` (`<time> <trigger> ok|failed · <what it saw> · sync started|no sync`). Each line is appended in one atomic write, and line breaks in an error become spaces. Once the log passes 400 lines it is trimmed back to the last 200. Some checks write nothing:
 - a check that is not due, because another session just checked, so a gap in the log means no session was checking;
 - while the connector keeps failing, a retry that still has retries to come: the first and the last failure are logged.

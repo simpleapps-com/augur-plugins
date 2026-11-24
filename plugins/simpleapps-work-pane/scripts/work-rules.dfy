@@ -1122,9 +1122,9 @@ function projectInUrl(url: string): string
   projectInUrlFrom(url, 0)
 }
 
-function briefCell(text: string): string
+function tableCell(text: string): string
 {
-  briefCellFrom(text, 0)
+  tableCellFrom(text, 0)
 }
 
 function isQuiet(hasUpdated: bool, todayMs: int, updatedMs: int): bool
@@ -1278,6 +1278,23 @@ function issueOrder(repoA: string, repoB: string, numberA: int, numberB: int): i
     byRepo
   else
     (numberA - numberB)
+}
+
+function siteOf(sites: seq<string>, hub: string): string
+{
+  if (|sites| > 0) then
+    sites[0]
+  else
+    hub
+}
+
+function todoOrder(siteA: string, siteB: string, updatedA: string, updatedB: string): int
+{
+  var bySite := compareText(siteA, siteB);
+  if (bySite != 0) then
+    bySite
+  else
+    compareText(updatedB, updatedA)
 }
 
 function isAlnumUnit(c: int): bool
@@ -2336,7 +2353,7 @@ by method {
   return "";
 }
 
-function briefCellFrom_fun_spec(s: string, i: nat): string
+function tableCellFrom_fun_spec(s: string, i: nat): string
   requires (i <= |s|)
   decreases (|s| - i)
 {
@@ -2345,15 +2362,15 @@ function briefCellFrom_fun_spec(s: string, i: nat): string
   else
     var c := (s[i] as int);
     if isSpaceUnit(c) then
-      (" " + briefCellFrom_fun_spec(s, spaceRunEnd(s, i)))
+      (" " + tableCellFrom_fun_spec(s, spaceRunEnd(s, i)))
     else
-      ((if (c == 124) then "\\|" else s[i..(i + 1)]) + briefCellFrom_fun_spec(s, (i + 1)))
+      ((if (c == 124) then "\\|" else s[i..(i + 1)]) + tableCellFrom_fun_spec(s, (i + 1)))
 }
 
-function briefCellFrom(s: string, i: nat): string
+function tableCellFrom(s: string, i: nat): string
   requires (i <= |s|)
 {
-  briefCellFrom_fun_spec(s, i)
+  tableCellFrom_fun_spec(s, i)
 }
 by method {
   var acc := "";
@@ -2362,7 +2379,7 @@ by method {
     invariant (i <= j)
     invariant (j <= |s|)
     invariant j <= |s| || j == i
-    invariant acc + briefCellFrom_fun_spec(s, j) == briefCellFrom_fun_spec(s, i)
+    invariant acc + tableCellFrom_fun_spec(s, j) == tableCellFrom_fun_spec(s, i)
     decreases (|s| - j)
   {
     var c := (s[j] as int);
