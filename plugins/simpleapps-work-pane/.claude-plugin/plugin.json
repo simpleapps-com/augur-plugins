@@ -2,7 +2,7 @@
   "name": "simpleapps-work-pane",
   "displayName": "SimpleApps Work Pane",
   "description": "Claude Code only. For SimpleApps staff: a Work pane beside the chat with the Basecamp todos and GitHub issues you track, what changed since your last Sync, and a Sync button that brings your project's work/ folder up to date.",
-  "version": "2026.11.4",
+  "version": "2026.11.5",
   "author": {
     "name": "SimpleApps",
     "email": "info@simpleapps.com",
