@@ -99,3 +99,23 @@ lemma IsConnectorUrlMatchesModel(u: string)
 {
   if |u| >= 8 { LabelEndMatchesModel(u, 8); }
 }
+
+// ---------------------------------------------------------------- LSP plugins (GH36)
+
+lemma IsSecretKeyMatchesModel(k: string)
+  ensures isSecretKey(k) == Marketplace.IsSecretKey(k)
+{
+}
+
+lemma SpaceFromMatchesModel(s: string, i: nat)
+  ensures spaceFrom(s, i) == Marketplace.SpaceFrom(s, i)
+  decreases |s| - i
+{
+  if i < |s| { SpaceFromMatchesModel(s, i + 1); }
+}
+
+lemma IsLspCommandMatchesModel(c: string)
+  ensures isLspCommand(c) == Marketplace.IsLspCommand(c)
+{
+  SpaceFromMatchesModel(c, 0);
+}

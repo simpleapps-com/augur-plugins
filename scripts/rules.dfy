@@ -122,6 +122,21 @@ function isConnectorUrl(u: string): bool
     (((j > 8) && ((j + 15) <= |u|)) && (u[j..(j + 15)] == ".augur-mcp.com/"))
 }
 
+function isSecretKey(k: string): bool
+{
+  ((k == "licenceKey") || (k == "licenseKey"))
+}
+
+lemma isSecretKey_ensures(k: string)
+  ensures (isSecretKey(k) <==> ((k == "licenceKey") || (k == "licenseKey")))
+{
+}
+
+function isLspCommand(c: string): bool
+{
+  ((|c| > 0) && (((c[0] as int) == 47) || !(spaceFrom(c, 0))))
+}
+
 function digitsFrom_fun_spec(s: string, i: nat): bool
   requires (i >= 0)
   ensures (digitsFrom_fun_spec(s, i) <==> forall k: nat :: ((i <= k) ==> (k < |s|) ==> (((s[k] as int) >= 48) && ((s[k] as int) <= 57))))
@@ -225,4 +240,28 @@ by method {
     j := (j + 1);
   }
   return j;
+}
+
+function spaceFrom_fun_spec(s: string, i: nat): bool
+  decreases |s| - i
+{
+  // What the loop computes: a space at i, or at a later index.
+  i < |s| && ((s[i] as int) == 32 || spaceFrom_fun_spec(s, i + 1))
+}
+
+function spaceFrom(s: string, i: nat): bool
+{
+  spaceFrom_fun_spec(s, i)
+}
+by method {
+  var j := i;
+  while ((j < |s|) && ((s[j] as int) != 32))
+    invariant (i <= j)
+    invariant j <= |s| || j == i
+    invariant spaceFrom_fun_spec(s, j) == spaceFrom_fun_spec(s, i)
+    decreases (|s| - j)
+  {
+    j := (j + 1);
+  }
+  return (j < |s|);
 }

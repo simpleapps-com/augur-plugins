@@ -8,7 +8,9 @@ import {
   descriptionFits,
   isCalVer,
   isConnectorUrl,
+  isLspCommand,
   isReservedName,
+  isSecretKey,
   isSkillKey,
   isSkillName,
 } from "./rules.ts";
@@ -114,4 +116,12 @@ test("isConnectorUrl is https://<label>.augur-mcp.com/...", () => {
   const labels = samples("ab-.A", 6, 20000, []);
   const inputs = labels.map((l) => `https://${l}.augur-mcp.com/x`);
   agrees(isConnectorUrl, oracle, [...seeds, ...inputs]);
+});
+
+test("isSecretKey is a licence key in either spelling; isLspCommand is a binary (GH #36)", () => {
+  for (const k of ["licenceKey", "licenseKey", "LicenceKey", "licence", "maxMemory", ""])
+    assert.equal(isSecretKey(k), k === "licenceKey" || k === "licenseKey", k);
+  // The oracle: non-empty, and an absolute path or no space
+  const oracle = /^(\/.*|[^ ]+)$/s;
+  agrees(isLspCommand, oracle, samples("a/ -", 6, 20000, ["intelephense", "/opt/x y", "a b", ""]));
 });

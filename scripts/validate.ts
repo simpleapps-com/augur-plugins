@@ -11,6 +11,8 @@
 //   - .mcp.json: http servers on augur-mcp.com, keyed by their title, with a description,
 //     and no headers, headersHelper, or oauth
 //   - hooks/hooks.json parses, has hooks or modules, and every ${CLAUDE_PLUGIN_ROOT} file exists
+//   - .lsp.json parses; each server has a binary `command` and an `extensionToLanguage` map, and
+//     no key anywhere holds a secret (a licence key would ship to every installer)
 //   - proofs: every proved file is listed in LemmaScript-files.txt, and no hand-written Dafny
 //     uses assume, {:axiom}, {:verify false}, {:trusted} or expect
 //   - CLAUDE.md under 200 lines
@@ -32,7 +34,9 @@ import {
   descriptionFits,
   isCalVer,
   isConnectorUrl,
+  isLspCommand,
   isReservedName,
+  isSecretKey,
   isSkillKey,
   isSkillName,
 } from "./rules.ts";
@@ -392,6 +396,52 @@ async function checkHookFiles(run: Run, plugin: string, rel: string, text: strin
   }
 }
 
+/**
+ * .lsp.json (an LSP plugin, Claude Code only): valid JSON; each server has a binary `command`
+ * (proved `isLspCommand`) and an `extensionToLanguage` map; and no key anywhere holds a secret
+ * (proved `isSecretKey`), since the file ships to every installer.
+ */
+async function checkLspServers(run: Run, plugins: string[]): Promise<void> {
+  for (const plugin of plugins) {
+    const rel = `plugins/${plugin}/.lsp.json`;
+    const text = await readText(join(run.root, rel));
+    if (text === null) continue;
+    const config = parseJson(run, rel, text);
+    if (config === undefined) continue;
+    if (typeof config !== "object" || config === null || Array.isArray(config)) {
+      run.errors.push(`${rel} MUST be an object of servers`);
+      continue;
+    }
+    for (const [name, server] of Object.entries(config))
+      checkLspServer(run, `${rel} "${name}"`, server);
+    for (const key of secretKeys(config))
+      run.errors.push(`${rel} MUST NOT hold a secret: "${key}"`);
+  }
+}
+
+function checkLspServer(run: Run, where: string, server: unknown): void {
+  const s = (typeof server === "object" && server !== null ? server : {}) as Record<
+    string,
+    unknown
+  >;
+  if (typeof s.command !== "string" || !isLspCommand(s.command))
+    run.errors.push(
+      `${where} MUST have a "command" naming a binary (no spaces unless an absolute path)`,
+    );
+  const map = s.extensionToLanguage;
+  if (typeof map !== "object" || map === null || Array.isArray(map))
+    run.errors.push(`${where} MUST have an "extensionToLanguage" object`);
+}
+
+/** Every key, at any depth, that holds a secret. */
+function secretKeys(value: unknown): string[] {
+  if (typeof value !== "object" || value === null) return [];
+  return Object.entries(value).flatMap(([key, inner]) => [
+    ...(isSecretKey(key) ? [key] : []),
+    ...secretKeys(inner),
+  ]);
+}
+
 /** The lines of `text` that `base` lacks: what was added by hand to a generated file. */
 function addedLines(text: string, base: string): string[] {
   const generated = new Set(base.split("\n"));
@@ -483,6 +533,7 @@ export async function validate(root: string): Promise<Result> {
   await checkCommands(run, plugins, skills);
   await checkConnectors(run, plugins);
   await checkHooks(run, plugins);
+  await checkLspServers(run, plugins);
   await checkProofs(run, plugins);
   await checkClaudeMd(run);
   return { errors: run.errors, warnings: run.warnings, skillCount: skills.size };

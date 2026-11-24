@@ -158,4 +158,37 @@ module Marketplace {
     LabelEndIs(w, 8, 12);
     assert w[12..27] != Domain by { assert w[13] != Domain[1]; }
   }
+
+  // ---------------------------------------------------------------- LSP plugins (GH36)
+  // A plugin's .lsp.json ships to every installer, so no key in it may hold a secret: an
+  // Intelephense licence, in either spelling (the server reads its own licence file instead).
+  predicate IsSecretKey(k: string) { k == "licenceKey" || k == "licenseKey" }
+
+  lemma SecretKeyExamples()
+    ensures IsSecretKey("licenceKey") && IsSecretKey("licenseKey")
+    ensures !IsSecretKey("maxMemory") && !IsSecretKey("licence") && !IsSecretKey("LicenceKey")
+  {
+  }
+
+  // An LSP server's command is a binary: no spaces, unless it is an absolute path (Claude Code's
+  // rule: "No spaces unless the value starts with `/`"), and never empty.
+  predicate SpaceFrom(s: string, i: nat)
+    decreases |s| - i
+  {
+    i < |s| && (s[i] as int == 32 || SpaceFrom(s, i + 1))
+  }
+
+  predicate IsLspCommand(c: string)
+  {
+    |c| > 0 && (c[0] as int == 47 || !SpaceFrom(c, 0))
+  }
+
+  lemma LspCommandExamples()
+    ensures IsLspCommand("intelephense")
+    ensures IsLspCommand("/opt/my tools/intelephense")
+    ensures !IsLspCommand("intelephense --stdio")
+    ensures !IsLspCommand("")
+  {
+    assert SpaceFrom("intelephense --stdio", 12);
+  }
 }
