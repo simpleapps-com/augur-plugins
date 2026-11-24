@@ -1,10 +1,12 @@
-// One command that brings work/ up to date, a lock every caller shares, a sync log, and the status
-// the Work pane reads. Design: wiki Work-Pane.
+// One command that brings work/ up to date, a lock every caller shares, a sync log and a check
+// log, and the status the Work pane reads. Design: wiki Work-Pane.
 import {
+  appendFileSync,
   existsSync,
   mkdirSync,
   readdirSync,
   readFileSync,
+  renameSync,
   rmSync,
   statSync,
   writeFileSync,
@@ -16,7 +18,11 @@ import {
   isAutoHub,
   isEmptyHub,
   isLockStale,
+  isOkLogLine,
   isVisibleName,
+  isWorkStale,
+  logOverflows,
+  oneLine,
   orgOf,
   projectOfRef,
   syncMinutesOf,
@@ -42,6 +48,8 @@ import {
 
 const LOCK = ".lock";
 const LOG = "sync.log";
+// One line per check the pane ran (GH #34): a gap means no session was checking
+const CHECK_LOG = "check.log";
 const LOG_LINES = 200;
 
 /** Take work/.lock (mkdir is atomic), or report that another run holds it; a stale lock is taken over. */
@@ -60,17 +68,56 @@ export function takeLock(root: string, now: number): boolean {
 
 const releaseLock = (root: string) => rmSync(join(root, LOCK), { recursive: true, force: true });
 
-function readLog(root: string): string[] {
-  const file = join(root, LOG);
+function readLog(root: string, name = LOG): string[] {
+  const file = join(root, name);
   return existsSync(file) ? readFileSync(file, "utf8").split("\n").filter(Boolean) : [];
 }
 
-function appendLog(root: string, line: string): void {
-  const lines = [...readLog(root), line].slice(-LOG_LINES);
-  writeFileSync(join(root, LOG), `${lines.join("\n")}\n`);
+/**
+ * Append a line. The append itself is atomic (one small `O_APPEND` write), so two sessions never
+ * interleave or lose a line there; past 400 lines (proved `logOverflows`) the file is trimmed back
+ * to the last LOG_LINES through a temp file and a rename, so a reader never sees half a file. Only
+ * a line appended during that rare trim can be lost.
+ */
+function appendLog(root: string, line: string, name = LOG): void {
+  const file = join(root, name);
+  appendFileSync(file, `${oneLine(line)}\n`);
+  const lines = readLog(root, name);
+  if (!logOverflows(lines.length)) return;
+  const temp = `${file}.${process.pid}.tmp`;
+  writeFileSync(temp, `${lines.slice(-LOG_LINES).join("\n")}\n`);
+  renameSync(temp, file);
 }
 
-const lastLogLine = (root: string): string | null => readLog(root).at(-1) ?? null;
+const lastLogLine = (root: string, name = LOG): string | null => readLog(root, name).at(-1) ?? null;
+
+/** A log line's time, to the second. */
+const stamp = (ms: number) => new Date(ms).toISOString().replace(/\.\d+Z$/, "Z");
+
+/** When the last ok line in a log was written; undefined when there is none. */
+function lastOkAt(lines: string[]): number | undefined {
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = String(lines[i]);
+    const at = Date.parse(line.slice(0, line.indexOf(" ")));
+    if (isOkLogLine(line) && !Number.isNaN(at)) return at;
+  }
+  return undefined;
+}
+
+/** Record one check the pane ran in work/check.log: `<time> <trigger> ok|failed · <detail>`. */
+export function logCheck(
+  root: string,
+  at: number,
+  trigger: string,
+  ok: boolean,
+  detail: string,
+): string {
+  // One line, whatever the error text holds (proved `oneLine`): a line end in a detail could
+  // otherwise split the entry or forge one that reads ok
+  const line = oneLine(`${stamp(at)} ${trigger} ${ok ? "ok" : "failed"} · ${detail}`);
+  appendLog(root, line, CHECK_LOG);
+  return line;
+}
 
 /** The person's settings from work/README.md frontmatter, with defaults. */
 function readSettings(root: string) {
@@ -90,9 +137,26 @@ function readSettings(root: string) {
   };
 }
 
-/** Settings, the last sync, and every item's id and updated time: what the Work pane compares against. */
-export function workStatus(root: string) {
+/** Settings, the last sync and check, whether work/ is stale, and every item's id and updated
+    time: what the Work pane compares against. */
+export function workStatus(root: string, now: number = Date.now()) {
   const settings = readSettings(root);
+  const okCheck = lastOkAt(readLog(root, CHECK_LOG));
+  const okSync = lastOkAt(readLog(root));
+  const health = {
+    last_check: lastLogLine(root, CHECK_LOG),
+    last_ok_check_at: okCheck === undefined ? null : stamp(okCheck),
+    last_ok_sync_at: okSync === undefined ? null : stamp(okSync),
+    // No ok check or sync within 3 × sync_minutes (GH #34, proved isWorkStale)
+    stale: isWorkStale(
+      okCheck !== undefined,
+      okCheck ?? 0,
+      okSync !== undefined,
+      okSync ?? 0,
+      now,
+      settings.sync_minutes,
+    ),
+  };
   const me = new Set(settings.me);
   const items = listWorkFiles(root)
     .map(loadWorkFile)
@@ -110,7 +174,13 @@ export function workStatus(root: string) {
         mine: list(data.assignees).some((name) => me.has(name)),
       };
     });
-  return { ...settings, last_sync: lastLogLine(root), items, briefs: briefProjects(root) };
+  return {
+    ...settings,
+    last_sync: lastLogLine(root),
+    ...health,
+    items,
+    briefs: briefProjects(root),
+  };
 }
 
 const visible = (dir: string) => readdirSync(dir).filter(isVisibleName);
@@ -211,18 +281,25 @@ function runSteps(context: StepContext, report: RefreshReport): void {
   }
 }
 
+/** `ok`, `partial` (Basecamp was not read, GH #35: not a success, so work/ can still go stale), or `failed`. */
+function logWord(report: RefreshReport, partial: boolean): string {
+  if (report.failed) return "failed";
+  return partial ? "partial" : "ok";
+}
+
 function logLine(
   report: RefreshReport,
   trigger: string,
   started: number,
   finished: number,
+  partial = false,
 ): string {
-  const when = new Date(started).toISOString().replace(/\.\d+Z$/, "Z");
+  const when = stamp(started);
   const seconds = Math.round((finished - started) / 1000);
   const outcome = report.failed
     ? `FAILED at ${report.failed.step}: ${report.failed.detail}`
     : report.steps.map((s) => `${s.step}: ${s.detail}`).join(" · ");
-  return `${when} ${trigger} ${report.failed ? "failed" : "ok"} ${seconds}s · ${outcome}`;
+  return `${when} ${trigger} ${logWord(report, partial)} ${seconds}s · ${outcome}`;
 }
 
 /** The index a fresh install starts with; the person adds `me` and the rest later. */
@@ -256,6 +333,8 @@ export interface RefreshOptions {
   api?: Api;
   trigger?: string;
   now?: () => number;
+  // The caller could not read Basecamp: GitHub is refreshed, the log line says `partial`
+  partial?: boolean;
 }
 
 /**
@@ -271,6 +350,7 @@ export function refreshWork(root: string, options: RefreshOptions): RefreshRepor
     api,
     trigger = "manual",
     now = Date.now,
+    partial = false,
   } = options;
   const started = now();
   const report: RefreshReport = { ok: false, locked: false, steps: [], basecamp: [], failed: null };
@@ -292,7 +372,7 @@ export function refreshWork(root: string, options: RefreshOptions): RefreshRepor
     releaseLock(root);
   }
   report.ok = report.failed === null;
-  appendLog(root, logLine(report, trigger, started, now()));
+  appendLog(root, logLine(report, trigger, started, now(), partial));
   return report;
 }
 

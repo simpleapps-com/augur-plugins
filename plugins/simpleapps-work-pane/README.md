@@ -35,11 +35,24 @@ When one of these is missing, the pane says so under the counts (`needs: …`).
 
 Tested with Claude Code 2.1.330.
 
-```
-/plugin install simpleapps-work --marketplace simpleapps-com/augur-plugins
-/plugin install simpleapps-work-pane --marketplace simpleapps-com/augur-plugins
-/reload-plugins
-```
+The pane SHOULD run only in the project that holds `work/`. Installed the usual way (user scope), it loads in every project. Outside a project with `work/README.md` it stays idle: no pane, no `gh`, no checks, and `/work` says where it runs. To keep it from loading there at all, install it for yourself switched off, and let the project switch it on:
+
+1. **The project enables it.** The project that holds `work/` lists the pane in its checked-in `.claude/settings.json` (the `simpleapps-work` project already does):
+   ```json
+   { "enabledPlugins": { "simpleapps-work-pane@augur": true } }
+   ```
+2. **You install it at user scope, then disable it at user scope**, with `simpleapps-work` for the connector:
+   ```
+   claude plugin install simpleapps-work@augur
+   claude plugin install simpleapps-work-pane@augur --scope user
+   claude plugin disable simpleapps-work-pane@augur --scope user
+   ```
+   Then `/reload-plugins` in any open session.
+3. **Check.** In the project, `claude plugin list` shows the pane `enabled`, with a note that it is disabled in `~/.claude/settings.json` but the project's settings enable it. In any other project it shows disabled.
+
+Step 1 is what turns the pane on: without it, step 2 leaves it off everywhere.
+
+`--scope local` and `--scope project` fail when the project's `.claude` folder is a symlink, as it is in `simpleapps-work` (`SymlinkWriteRefusedError: Refusing to write into symlinked directory`). Claude Code will not write settings through it; use the steps above.
 
 In a folder you have not trusted yet, no mod loads until you answer the trust prompt.
 
@@ -55,12 +68,96 @@ In the frontmatter of `work/README.md`:
 | `aliases` | `<github login>=<Basecamp name>`, for one person under two names |
 | `org` | The GitHub org a bare repo name is in; `simpleapps-com` when not set |
 | `watch_repos` | Repos whose open issues the pane counts: `<repo>` in the org, or `<owner>/<repo>`; the hubs' repos when not set |
-| `auto_sync` | `false` to sync only when you press Sync; on by default |
+| `auto_sync` | `false` to sync only when you press Sync; on by default. It works while a session has the pane loaded, or from a scheduled check ([below](#sync-without-an-open-session)) |
 | `sync_minutes` | How often it checks, 1 to 60; 5 by default |
 
 ## Sync
 
 A Sync fetches the Basecamp todos that changed, then runs `work refresh`, which imports them, syncs each hub's GitHub issues, follows references two layers out, removes empty auto-created hubs, rewrites the site briefs, the digest (`work/README.md`), the list (`work/LIST.md`) and the chart (`work/chart.md`), and validates the whole folder. It holds `work/.lock` while it runs and logs one line to `work/sync.log`.
+
+Every check the pane runs logs one line to `work/check.log` (`<time> <trigger> ok|failed · <what it saw> · sync started|no sync`). Each line is appended in one atomic write, and line breaks in an error become spaces. Once the log passes 400 lines it is trimmed back to the last 200. Some checks write nothing:
+- a check that is not due, because another session just checked, so a gap in the log means no session was checking;
+- while the connector keeps failing, a retry that still has retries to come: the first and the last failure are logged.
+
+When there has been no ok check and no ok sync for 3 × `sync_minutes`, `work status` says `STALE` (and `"stale": true` with `--json`). The pane shows a red `stale:` line after a failed check, or when `work status` itself can't be read, going by its own record of the last ok check. A changed `sync_minutes` takes effect from the next check.
+
+A headless check or sync waits up to 6 seconds (three 2-second waits) for the Basecamp connector to connect. A connector that connects before its tools can be called gets three more short looks. If Basecamp still can't be read, the sync refreshes GitHub anyway, but it is **partial**: it is not counted as a sync, `work/sync.log` says `partial`, and the linked todos are not fetched. So `work status` turns `STALE` while Basecamp stays unread.
+
+## Sync without an open session
+
+The pane checks only while a Claude Code session has it loaded. To keep `work/` current overnight or while you work elsewhere, schedule a headless check from the project folder:
+
+```bash
+claude -p "/work check" --no-session-persistence --permission-prompts none >> tmp/work-schedule.log 2>&1
+```
+
+A check syncs only when something changed (with `auto_sync` on), and it logs a line to `work/check.log` like a check in a session does. `/work sync` in its place forces a full sync every time. `--no-session-persistence` keeps the runs out of `/resume`, and `--permission-prompts none` means nothing waits for an answer. Only one sync runs at a time: the scheduler starts a new run while an old one is going only on cron, and `work/.lock` stops a second sync there. A scheduler starts jobs with a short `PATH`, so give it the folders that hold `claude`, `node` and `gh` (`which claude node gh`). Run the command by hand once first: it should print one `tracking …` line. Not yet measured: whether each headless run uses model tokens. `--output-format json` on that first run shows its cost.
+
+Use your interval in minutes (`sync_minutes`, 5 here) and your project path in place of `~/Projects/simpleapps-work`.
+
+**macOS (launchd).** Save as `~/Library/LaunchAgents/local.work-check.plist`, with your home folder for `YOU`:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>local.work-check</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/sh</string><string>-c</string>
+    <string>claude -p "/work check" --no-session-persistence --permission-prompts none &gt;&gt; tmp/work-schedule.log 2&gt;&amp;1</string>
+  </array>
+  <key>WorkingDirectory</key><string>/Users/YOU/Projects/simpleapps-work</string>
+  <key>EnvironmentVariables</key>
+  <dict><key>PATH</key><string>/Users/YOU/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string></dict>
+  <key>StartInterval</key><integer>300</integer>
+</dict>
+</plist>
+```
+
+Start it with `launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/local.work-check.plist`, and stop it with `launchctl bootout gui/$(id -u)/local.work-check`. A run missed while the Mac sleeps runs once on wake.
+
+**Linux (cron).** `crontab -e`, then:
+
+```
+*/5 * * * * cd ~/Projects/simpleapps-work && PATH=$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin claude -p "/work check" --no-session-persistence --permission-prompts none >> tmp/work-schedule.log 2>&1
+```
+
+**Linux (systemd).** `~/.config/systemd/user/work-check.service`:
+
+```ini
+[Service]
+Type=oneshot
+WorkingDirectory=%h/Projects/simpleapps-work
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/bin/sh -c 'claude -p "/work check" --no-session-persistence --permission-prompts none >> tmp/work-schedule.log 2>&1'
+```
+
+and `~/.config/systemd/user/work-check.timer`:
+
+```ini
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+
+[Install]
+WantedBy=timers.target
+```
+
+Start it with `systemctl --user enable --now work-check.timer`, and stop it with `systemctl --user disable --now work-check.timer`.
+
+**Windows (Task Scheduler).**
+
+```
+schtasks /Create /SC MINUTE /MO 5 /TN work-check /TR "cmd /c cd /d %USERPROFILE%\Projects\simpleapps-work && claude -p \"/work check\" --no-session-persistence --permission-prompts none >> tmp\work-schedule.log 2>&1"
+```
+
+Stop it with `schtasks /Delete /TN work-check /F`.
+
+**Check it works.** `tail work/check.log` shows a line for each run: `/work check` waits for the session's opening check and for any sync it started, then uses that reading, so a run doesn't exit mid-sync and writes one line. It writes a second line only when the connector was still connecting at the opening check. `work status` should not say `STALE`. A run that fails (signed out of Basecamp, `gh` signed out) is logged `failed`. If none succeeds for 3 intervals, `work status` says `STALE`. `claude -p` skips the folder trust prompt, so schedule it only in your own project folder.
+
+## Scripts
 
 The same scripts run from a shell, from the project folder (`work/` there is the default `--root`):
 
@@ -68,7 +165,7 @@ The same scripts run from a shell, from the project folder (`work/` there is the
 node <plugin folder>/scripts/work.ts status
 ```
 
-Commands: `refresh`, `status`, `brief <hub>`, `validate`, `link`, `sync-gh [hub]`, `follow [--depth N]`, `import-bc <file.json>...`, `chart [all]`, `summary`. See the [Work-Pane](https://github.com/simpleapps-com/augur-plugins/wiki/Work-Pane) wiki page.
+Commands: `refresh`, `status`, `log-check` (the pane's), `brief <hub>`, `validate`, `link`, `sync-gh [hub]`, `follow [--depth N]`, `import-bc <file.json>...`, `chart [all]`, `summary`. See the [Work-Pane](https://github.com/simpleapps-com/augur-plugins/wiki/Work-Pane) wiki page.
 
 ## Privacy
 

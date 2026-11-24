@@ -999,6 +999,43 @@ lemma IsLockStaleMatchesModel(now: int, lockedAt: int)
 {
 }
 
+// ---------------------------------------------------------------- check log and staleness (GH34)
+
+lemma IsOkLogLineMatchesModel(line: string)
+  ensures isOkLogLine(line) == WorkData.IsOkLogLine(line)
+{
+  SolidRunEndMatchesModel(line, 0);
+  var a := solidRunEnd(line, 0);
+  if a < |line| { SolidRunEndMatchesModel(line, a + 1); }
+}
+
+lemma OneLineFromMatchesModel(s: string, i: nat)
+  ensures oneLineFrom(s, i) == WorkData.OneLineFrom(s, i)
+  decreases |s| - i
+{
+  if i < |s| {
+    CharactersMatchModel(s[i] as int, s, 0, "");
+    OneLineFromMatchesModel(s, i + 1);
+  }
+}
+
+lemma OneLineMatchesModel(s: string)
+  ensures oneLine(s) == WorkData.OneLineFrom(s, 0)
+{
+  OneLineFromMatchesModel(s, 0);
+}
+
+lemma LogOverflowsMatchesModel(lines: int)
+  ensures logOverflows(lines) == WorkData.LogOverflows(lines)
+{
+}
+
+lemma IsWorkStaleMatchesModel(hasCheck: bool, checkMs: int, hasSync: bool, syncMs: int, now: int, minutes: int)
+  ensures isWorkStale(hasCheck, checkMs, hasSync, syncMs, now, minutes)
+       == WorkData.IsWorkStale(hasCheck, checkMs, hasSync, syncMs, now, minutes)
+{
+}
+
 lemma AutoSyncOfMatchesModel(value: string)
   ensures autoSyncOf(value) == WorkData.AutoSyncOf(value)
 {

@@ -40,6 +40,10 @@ import {
   isListed,
   isLockStale,
   isMine,
+  isOkLogLine,
+  isWorkStale,
+  logOverflows,
+  oneLine,
   isOverdue,
   isPruned,
   isQuiet,
@@ -681,6 +685,44 @@ test("compareText is JavaScript's string order; laterText and earlierPresent fol
     assert.equal(laterText(a, b), [a, b].sort().at(-1));
     assert.equal(earlierPresent(a, b), [a, b].filter(Boolean).sort()[0] ?? "");
   }
+});
+
+test("isOkLogLine is the third word being ok; isWorkStale is 3 intervals since the latest ok record (GH #34)", () => {
+  // The oracle: the first word, one whitespace, the second word, then a space, `ok`, and a space
+  // or the end (the logs write single spaces)
+  const OK = /^\S*\s\S* ok( |$)/;
+  for (let n = 0; n < 5000; n++) {
+    const line = draw(["t", "auto", " ", "ok", "okay", "failed", "3s", "\t", "·", ""], 6);
+    assert.equal(isOkLogLine(line), OK.test(line), JSON.stringify(line));
+  }
+  assert.equal(isOkLogLine("2026-11-24T04:50:06Z auto ok 12s · import-bc: 1"), true);
+  assert.equal(isOkLogLine("2026-11-24T04:50:06Z auto failed 3s · FAILED at follow: x"), false);
+  assert.equal(isOkLogLine("2026-11-24T14:35:00Z timer ok · up to date · no sync"), true);
+  const L = 3 * 5 * 60000;
+  for (const hasCheck of [false, true])
+    for (const hasSync of [false, true])
+      for (const checkAge of [0, L, L + 1])
+        for (const syncAge of [0, L, L + 1]) {
+          const now = 10 * L;
+          const ages = [hasCheck ? checkAge : Infinity, hasSync ? syncAge : Infinity];
+          const expected = !(hasCheck || hasSync) || Math.min(...ages) > L;
+          assert.equal(
+            isWorkStale(hasCheck, now - checkAge, hasSync, now - syncAge, now, 5),
+            expected,
+            JSON.stringify({ hasCheck, hasSync, checkAge, syncAge }),
+          );
+        }
+});
+
+test("oneLine turns every line end into a space; logOverflows is past 400", () => {
+  // Built from code units, so no raw separator sits in the source
+  const ends = [10, 13, 0x2028, 0x2029].map((c) => String.fromCharCode(c));
+  const anyEnd = new RegExp(`[${ends.join("")}]`, "g");
+  for (let n = 0; n < 3000; n++) {
+    const s = draw(["a", " ", ...ends, "ok", "\t", "·"], 8);
+    assert.equal(oneLine(s), s.replace(anyEnd, " "), JSON.stringify(s));
+  }
+  for (const lines of [0, 200, 400, 401, 800]) assert.equal(logOverflows(lines), lines > 400);
 });
 
 test("lock, settings, ref project, and tidy decisions", () => {

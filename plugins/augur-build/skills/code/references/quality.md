@@ -6,6 +6,7 @@
 - [Reads](#reads)
 - [Steps](#steps)
 - [Suppressions](#suppressions)
+- [Type information (LSP)](#type-information-lsp)
 - [Writing the wiki settings](#writing-the-wiki-settings)
 - [Safeguards](#safeguards)
 - [Report](#report)
@@ -66,6 +67,13 @@ Search the source folders the configs name (`tsconfig.json` `include`, the lint 
 | `.skip` / `.only` | Make the test pass. If it is obsolete, ask the user before deleting it |
 
 One exception: a deprecated API from a dependency with no replacement yet. With the user's yes, file an issue upstream (`/repo issue`), and leave the suppression with the issue URL on its line.
+
+## Type information (LSP)
+
+In Claude Code, a TypeScript language server (the `typescript-lsp` plugin, the `LSP` tool) gives hover types, definitions and diagnostics as files change: use it alongside `typecheck`, not instead of it.
+
+- **Project folder with `repo/`.** The server starts in the project folder, which has no `node_modules`, and fails: "Could not find a valid TypeScript installation". Fix: a `node_modules` symlink in the project folder pointing at `repo/node_modules` (from the project folder: `ln -s repo/node_modules node_modules`). It sits outside `<repo>`, so nothing is committed; each clone needs it once. `code` does not run `ln`: show the command to the user.
+- **Mods.** A Claude Code mod imports `claude-code`, whose types exist only after a `claude --plugin-dir <plugin>` session generates them. Until then the server reports `Cannot find module 'claude-code'` and implicit-`any` parameters in the mod: a missing-types gap, not a code error. Say so in the report; the mod's own type check waits for the types.
 
 ## Writing the wiki settings
 

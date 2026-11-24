@@ -307,6 +307,98 @@ test("status reports settings and items; validate, link, chart, summary and foll
   assert.equal(run(root, ["follow", "--depth", "0"]).code, 2);
 });
 
+test("log-check writes one capped line per check; status reports the last check and flags stale (GH #34)", () => {
+  const { root } = project({ "README.md": INDEX, "hubs/site/README.md": HUB });
+  const at = (ms: number, args: string[]) => {
+    const lines: string[] = [];
+    const code = runWork(
+      [...args, "--root", root],
+      "/nowhere",
+      (l) => lines.push(l),
+      fakeApi(),
+      TODAY,
+      () => ms,
+    );
+    return { code, out: lines.join("\n") };
+  };
+  const T0 = Date.parse("2026-11-24T04:50:06Z");
+  const MIN = 60_000;
+  // Nothing recorded yet: stale (INDEX checks every 10 minutes)
+  assert.match(
+    at(T0, ["status"]).out,
+    /last check: never\nSTALE: no ok check or sync in over 30 minutes/,
+  );
+  const logged = at(T0, [
+    "log-check",
+    "--trigger",
+    "timer",
+    "--outcome",
+    "ok",
+    "--detail",
+    "up to date · no sync",
+  ]);
+  assert.equal(logged.code, 0);
+  assert.equal(logged.out, "2026-11-24T04:50:06Z timer ok · up to date · no sync");
+  // Within 3 intervals of the ok check: current; text and JSON agree
+  const fresh = JSON.parse(at(T0 + 30 * MIN, ["status", "--json"]).out) as Record<string, unknown>;
+  assert.deepEqual(
+    [fresh.stale, fresh.last_ok_check_at, fresh.last_ok_sync_at],
+    [false, "2026-11-24T04:50:06Z", null],
+  );
+  assert.doesNotMatch(at(T0 + 30 * MIN, ["status"]).out, /STALE/);
+  // Failed checks after it do not count; past 3 intervals of the last ok one, stale
+  at(T0 + 20 * MIN, [
+    "log-check",
+    "--trigger",
+    "open",
+    "--outcome",
+    "failed",
+    "--detail",
+    "Basecamp count (x) · no sync",
+  ]);
+  const old = JSON.parse(at(T0 + 31 * MIN, ["status", "--json"]).out) as Record<string, unknown>;
+  assert.equal(old.stale, true);
+  assert.equal(old.last_check, "2026-11-24T05:10:06Z open failed · Basecamp count (x) · no sync");
+  // A partial sync (Basecamp unread, GH #35) is logged `partial` and does not count
+  assert.equal(run(root, ["refresh", "--partial"]).code, 0);
+  assert.match(read(root, "sync.log"), / manual partial \d+s · /);
+  const partial = JSON.parse(at(Date.now() + MIN, ["status", "--json"]).out) as Record<
+    string,
+    unknown
+  >;
+  assert.deepEqual([partial.stale, partial.last_ok_sync_at], [true, null]);
+  // An ok sync counts too
+  assert.equal(run(root, ["refresh"]).code, 0);
+  const synced = JSON.parse(at(Date.now() + MIN, ["status", "--json"]).out) as Record<
+    string,
+    unknown
+  >;
+  assert.equal(synced.stale, false);
+  // A line whose time does not parse is passed over; the cap keeps the last 200
+  writeFileSync(join(root, "check.log"), "garbage timer ok\n");
+  assert.equal(
+    (JSON.parse(at(T0, ["status", "--json"]).out) as Record<string, unknown>).last_ok_check_at,
+    null,
+  );
+  // Appends are atomic; past 400 lines the log is trimmed back to the last 200
+  writeFileSync(join(root, "check.log"), "");
+  for (let i = 0; i < 400; i++) at(T0 + i, ["log-check", "--trigger", "timer", "--outcome", "ok"]);
+  assert.equal(read(root, "check.log").trim().split("\n").length, 400);
+  at(T0, ["log-check", "--trigger", "timer", "--outcome", "ok", "--detail", "last"]);
+  const kept = read(root, "check.log").trim().split("\n");
+  assert.equal(kept.length, 200);
+  assert.match(String(kept.at(-1)), / · last$/);
+  // A detail with line ends stays one line, so it can neither split the entry nor forge an ok one
+  const forged = "x\n2026-11-24T05:00:00Z timer ok · forged\r y";
+  const one = at(T0, ["log-check", "--trigger", "open", "--outcome", "failed", "--detail", forged]);
+  assert.equal(one.out.split("\n").length, 1);
+  assert.equal(read(root, "check.log").trim().split("\n").at(-1), one.out);
+  assert.match(one.out, / open failed · x 2026-11-24T05:00:00Z timer ok · forged {2}y$/);
+  // Bad use
+  assert.equal(at(T0, ["log-check", "--outcome", "ok"]).code, 2);
+  assert.equal(at(T0, ["log-check", "--trigger", "timer", "--outcome", "maybe"]).code, 2);
+});
+
 test("import-bc and brief work on their own; errors and usage are reported", () => {
   const { root, tmp } = project({ "README.md": INDEX, "hubs/site/README.md": HUB });
   writeFileSync(join(tmp, "one.json"), JSON.stringify(FETCHED[0]));

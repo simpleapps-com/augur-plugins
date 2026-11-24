@@ -6,6 +6,10 @@ import { test } from "node:test";
 
 import {
   CLOSED_TTL_MS,
+  checkRuns,
+  checkSucceeded,
+  commandChecks,
+  commandStep,
   countColour,
   countMark,
   hasChanges,
@@ -22,9 +26,18 @@ import {
   nextRetries,
   notesBriefProblem,
   outcomeOf,
+  logsCheck,
   pendingOf,
+  recordsFullSync,
+  runsLinkedPass,
   shouldRetry,
+  showsStale,
   skipsClosed,
+  staleShown,
+  startsAutoSync,
+  startsPane,
+  syncBegins,
+  waitsForConnector,
 } from "../../plugins/simpleapps-work-pane/scripts/pane-rules.ts";
 
 /** A seeded generator (mulberry32), so a failure reproduces. */
@@ -239,4 +252,58 @@ test("notesBriefProblem: only a sync that synced notes it", () => {
   for (const synced of BOOLS)
     for (const hasProblem of BOOLS)
       assert.equal(notesBriefProblem(synced, hasProblem), synced && hasProblem);
+});
+
+test("startsAutoSync and showsStale: an ok check never shows stale (GH #34)", () => {
+  for (const a of BOOLS)
+    for (const b of BOOLS) {
+      assert.equal(showsStale(a, b), !a && b);
+      for (const c of BOOLS) assert.equal(startsAutoSync(a, b, c), a && b && !c);
+    }
+});
+
+test("waitsForConnector is at most 3 tries; recordsFullSync needs a Basecamp read (GH #35)", () => {
+  for (const notLoaded of BOOLS)
+    for (let tries = 0; tries < 6; tries++)
+      assert.equal(waitsForConnector(notLoaded, tries), notLoaded && tries < 3);
+  for (const synced of BOOLS)
+    for (const read of BOOLS) assert.equal(recordsFullSync(synced, read), synced && read);
+});
+
+test("checkRuns and syncBegins: the cycle's steps (WorkPane cycle)", () => {
+  for (const isTimer of BOOLS)
+    for (const due of BOOLS) assert.equal(checkRuns(isTimer, due), !isTimer || due);
+  for (const syncing of BOOLS) assert.equal(syncBegins(syncing), !syncing);
+});
+
+test("checkSucceeded and commandChecks: no failed part; one check per command", () => {
+  for (const n of [0, 1, 2]) assert.equal(checkSucceeded(n), n === 0);
+  for (const a of BOOLS) for (const b of BOOLS) assert.equal(commandChecks(a, b), !a || b);
+});
+
+test("runsLinkedPass and logsCheck: the linked pass needs Basecamp read; failing retries log last", () => {
+  for (const a of BOOLS)
+    for (const b of BOOLS)
+      for (const c of BOOLS) {
+        assert.equal(runsLinkedPass(a, b, c), a && b && c);
+        assert.equal(logsCheck(a, b, c), !a || b || !c);
+      }
+});
+
+test("staleShown: the status flag when read, else the pane's own record", () => {
+  for (const a of BOOLS)
+    for (const b of BOOLS)
+      for (const c of BOOLS)
+        for (const d of BOOLS) assert.equal(staleShown(a, b, c, d), a ? showsStale(b, c) : d);
+});
+
+test("startsPane and commandStep: idle outside a work project, unchanged inside (GH #33)", () => {
+  for (const isWork of BOOLS) {
+    assert.equal(startsPane(isWork), isWork);
+    for (const args of ["", "sync", "check", "Sync", "sync now", "x"]) {
+      // The pane before GH #33, for a work project; nothing at all elsewhere
+      const before = args === "sync" ? "sync" : args === "check" ? "check" : "pane";
+      assert.equal(commandStep(isWork, args), isWork ? before : "idle");
+    }
+  }
 });

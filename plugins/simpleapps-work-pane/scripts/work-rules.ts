@@ -2136,3 +2136,67 @@ export function plainText(html: string): string {
   //@ verify
   return plainFrom(html, 0);
 }
+
+// ---------------------------------------------------------------- check log and staleness (GH #34)
+
+/** A sync.log or check.log line (`<time> <trigger> ok|failed …`) records a success: its third
+    word is exactly `ok`. */
+export function isOkLogLine(line: string): boolean {
+  //@ verify
+  const a = solidRunEnd(line, 0);
+  if (a >= line.length) return false;
+  const b = solidRunEnd(line, a + 1);
+  return hasAt(line, b, " ok") && (b + 3 === line.length || hasAt(line, b + 3, " "));
+}
+
+/** `s` from `i` on with every line end as a space. */
+function oneLineFrom(s: string, i: number): string {
+  //@ verify
+  //@ pure
+  //@ type i nat
+  let acc = "";
+  let j = i;
+  while (j < s.length) {
+    //@ invariant i <= j
+    //@ decreases s.length - j
+    acc = acc + (isLineEndUnit(s.charCodeAt(j)) ? " " : s.slice(j, j + 1));
+    j = j + 1;
+  }
+  return acc;
+}
+
+/** `s` as one log line: each line end becomes a space, so error text can never split an entry
+    or forge one. */
+export function oneLine(s: string): string {
+  //@ verify
+  return oneLineFrom(s, 0);
+}
+
+/** A log over 400 lines (twice the 200 kept) is trimmed back to the last 200. Appending a line
+    is atomic; only the rare trim rewrites the file. */
+export function logOverflows(lines: number): boolean {
+  //@ verify
+  //@ ensures \result <==> lines > 400
+  return lines > 400;
+}
+
+/** The later of the last ok check and the last ok sync, among those that exist. */
+function latestOk(hasCheck: boolean, checkMs: number, hasSync: boolean, syncMs: number): number {
+  //@ verify
+  return !hasSync || (hasCheck && checkMs > syncMs) ? checkMs : syncMs;
+}
+
+/** work/ is stale: no ok check and no ok sync within 3 check intervals (no session checked, or
+    every check failed). An ok check that found nothing to sync keeps it current. */
+export function isWorkStale(
+  hasCheck: boolean,
+  checkMs: number,
+  hasSync: boolean,
+  syncMs: number,
+  now: number,
+  minutes: number,
+): boolean {
+  //@ verify
+  if (!hasCheck && !hasSync) return true;
+  return now - latestOk(hasCheck, checkMs, hasSync, syncMs) > 3 * minutes * 60000;
+}

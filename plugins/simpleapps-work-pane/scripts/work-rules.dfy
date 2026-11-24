@@ -1286,6 +1286,44 @@ function plainText(html: string): string
   plainFrom(html, 0)
 }
 
+function isOkLogLine(line: string): bool
+{
+  var a := solidRunEnd(line, 0);
+  if (a >= |line|) then
+    false
+  else
+    var b := solidRunEnd(line, (a + 1));
+    (hasAt(line, b, " ok") && (((b + 3) == |line|) || hasAt(line, (b + 3), " ")))
+}
+
+function oneLine(s: string): string
+{
+  oneLineFrom(s, 0)
+}
+
+function logOverflows(lines: int): bool
+{
+  (lines > 400)
+}
+
+lemma logOverflows_ensures(lines: int)
+  ensures (logOverflows(lines) <==> (lines > 400))
+{
+}
+
+function latestOk(hasCheck: bool, checkMs: int, hasSync: bool, syncMs: int): int
+{
+  if (!(hasSync) || (hasCheck && (checkMs > syncMs))) then
+    checkMs
+  else
+    syncMs
+}
+
+function isWorkStale(hasCheck: bool, checkMs: int, hasSync: bool, syncMs: int, now: int, minutes: int): bool
+{
+  ((!(hasCheck) && !(hasSync)) || ((now - latestOk(hasCheck, checkMs, hasSync, syncMs)) > ((3 * minutes) * 60000)))
+}
+
 function repoRunEnd_fun_spec(s: string, i: nat): int
   requires (i <= |s|)
   decreases (|s| - i)
@@ -2986,6 +3024,32 @@ by method {
       acc := (acc + s[j..(j + 1)]);
       j := (j + 1);
     }
+  }
+  return acc;
+}
+
+function oneLineFrom_fun_spec(s: string, i: nat): string
+  decreases |s| - i
+{
+  if i >= |s| then "" else (if isLineEndUnit(s[i] as int) then " " else s[i..i + 1]) + oneLineFrom_fun_spec(s, i + 1)
+}
+
+function oneLineFrom(s: string, i: nat): string
+{
+  oneLineFrom_fun_spec(s, i)
+}
+by method {
+  var acc := "";
+  var j := i;
+  while (j < |s|)
+    invariant (i <= j)
+    invariant j <= |s| || j == i
+    invariant acc + oneLineFrom_fun_spec(s, j) == oneLineFrom_fun_spec(s, i)
+    decreases (|s| - j)
+  {
+    var i_t31 := isLineEndUnit((s[j] as int));
+    acc := (acc + (if i_t31 then " " else s[j..(j + 1)]));
+    j := (j + 1);
   }
   return acc;
 }

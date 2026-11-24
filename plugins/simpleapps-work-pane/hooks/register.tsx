@@ -1,33 +1,52 @@
 // Work pane: counts, change detection, and Sync for the project's work/ folder.
 // This mod is the sensor and courier: it watches Basecamp and GitHub for changes and fetches changed
 // Basecamp todos through the SimpleApps Basecamp connector (only a mod can reach it). Everything
-// else, from importing to the chart, is `work refresh` in ../scripts. Every decision about a value
-// is a proved rule in ../scripts/pane-rules.ts or work-rules.ts. Design: wiki Work-Pane.
+// else, from importing to the chart, is `work refresh` in ../scripts. Every decision about a value,
+// every list this file builds, and each step of the check and sync cycle is a proved rule in
+// ../scripts/pane-rules.ts or work-rules.ts (model: models/WorkPane.dfy, whose "lists" section
+// names the trusted boundary left here: I/O, parsing, words built from numbers). Design: wiki Work-Pane.
 import { atom, read, update } from "claude-code";
 import type { EngineInterface, McpToolResult, Register } from "claude-code";
 
 import {
+  type IndexTodo,
+  type PaneTarget,
+  briefProjectIds as provedBriefProjectIds,
+  checkRuns,
+  checkSucceeded,
+  commandChecks,
+  commandStep,
+  completedIds as provedCompletedIds,
   countColour,
   countMark,
+  duplicateNames,
+  failedParts as provedFailedParts,
   hasChanges,
-  hasLeft,
   hasOwner,
-  isBasecampUrl,
+  inWatchedNames,
   isDue,
-  isEdited,
-  isIssueIdOf,
-  isProjectId,
-  isRecentlyClosed,
-  isTrackedIssue,
-  isTrackedTodo,
+  linkedTargets as provedLinkedTargets,
+  logsCheck,
   nextRetries,
-  notesBriefProblem,
-  outcomeOf,
   pendingOf,
+  rememberClosed as provedRememberClosed,
+  repoName,
+  runsLinkedPass,
   shouldRetry,
-  skipsClosed,
+  skipClosed as provedSkipClosed,
+  staleShown,
+  startsAutoSync,
+  startsPane,
+  syncBegins,
+  syncResultOf,
+  tally,
+  todosToFetch as provedTodosToFetch,
+  uniqueTodos,
+  waitsForConnector,
+  withBasecampSkipped as provedWithBasecampSkipped,
+  withBriefProblem as provedWithBriefProblem,
 } from "../scripts/pane-rules";
-import { compareText, lower } from "../scripts/work-rules";
+import { compareText, isWorkStale, lower, syncMinutesOf } from "../scripts/work-rules";
 import type {
   Count,
   Pending,
@@ -50,6 +69,8 @@ const STATUS_TIMEOUT_MS = 60 * 1000;
 const SYNC_TIMEOUT_MS = 10 * 60 * 1000;
 // The connector can still be connecting when the pane first checks; retry soon, a few times
 const NOT_LOADED = "tool not loaded";
+export const NOT_WORK =
+  "Work: no work/README.md here. The pane runs only in a simpleapps-work project; open a session there.";
 const RETRY_MS = 15 * 1000;
 
 const snapshot = atom(
@@ -139,26 +160,23 @@ export const changedSinceArgv = (repos: string[], org: string, since: string) =>
 
 /** Whether a `gh-<repo>-<n>` id is an issue of one of the watched repos (`repo` or `org/repo`). */
 export function inWatchedRepo(id: string, watchRepos: string[]): boolean {
-  return watchRepos.some((repo) =>
-    isIssueIdOf(lower(id), `gh-${lower(repo.split("/").pop() ?? "")}-`),
+  return inWatchedNames(
+    lower(id),
+    watchRepos.map((repo) => lower(repoName(repo))),
   );
 }
 
 /** What you track, as in work/LIST.md: open Basecamp todos assigned to you, and open issues in watched repos. */
 export function tracked(status: Status): Tracked {
-  const open = status.items.filter((item) => item.status === "open");
-  const todos = open.filter((item) =>
-    isTrackedTodo(true, item.source === "basecamp", item.kind === "todo", item.mine),
+  return tally(
+    status.items.map((item) => ({
+      status: item.status ?? "",
+      source: item.source,
+      kind: item.kind,
+      mine: item.mine,
+      watched: inWatchedRepo(item.id, status.watch_repos),
+    })),
   );
-  const issues = open.filter((item) =>
-    isTrackedIssue(
-      true,
-      item.source === "github",
-      item.kind === "issue",
-      inWatchedRepo(item.id, status.watch_repos),
-    ),
-  );
-  return { basecamp: todos.length, github: issues.length };
 }
 
 /** The tracked totals in one line, for `/work check`. */
@@ -239,84 +257,106 @@ export function failedParts(
   counts: (number | undefined)[],
   changed: number | undefined | null,
 ): string[] {
-  return [
-    ...(countProblem === undefined ? [] : [`Basecamp count (${countProblem})`]),
-    ...(listProblem === undefined ? [] : [`Basecamp index (${listProblem})`]),
-    ...repos.filter((_, i) => counts[i] === undefined),
-    ...(changed === undefined ? ["GitHub changes"] : []),
-  ];
+  return provedFailedParts(
+    countProblem !== undefined,
+    countProblem ?? "",
+    listProblem !== undefined,
+    listProblem ?? "",
+    repos,
+    repos.map((_, i) => counts[i] !== undefined),
+    changed !== undefined,
+  );
+}
+
+// The shell's half of each list below: parse the JSON, dates and numbers into the proved rules'
+// records, call the rule, and turn its targets back into get_todo's arguments.
+const asTarget = (t: PaneTarget): Target => ({
+  id: t.id,
+  project_id: t.projectId,
+  project_name: t.projectName,
+  list: t.list,
+});
+const asPaneTarget = (t: Target): PaneTarget => ({
+  id: t.id,
+  projectId: t.project_id,
+  projectName: t.project_name,
+  list: t.list,
+});
+/** A time as the rules take it: known and its milliseconds, or unknown. */
+function parsedTime(text: string | undefined): { known: boolean; ms: number } {
+  const ms = Date.parse(text ?? "");
+  return Number.isNaN(ms) ? { known: false, ms: 0 } : { known: true, ms };
 }
 
 /** Every todo in list_my_todo_index, once each, with the project and list names get_todo lacks. */
-export function indexTodos(index: TodoIndex): (Target & { updated: string })[] {
-  const byId = new Map<number, Target & { updated: string }>();
-  for (const list of index.lists ?? [])
-    for (const todo of list.todos ?? [])
-      byId.set(todo.id, {
+export function indexTodos(index: TodoIndex): IndexTodo[] {
+  const flat = (index.lists ?? []).flatMap((list) =>
+    (list.todos ?? []).map((todo) => {
+      const updated = parsedTime(todo.updated_at);
+      return {
         id: todo.id,
-        updated: todo.updated_at,
-        project_id: list.project_id ?? 0,
-        project_name: list.project_name ?? "",
+        projectId: list.project_id ?? 0,
+        projectName: list.project_name ?? "",
         list: list.todolist_name ?? "",
-      });
-  return [...byId.values()];
+        updatedKnown: updated.known,
+        updatedMs: updated.ms,
+      };
+    }),
+  );
+  return uniqueTodos(flat);
 }
 
 const todoNumber = (id: string) => Number(id.replace(/^bc-todo-/, ""));
-
-const localTodos = (status: Status) =>
-  status.items.filter((item) => item.source === "basecamp" && item.kind === "todo");
 
 /**
  * Basecamp todos to fetch. Yours that are new or edited since work/ last saw them, and local ones
  * that left your list (closed or reassigned). With `linked`, also every other local todo, the ones
  * `follow` pulled in, since only a Sync re-reads those.
  */
-export function todosToFetch(
-  remote: (Target & { updated: string })[],
-  status: Status,
-  linked: boolean,
-): Target[] {
-  const local = new Map(localTodos(status).map((item) => [todoNumber(item.id), item]));
-  const onList = new Set(remote.map((todo) => todo.id));
-  const edited = remote
-    .filter((todo) => {
-      const before = Date.parse(local.get(todo.id)?.updated ?? "");
-      const now = Date.parse(todo.updated);
-      return isEdited(!Number.isNaN(before), before, !Number.isNaN(now), now);
-    })
-    .map(({ id, project_id, project_name, list }) => ({ id, project_id, project_name, list }));
-  const left = localTodos(status)
-    .filter((item) =>
-      hasLeft(onList.has(todoNumber(item.id)), item.project !== null, linked, item.mine),
-    )
-    .map((item) => ({
-      id: todoNumber(item.id),
-      project_id: Number(item.project),
-      project_name: "",
-      list: "",
-    }));
-  return [...edited, ...left];
+export function todosToFetch(remote: IndexTodo[], status: Status, linked: boolean): Target[] {
+  // A malformed id (`bc-todo-x`) parses to NaN: skipped here, since the rules compare ids with
+  // `===` and get_todo could not fetch it anyway
+  const local = status.items
+    .filter((item) => item.source === "basecamp" && item.kind === "todo")
+    .filter((item) => Number.isFinite(todoNumber(item.id)))
+    .map((item) => {
+      const updated = parsedTime(item.updated);
+      return {
+        num: todoNumber(item.id),
+        updatedKnown: updated.known,
+        updatedMs: updated.ms,
+        hasProject: item.project !== null,
+        projectId: Number(item.project),
+        mine: item.mine,
+      };
+    });
+  return provedTodosToFetch(remote, local, linked).map(asTarget);
 }
 
 /** Linked todos `follow` found that aren't in work/ yet; those without a known project are skipped. */
 export function linkedTargets(report: RefreshReport | undefined): Target[] {
-  return (report?.basecamp ?? [])
-    .filter((todo) => todo.project !== null)
-    .map((todo) => ({
-      id: todoNumber(todo.id),
-      project_id: Number(todo.project),
-      project_name: "",
-      list: "",
-    }));
+  const found = (report?.basecamp ?? []).map((todo) => ({
+    num: todoNumber(todo.id),
+    hasProject: todo.project !== null,
+    projectId: Number(todo.project),
+  }));
+  return provedLinkedTargets(found).map(asTarget);
 }
 
 /** Ids of fetched `get_todo` records that came back completed. */
 export function completedIds(records: unknown[]): number[] {
-  return (records as { id?: number; basecamp?: { completed?: boolean } }[])
-    .filter((r) => r.basecamp?.completed === true && typeof r.id === "number")
-    .map((r) => r.id as number);
+  return provedCompletedIds(
+    (records as { id?: unknown; basecamp?: { completed?: unknown } }[]).map((r) => ({
+      hasId: typeof r.id === "number",
+      id: typeof r.id === "number" ? r.id : 0,
+      completed: r.basecamp?.completed === true,
+    })),
+  );
 }
+
+/** `$.store`'s record of closed linked todos, as the rules' list. */
+const closedList = (closed: Record<string, number>) =>
+  Object.entries(closed).map(([id, at]) => ({ id: Number(id), at }));
 
 /** Linked todos seen completed within 7 days are not fetched again; a reopen shows within a week. */
 export function skipClosed(
@@ -324,10 +364,7 @@ export function skipClosed(
   closed: Record<string, number>,
   now: number,
 ): Target[] {
-  return targets.filter((t) => {
-    const at = closed[String(t.id)];
-    return !skipsClosed(at !== undefined, now, at ?? 0);
-  });
+  return provedSkipClosed(targets.map(asPaneTarget), closedList(closed), now).map(asTarget);
 }
 
 /** Add newly completed ids and drop entries older than 7 days. */
@@ -336,46 +373,40 @@ export function rememberClosed(
   ids: number[],
   now: number,
 ): Record<string, number> {
-  const kept = Object.entries(closed).filter(([, at]) => isRecentlyClosed(now, at));
-  return Object.fromEntries([...kept, ...ids.map((id) => [String(id), now] as const)]);
+  return Object.fromEntries(
+    provedRememberClosed(closedList(closed), ids, now).map((c) => [String(c.id), c.at]),
+  );
 }
 
 /** Every Basecamp project a site brief covers, once each. */
 export function briefProjectIds(status: Status | undefined): number[] {
-  const ids = (status?.briefs ?? []).flatMap((b) => b.projects.map(Number));
-  return [...new Set(ids)].filter(isProjectId);
+  return provedBriefProjectIds((status?.briefs ?? []).flatMap((b) => b.projects.map(Number)));
 }
 
 /** Whether a timer tick should check: another session may have checked within the interval. */
 export const isDueTick = (lastChecked: number | undefined, now: number, minutes: number) =>
   isDue(lastChecked !== undefined, lastChecked ?? 0, now, minutes);
 
-/** The pane's words for a `work refresh` report. */
+/** The pane's words for a `work refresh` report (proved `syncResultOf`). */
 export function syncResult(report: RefreshReport | undefined, at: number): SyncResult {
-  const outcome = outcomeOf(
+  return syncResultOf(
     report !== undefined,
     report?.locked ?? false,
     (report?.failed ?? null) !== null,
+    String(report?.failed?.step),
+    String(report?.failed?.detail),
+    at,
   );
-  if (outcome === "did-not-run") return { at, ok: false, detail: "work refresh did not run" };
-  if (outcome === "locked") return { at, ok: false, detail: "another sync is running" };
-  if (outcome === "failed")
-    return {
-      at,
-      ok: false,
-      detail: `failed at ${report?.failed?.step}: ${report?.failed?.detail}`,
-    };
-  return { at, ok: true, detail: "synced" };
 }
 
-/** A sync that could not read the briefs' Basecamp todos still synced; it says so. */
-export function withBriefProblem(result: SyncResult, problem: string | undefined): SyncResult {
-  if (!notesBriefProblem(result.ok, problem !== undefined)) return result;
-  return {
-    ...result,
-    detail: `${result.detail}; briefs kept their last Basecamp read (${problem})`,
-  };
-}
+/** A sync that could not read Basecamp refreshed GitHub only: partial, not a full sync, so it
+    records no last-sync time (proved, GH #35). */
+export const withBasecampSkipped = (result: SyncResult, problem: string | undefined): SyncResult =>
+  provedWithBasecampSkipped(result, problem !== undefined, problem ?? "");
+
+/** A sync that could not read the briefs' Basecamp todos still synced; it says so (proved). */
+export const withBriefProblem = (result: SyncResult, problem: string | undefined): SyncResult =>
+  provedWithBriefProblem(result, problem !== undefined, problem ?? "");
 
 function clockTime(ms: number): string {
   const d = new Date(ms);
@@ -396,6 +427,12 @@ let setup: string[] = [];
 /** The project's config gaps, from the last connect: a server that hides the connector. */
 let serverGaps: string[] = [];
 let syncing = false;
+// Settles when the running sync ends: `/work` waits for it, so a headless run never exits mid-sync
+let syncDone: Promise<void> = Promise.resolve();
+// The session's opening check, and whether it was still running when `/work` came: `/work` then
+// waits for it and uses its reading instead of checking twice (proved `commandChecks`)
+let opening: Promise<void> | undefined;
+let openingRunning = false;
 let retries = 0;
 let lastSummary = "not checked yet";
 // The fingerprint the Basecamp pending count was last worked out for; a new one means re-diff
@@ -445,11 +482,16 @@ export function duplicateServers(mcpJsonText: string): string[] {
     return [];
   }
   if (typeof servers !== "object" || servers === null) return [];
-  return Object.entries(servers).flatMap(([name, server]) => {
-    const url: unknown =
-      typeof server === "object" && server !== null ? (server as { url?: unknown }).url : undefined;
-    return typeof url === "string" && isBasecampUrl(url) ? [name] : [];
-  });
+  // Parsing is the shell's; which servers hide the connector is the proved `duplicateNames`
+  return duplicateNames(
+    Object.entries(servers).map(([name, server]) => {
+      const url: unknown =
+        typeof server === "object" && server !== null
+          ? (server as { url?: unknown }).url
+          : undefined;
+      return { name, hasUrl: typeof url === "string", url: typeof url === "string" ? url : "" };
+    }),
+  );
 }
 
 /** The connector's name for `$.mcp.call`, or the problem connecting it. */
@@ -571,18 +613,26 @@ async function readCount($: EngineInterface, status: Status) {
 }
 
 /** Check: counts, what changed, and (with auto_sync) a Sync when something did. */
-export async function check($: EngineInterface, trigger: "timer" | "open"): Promise<void> {
+export async function check(
+  $: EngineInterface,
+  trigger: "timer" | "open" | "retry",
+): Promise<void> {
   const now = await $.clock.now();
-  const status = (await cli($, ["status", "--json"], STATUS_TIMEOUT_MS)) as Status | undefined;
-  if (status === undefined) {
-    const failed = setup.length ? setup : ["work status"];
-    lastSummary = `check failed: ${failed.join(", ")}`;
-    await update($, snapshot, (s) => ({ ...s, isError: true, failed, setup }));
-    return;
-  }
+  // Due first, on the interval the last good status gave (5 before any): a failing `work status`
+  // is then checked and logged once per interval, not on every tick (model: WorkPane cycle). A
+  // changed `sync_minutes` takes effect from the next check after it is read.
   const lastChecked = (await $.store.get("lastCheckedAt")) as number | undefined;
-  if (trigger === "timer" && !isDueTick(lastChecked, now, status.sync_minutes)) return;
+  const known = (await $.store.get("syncMinutes")) as number | undefined;
+  const minutes = syncMinutesOf(known !== undefined, known ?? 0);
+  // Not due: another session checked within the interval, so this one writes no log line
+  if (!checkRuns(trigger === "timer", isDueTick(lastChecked, now, minutes))) return;
   await $.store.set("lastCheckedAt", now);
+  // The pane's own record of the last ok check or full sync, for when `work status` cannot be read
+  const lastOk = (await $.store.get("lastOkAt")) as number | undefined;
+  const localStale = isWorkStale(lastOk !== undefined, lastOk ?? 0, false, 0, now, minutes);
+  const status = (await cli($, ["status", "--json"], STATUS_TIMEOUT_MS)) as Status | undefined;
+  if (status === undefined) return statusUnread($, trigger, minutes, localStale);
+  if (status.sync_minutes !== minutes) await $.store.set("syncMinutes", status.sync_minutes);
   const lastSync = (await $.store.get("lastSyncAt")) as string | undefined;
   const [basecamp, counts, changed] = await Promise.all([
     readCount($, status),
@@ -617,8 +667,23 @@ export async function check($: EngineInterface, trigger: "timer" | "open"): Prom
   lastSummary = checkSummary(basecamp.count, pending, issues, [...setup, ...failed], totals);
   // The connector still connecting (session start, or just reconnected): check again soon
   const notLoaded = failed.some((part) => part.includes(NOT_LOADED));
-  if (shouldRetry(notLoaded, retries)) $.clock.after(RETRY_MS, () => void check($, "open"));
+  const willRetry = shouldRetry(notLoaded, retries);
+  if (willRetry) $.clock.after(RETRY_MS, () => void check($, "retry"));
   retries = nextRetries(notLoaded, retries);
+  const checkOk = checkSucceeded(failed.length);
+  if (checkOk) await $.store.set("lastOkAt", now);
+  // Decide and claim in one step, before any await: `sync` takes `syncing` synchronously, so the
+  // line's "sync started" is true and two checks cannot both start one (model: SyncStartedIsTrue)
+  const startsSync = startsAutoSync(status.auto_sync, hasChangesOf(pending), syncing);
+  const syncRun = startsSync ? sync($, "auto") : undefined;
+  const words = checkOk ? pendingLabel(pending) : failed.join(", ");
+  await logRan(
+    $,
+    trigger,
+    checkOk,
+    willRetry,
+    `${words} · ${startsSync ? "sync started" : "no sync"}`,
+  );
   await update($, snapshot, (s) => ({
     ...s,
     count: basecamp.count ?? s.count,
@@ -629,8 +694,57 @@ export async function check($: EngineInterface, trigger: "timer" | "open"): Prom
     isError: failed.length > 0 || needs.length > 0,
     failed,
     setup: needs,
+    stale: staleShown(true, checkOk, status.stale ?? false, localStale),
+    staleMinutes: 3 * status.sync_minutes,
   }));
-  if (status.auto_sync && hasChangesOf(pending) && !syncing) await sync($, "auto");
+  if (syncRun !== undefined) await syncRun;
+}
+
+/** A check whose `work status` could not be read: it failed, and the pane shows stale from its
+    own record of the last ok check or full sync, the likeliest long outage (proved `staleShown`). */
+async function statusUnread(
+  $: EngineInterface,
+  trigger: string,
+  minutes: number,
+  localStale: boolean,
+): Promise<void> {
+  const failed = setup.length ? setup : ["work status"];
+  lastSummary = `check failed: ${failed.join(", ")}`;
+  await update($, snapshot, (s) => ({
+    ...s,
+    isError: true,
+    failed,
+    setup,
+    stale: staleShown(false, false, false, localStale),
+    staleMinutes: 3 * minutes,
+  }));
+  // Best effort: if the scripts cannot run at all, this cannot log either
+  await logCheck($, trigger, false, `${failed.join(", ")} · no sync`);
+}
+
+/** Log a check that ran, except a failing retry with more to come (proved `logsCheck`): a dead
+    connector writes its failure once, not once per retry. */
+async function logRan(
+  $: EngineInterface,
+  trigger: string,
+  ok: boolean,
+  willRetry: boolean,
+  detail: string,
+): Promise<void> {
+  if (logsCheck(trigger === "retry", ok, willRetry)) await logCheck($, trigger, ok, detail);
+}
+
+/** One work/check.log line for a check that ran (GH #34); a failure to log never fails the check. */
+async function logCheck($: EngineInterface, trigger: string, ok: boolean, detail: string) {
+  const args = ["log-check", "--trigger", trigger, "--outcome", ok ? "ok" : "failed"];
+  try {
+    const place = await placeOf($);
+    await $.process.run([...place.cli, ...args, "--detail", detail], {
+      timeoutMs: STATUS_TIMEOUT_MS,
+    });
+  } catch {
+    // Not logged; the pane still shows the check
+  }
 }
 
 async function syncLinked(
@@ -638,11 +752,13 @@ async function syncLinked(
   report: RefreshReport | undefined,
   trigger: string,
   at: number,
+  basecampRead: boolean,
 ) {
   // Completed linked todos stay referenced, so follow lists them every time; skip known ones
   const closed = ((await $.store.get("closedLinked")) ?? {}) as Record<string, number>;
   const linked = skipClosed(linkedTargets(report), closed, at);
-  if (!report?.ok || !linked.length) return report;
+  // Only after a refresh that read Basecamp: a partial sync never writes an `ok` line (GH #35)
+  if (!runsLinkedPass(report?.ok ?? false, basecampRead, linked.length > 0)) return report;
   const pass = await importAndRefresh($, linked, `${trigger}+linked`);
   await $.store.set("closedLinked", rememberClosed(closed, pass.completed, at));
   return pass.report;
@@ -650,24 +766,45 @@ async function syncLinked(
 
 /** Sync: fetch what changed in Basecamp, then `work refresh`, then the linked todos it found. */
 export async function sync($: EngineInterface, trigger: string): Promise<SyncResult> {
-  const at = await $.clock.now();
-  if (syncing) return { at, ok: false, detail: "already syncing" };
+  // The claim comes before any await, so a check that decided to sync has it (model: cycle-4)
+  if (!syncBegins(syncing))
+    return { at: await $.clock.now(), ok: false, detail: "already syncing" };
   syncing = true;
+  let release = () => {};
+  syncDone = new Promise((resolve) => {
+    release = resolve;
+  });
+  const at = await $.clock.now();
   await update($, snapshot, (s) => ({ ...s, syncing: true }));
   try {
     const status = (await cli($, ["status", "--json"], STATUS_TIMEOUT_MS)) as Status | undefined;
+    // A fresh `claude -p` run starts with the connector still connecting (GH #35)
+    await waitForConnector($);
     // The full index, not a time window: only the full list shows todos that left (closed, reassigned)
     const index = await callTool($, "list_my_todo_index", {});
+    const basecampRead = index.value !== undefined;
     const targets =
-      status && index.value !== undefined
+      status && basecampRead
         ? todosToFetch(indexTodos(index.value as TodoIndex), status, true)
         : [];
     const briefs = await briefTodoArgs($, status);
-    const first = await importAndRefresh($, targets, trigger, briefs.args);
-    const report = await syncLinked($, first.report, trigger, at);
-    const result = withBriefProblem(syncResult(report, at), briefs.problem);
-    if (result.ok) await $.store.set("lastSyncAt", new Date(at).toISOString());
-    else $.ui.toast(`Work sync ${result.detail}`);
+    // Basecamp unread: GitHub still refreshes, but the run is partial, in sync.log and here
+    const partial = basecampRead ? [] : ["--partial"];
+    const first = await importAndRefresh($, targets, trigger, [...briefs.args, ...partial]);
+    const report = await syncLinked($, first.report, trigger, at, basecampRead);
+    // Partial first: a skipped Basecamp already says why the briefs were not read
+    const result = withBriefProblem(
+      withBasecampSkipped(
+        syncResult(report, at),
+        basecampRead ? undefined : (index.problem ?? "no index"),
+      ),
+      briefs.problem,
+    );
+    // result.ok is a full sync: synced (proved syncResultOf) with Basecamp read (recordsFullSync)
+    if (result.ok) {
+      await $.store.set("lastSyncAt", new Date(at).toISOString());
+      await $.store.set("lastOkAt", at);
+    } else $.ui.toast(`Work sync ${result.detail}`);
     await update($, snapshot, (s) => ({ ...s, sync: result }));
     // Re-check now: work/ changed, so the Basecamp diff must be redone even if the fingerprint has not
     diffedFingerprint = undefined;
@@ -676,33 +813,66 @@ export async function sync($: EngineInterface, trigger: string): Promise<SyncRes
   } finally {
     syncing = false;
     await update($, snapshot, (s) => ({ ...s, syncing: false }));
+    release();
   }
 }
 
+/** A `simpleapps-work` project: the session root holds `work/README.md`. Elsewhere the pane stays idle. */
+async function isWorkProject($: EngineInterface): Promise<boolean> {
+  const root = await $.session.root();
+  return $.fs.exists(`${root}/work/README.md`).catch(() => false);
+}
+
 async function start($: EngineInterface): Promise<void> {
-  setup = await readSetup($);
   await $.command.register({
     name: "work",
     description:
       "Open the Work pane and check for changes; `/work sync` brings work/ up to date; `/work check` prints the check.",
     argumentHint: "[sync | check]",
   });
+  // Outside a work project: no pane, no gh, no timer (GH #33, proved `startsPane`)
+  if (!startsPane(await isWorkProject($))) return;
+  setup = await readSetup($);
   void $.ui.open({ id: PANE, title: TITLE, columns: 28 });
-  void check($, "open");
+  openingRunning = true;
+  opening = check($, "open").finally(() => {
+    openingRunning = false;
+  });
   $.clock.every(TICK_MS, () => void check($, "timer"));
 }
 
 async function command($: EngineInterface, args: string): Promise<{ text?: string }> {
+  const step = commandStep(await isWorkProject($), args.trim());
+  if (step === "idle") return { text: NOT_WORK };
   await $.ui.open({ id: PANE, title: TITLE, columns: 28 });
-  if (args.trim() === "sync") return { text: `Work sync: ${(await sync($, "command")).detail}` };
-  await check($, "open");
-  if (args.trim() !== "check") return {};
-  // The connector may still be connecting (a fresh `claude -p` session): wait a moment and look again
-  for (let tries = 0; tries < 3 && lastSummary.includes(NOT_LOADED); tries++) {
+  // Wait for the session's opening check and any sync running, so a headless run never exits
+  // mid-sync; reuse the opening check's reading when it was still running (one line per run)
+  const openingRan = openingRunning;
+  await opening?.catch(() => undefined);
+  opening = undefined;
+  await syncDone;
+  if (step === "sync") return { text: `Work sync: ${(await sync($, "command")).detail}` };
+  // `/work check` answers in one line, so it first gives a fresh `claude -p` run's connector time
+  const connected = step === "check" ? await waitForConnector($) : true;
+  if (commandChecks(openingRan, lastSummary.includes(NOT_LOADED))) await check($, "open");
+  // Connected but its tools not callable yet ("no connected MCP tool"): look again, a few times
+  const toolsPending = () => step === "check" && connected && lastSummary.includes(NOT_LOADED);
+  for (let tries = 0; waitsForConnector(toolsPending(), tries); tries++) {
     await $.clock.sleep(2000);
     await check($, "open");
   }
-  return { text: lastSummary };
+  return step === "check" ? { text: lastSummary } : {};
+}
+
+/** Wait while the connector is still connecting (a fresh `claude -p` run): up to three 2 s waits
+    (proved `waitsForConnector`). Any other problem, or connected, ends the wait. */
+async function waitForConnector($: EngineInterface): Promise<boolean> {
+  for (let tries = 0; ; tries++) {
+    const c = await connector($);
+    if (!waitsForConnector(c.server === undefined && (c.problem ?? "").includes(NOT_LOADED), tries))
+      return c.server !== undefined;
+    await $.clock.sleep(2000);
+  }
 }
 
 export const register: Register = (on) => {
@@ -746,6 +916,9 @@ export const register: Register = (on) => {
         {s.sync?.ok === true && <Text dimColor>synced {clockTime(s.sync.at)}</Text>}
         {s.sync?.ok === false && <Text color="yellow">{s.sync.detail}</Text>}
         {s.checkedAt !== undefined && <Text dimColor>checked {clockTime(s.checkedAt)}</Text>}
+        {s.stale === true && (
+          <Text color="red">stale: no ok check or sync in {s.staleMinutes} min</Text>
+        )}
         {(s.setup ?? []).map((gap) => (
           <Text color="yellow">needs: {gap}</Text>
         ))}
