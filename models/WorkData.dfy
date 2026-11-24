@@ -6,9 +6,12 @@
 // regexes: the reference grammar, comment headings, frontmatter YAML, and field formats. Here each
 // regex is spelled as the leftmost, greedy match JavaScript makes, over UTF-16 code units
 // (lemmascript.json "javascript-utf16"). The lemmas at the end of each section are the guarantees
-// work/ relies on.
+// work/ relies on. Every scan is a case of the shared ones in Text.dfy, proved once there.
+
+include "Text.dfy"
 
 module WorkData {
+  import opened Text
 
   // ---------------------------------------------------------------- characters
 
@@ -35,37 +38,38 @@ module WorkData {
     i + |w| <= |s| && s[i..i + |w|] == w
   }
 
-  // Where the run of characters of a class that starts at i ends: the greedy `[...]*`.
+  predicate Solid(c: int) { !Space(c) }                                                    // \S
+  predicate InLine(c: int) { !LineEnd(c) }                                                 // .
+
+  // Where the run of characters of a class that starts at i ends: the greedy `[...]*`, each the
+  // shared scan with its class.
   function RepoRunEnd(s: string, i: nat): nat
     requires i <= |s|
     ensures i <= RepoRunEnd(s, i) <= |s|
-    decreases |s| - i
   {
-    if i == |s| || !RepoChar(s[i] as int) then i else RepoRunEnd(s, i + 1)
+    ScanEnd(s, i, RepoChar)
   }
 
   function DigitRunEnd(s: string, i: nat): nat
     requires i <= |s|
     ensures i <= DigitRunEnd(s, i) <= |s|
-    decreases |s| - i
   {
-    if i == |s| || !Digit(s[i] as int) then i else DigitRunEnd(s, i + 1)
+    ScanEnd(s, i, Digit)
   }
 
+  // Also where String.prototype.trim starts.
   function SpaceRunEnd(s: string, i: nat): nat
     requires i <= |s|
     ensures i <= SpaceRunEnd(s, i) <= |s|
-    decreases |s| - i
   {
-    if i == |s| || !Space(s[i] as int) then i else SpaceRunEnd(s, i + 1)
+    ScanEnd(s, i, Space)
   }
 
   function SolidRunEnd(s: string, i: nat): nat
     requires i <= |s|
     ensures i <= SolidRunEnd(s, i) <= |s|
-    decreases |s| - i
   {
-    if i == |s| || Space(s[i] as int) then i else SolidRunEnd(s, i + 1)
+    ScanEnd(s, i, Solid)
   }
 
   // A run ends where its class stops: everything before is in the class, the end is not.
@@ -73,9 +77,7 @@ module WorkData {
     requires i <= |s|
     ensures forall k :: i <= k < RepoRunEnd(s, i) ==> RepoChar(s[k] as int)
     ensures RepoRunEnd(s, i) == |s| || !RepoChar(s[RepoRunEnd(s, i)] as int)
-    decreases |s| - i
   {
-    if i < |s| && RepoChar(s[i] as int) { RepoRunIsMaximal(s, i + 1); }
   }
 
   predicate AllDigits(s: string)
@@ -147,16 +149,16 @@ module WorkData {
     ensures -1 <= LastHyphen(s, i) < i
     ensures LastHyphen(s, i) >= 0 ==> s[LastHyphen(s, i)] == '-'
     ensures forall k :: LastHyphen(s, i) < k < i ==> s[k] != '-'
-    decreases i
   {
-    if i == 0 then -1 else if s[i - 1] == '-' then i - 1 else LastHyphen(s, i - 1)
+    RunStart(s, 0, i, (c: int) => c != 45) - 1
   }
 
   function FirstDot(s: string, i: nat): int
+    requires i <= |s|
     ensures FirstDot(s, i) == -1 || i <= FirstDot(s, i) < |s|
-    decreases |s| - i
   {
-    if i >= |s| then -1 else if s[i] == '.' then i else FirstDot(s, i + 1)
+    var j := ScanEnd(s, i, (c: int) => c != 46);
+    if j < |s| then j else -1
   }
 
   // `^gh-(.+)-(\d+)$`: greedy `.+` splits at the last hyphen, so the number is what follows it.
@@ -183,11 +185,11 @@ module WorkData {
   }
 
   lemma FirstDotNone(s: string, i: nat)
+    requires i <= |s|
     requires forall k :: i <= k < |s| ==> s[k] != '.'
     ensures FirstDot(s, i) == -1
-    decreases |s| - i
   {
-    if i < |s| { FirstDotNone(s, i + 1); }
+    ScanEndIs(s, i, |s|, (c: int) => c != 46);
   }
 
   lemma LastHyphenIs(s: string, j: nat)
@@ -202,9 +204,8 @@ module WorkData {
     requires j < i <= |s| && s[j] == '-'
     requires forall k :: j < k < i ==> s[k] != '-'
     ensures LastHyphen(s, i) == j
-    decreases i
   {
-    if i - 1 > j { LastHyphenFrom(s, i - 1, j); }
+    RunStartIs(s, 0, j + 1, i, (c: int) => c != 45);
   }
 
   // An org repo's id parses back: owner the org, the repo lowered, the number as it was.
@@ -257,9 +258,8 @@ module WorkData {
   function SpaceStart(s: string, lo: nat, e: nat): nat
     requires lo <= e <= |s|
     ensures lo <= SpaceStart(s, lo, e) <= e
-    decreases e - lo
   {
-    if e > lo && Space(s[e - 1] as int) then SpaceStart(s, lo, e - 1) else e
+    RunStart(s, lo, e, Space)
   }
 
   predicate KeywordEndsAt(s: string, lo: nat, e: nat, k: string)
@@ -421,12 +421,13 @@ module WorkData {
   }
 
   function RefIndex(refs: seq<Ref>, id: string, i: nat): int
+    requires i <= |refs|
     ensures RefIndex(refs, id, i) == -1 || i <= RefIndex(refs, id, i) < |refs|
     ensures RefIndex(refs, id, i) >= 0 ==> refs[RefIndex(refs, id, i)].id == id
     ensures RefIndex(refs, id, i) == -1 ==> forall k :: i <= k < |refs| ==> refs[k].id != id
-    decreases |refs| - i
   {
-    if i >= |refs| then -1 else if refs[i].id == id then i else RefIndex(refs, id, i + 1)
+    var j := ListEnd(refs, i, (r: Ref) => r.id != id);
+    if j < |refs| then j else -1
   }
 
   // A new target goes last; a known one keeps its place, `closes` wins, a project once known stays.
@@ -657,9 +658,9 @@ module WorkData {
   function LastLineEnd(s: string, lo: nat, hi: nat): int
     requires lo <= hi <= |s|
     ensures LastLineEnd(s, lo, hi) == -1 || lo <= LastLineEnd(s, lo, hi) < hi
-    decreases hi
   {
-    if hi <= lo then -1 else if LineEnd(s[hi - 1] as int) then hi - 1 else LastLineEnd(s, lo, hi - 1)
+    var j := RunStart(s, lo, hi, InLine);
+    if j > lo then j - 1 else -1
   }
 
   function HeadTailEnd(s: string, t: nat): int
@@ -727,27 +728,12 @@ module WorkData {
 
   // ---------------------------------------------------------------- frontmatter YAML
 
-  function TrimStart(s: string, i: nat): nat
-    requires i <= |s|
-    ensures i <= TrimStart(s, i) <= |s|
-    decreases |s| - i
-  {
-    if i >= |s| || !Space(s[i] as int) then i else TrimStart(s, i + 1)
-  }
-
-  function TrimEnd(s: string, lo: nat, e: nat): nat
-    requires lo <= e <= |s|
-    ensures lo <= TrimEnd(s, lo, e) <= e
-    decreases e - lo
-  {
-    if e > lo && Space(s[e - 1] as int) then TrimEnd(s, lo, e - 1) else e
-  }
-
-  // String.prototype.trim.
+  // String.prototype.trim: the whitespace runs at each end, cut. Defined with the whitespace scans
+  // above, not trim scans of its own: one definition per fact.
   function Trim(s: string): string
   {
-    var a := TrimStart(s, 0);
-    s[a..TrimEnd(s, a, |s|)]
+    var a := SpaceRunEnd(s, 0);
+    s[a..SpaceStart(s, a, |s|)]
   }
 
   predicate Mark(c: int) { c == 58 || c == 35 || c == 44 || c == 91 || c == 93 || c == 34 || c == 39 }
@@ -800,9 +786,8 @@ module WorkData {
   function CommaFrom(s: string, i: nat): nat
     requires i <= |s|
     ensures i <= CommaFrom(s, i) <= |s|
-    decreases |s| - i
   {
-    if i >= |s| || s[i] == ',' then i else CommaFrom(s, i + 1)
+    ScanEnd(s, i, (c: int) => c != 44)
   }
 
   function SplitItems(s: string, i: nat): seq<string>
@@ -829,8 +814,8 @@ module WorkData {
     requires |t| > 0 && !Space(t[0] as int) && !Space(t[|t| - 1] as int)
     ensures Trim(t) == t
   {
-    assert TrimStart(t, 0) == 0;
-    assert TrimEnd(t, 0, |t|) == |t|;
+    ScanEndIs(t, 0, 0, Space);
+    RunStartIs(t, 0, |t|, |t|, Space);
   }
 
   lemma TrimLeadingSpace(t: string)
@@ -838,9 +823,8 @@ module WorkData {
     ensures Trim(" " + t) == t
   {
     var u := " " + t;
-    assert TrimStart(u, 1) == 1;
-    assert TrimStart(u, 0) == 1;
-    assert TrimEnd(u, 1, |u|) == |u|;
+    ScanEndIs(u, 0, 1, Space);
+    RunStartIs(u, 1, |u|, |u|, Space);
     assert u[1..] == t;
   }
 
@@ -889,9 +873,8 @@ module WorkData {
   function KeyRunEnd(s: string, i: nat): nat
     requires i <= |s|
     ensures i <= KeyRunEnd(s, i) <= |s|
-    decreases |s| - i
   {
-    if i >= |s| || !KeyChar(s[i] as int) then i else KeyRunEnd(s, i + 1)
+    ScanEnd(s, i, KeyChar)
   }
 
   // `^\s+-\s+(.+)$`: the greedy `\s+` leaves the rest as the text; when that is empty, `.+`
@@ -928,10 +911,11 @@ module WorkData {
   datatype Yaml = Yaml(entries: seq<YamlEntry>, problems: seq<YamlProblem>)
 
   function EntryIndex(entries: seq<YamlEntry>, key: string, i: nat): int
+    requires i <= |entries|
     ensures EntryIndex(entries, key, i) == -1 || i <= EntryIndex(entries, key, i) < |entries|
-    decreases |entries| - i
   {
-    if i >= |entries| then -1 else if entries[i].key == key then i else EntryIndex(entries, key, i + 1)
+    var j := ListEnd(entries, i, (e: YamlEntry) => e.key != key);
+    if j < |entries| then j else -1
   }
 
   // A new key goes last; a key seen before keeps its place (a JavaScript object's order).
@@ -1050,9 +1034,8 @@ module WorkData {
   function FirstEquals(s: string, i: nat): nat
     requires i <= |s|
     ensures i <= FirstEquals(s, i) <= |s|
-    decreases |s| - i
   {
-    if i >= |s| || s[i] == '=' then i else FirstEquals(s, i + 1)
+    ScanEnd(s, i, (c: int) => c != 61)
   }
 
   // `^[^=]+=[^=]+$`: exactly one `=`, with text before it and after it.
@@ -1189,14 +1172,13 @@ module WorkData {
   datatype Edge = Edge(from: string, to: string, closes: bool)
 
   function EdgeIndex(edges: seq<Edge>, from: string, to: string, i: nat): int
+    requires i <= |edges|
     ensures EdgeIndex(edges, from, to, i) == -1 || i <= EdgeIndex(edges, from, to, i) < |edges|
     ensures EdgeIndex(edges, from, to, i) >= 0 ==> edges[EdgeIndex(edges, from, to, i)].from == from && edges[EdgeIndex(edges, from, to, i)].to == to
     ensures EdgeIndex(edges, from, to, i) == -1 ==> forall k :: i <= k < |edges| ==> !(edges[k].from == from && edges[k].to == to)
-    decreases |edges| - i
   {
-    if i >= |edges| then -1
-    else if edges[i].from == from && edges[i].to == to then i
-    else EdgeIndex(edges, from, to, i + 1)
+    var j := ListEnd(edges, i, (e: Edge) => !(e.from == from && e.to == to));
+    if j < |edges| then j else -1
   }
 
   // One edge per pair, in the order first seen; `closes` wins.

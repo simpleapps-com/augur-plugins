@@ -7,9 +7,12 @@
 // which lists to build, and what each step of the check and sync cycle does (sections "the check
 // and sync cycle" and "the lists the pane builds", which also names the trusted boundary).
 // Each rule keeps the behaviour of the pane it replaces (GH #14), so `work/` keeps working as it
-// does today.
+// does today. Every scan and search is a case of the shared ones in Text.dfy, proved once there.
+
+include "Text.dfy"
 
 module WorkPane {
+  import opened Text
 
   // ---------------------------------------------------------------- counts
   // A count is unknown (its call failed), or `open` with `complete` false when the tool stopped
@@ -630,9 +633,8 @@ module WorkPane {
   function NameStart(repo: string, i: nat): nat
     requires i <= |repo|
     ensures NameStart(repo, i) <= i
-    decreases i
   {
-    if i == 0 || repo[i - 1] as int == 47 then i else NameStart(repo, i - 1)
+    RunStart(repo, 0, i, (c: int) => c != 47)
   }
 
   function RepoName(repo: string): string { repo[NameStart(repo, |repo|)..] }
@@ -640,23 +642,21 @@ module WorkPane {
   lemma RepoNameHasNoSlash(repo: string, i: nat)
     requires i <= |repo|
     ensures forall k :: NameStart(repo, i) <= k < i ==> repo[k] as int != 47
-    decreases i
   {
-    if i > 0 && repo[i - 1] as int != 47 { RepoNameHasNoSlash(repo, i - 1); }
   }
 
+  // Some name from i on has id as an issue: the search for one stops short of the end.
   predicate WatchedFrom(id: string, names: seq<string>, i: nat)
-    decreases |names| - i
+    requires i <= |names|
   {
-    i < |names| && (IsIssueIdOf(id, "gh-" + names[i] + "-") || WatchedFrom(id, names, i + 1))
+    ListEnd(names, i, (n: string) => !IsIssueIdOf(id, "gh-" + n + "-")) < |names|
   }
 
   // An id is watched exactly when some name has it as an issue.
   lemma WatchedIsSomeName(id: string, names: seq<string>, i: nat)
+    requires i <= |names|
     ensures WatchedFrom(id, names, i) <==> exists k :: i <= k < |names| && IsIssueIdOf(id, "gh-" + names[k] + "-")
-    decreases |names| - i
   {
-    if i < |names| { WatchedIsSomeName(id, names, i + 1); }
   }
 
   datatype Item = Item(status: string, source: string, kind: string, mine: bool, watched: bool)
@@ -716,10 +716,11 @@ module WorkPane {
   datatype LocalTodo = LocalTodo(num: int, updatedKnown: bool, updatedMs: int, hasProject: bool, projectId: int, mine: bool)
 
   function TodoAt(todos: seq<RemoteTodo>, id: int, i: nat): int
+    requires i <= |todos|
     ensures TodoAt(todos, id, i) == -1 || (i <= TodoAt(todos, id, i) < |todos| && todos[TodoAt(todos, id, i)].id == id)
-    decreases |todos| - i
   {
-    if i >= |todos| then -1 else if todos[i].id == id then i else TodoAt(todos, id, i + 1)
+    var j := ListEnd(todos, i, (t: RemoteTodo) => t.id != id);
+    if j < |todos| then j else -1
   }
 
   // Each todo once, in first-seen order, as last seen (a Map's behaviour).
@@ -739,11 +740,10 @@ module WorkPane {
   }
 
   lemma TodoAtMissing(todos: seq<RemoteTodo>, id: int, i: nat)
+    requires i <= |todos|
     requires TodoAt(todos, id, i) == -1
     ensures forall k :: i <= k < |todos| ==> todos[k].id != id
-    decreases |todos| - i
   {
-    if i < |todos| { TodoAtMissing(todos, id, i + 1); }
   }
 
   // No id twice in the result.
@@ -791,9 +791,9 @@ module WorkPane {
   }
 
   predicate RemoteHasFrom(remote: seq<RemoteTodo>, id: int, i: nat)
-    decreases |remote| - i
+    requires i <= |remote|
   {
-    i < |remote| && (remote[i].id == id || RemoteHasFrom(remote, id, i + 1))
+    ListEnd(remote, i, (t: RemoteTodo) => t.id != id) < |remote|
   }
 
   // Local todos that left your list (or, linked, every other one).
@@ -870,9 +870,9 @@ module WorkPane {
   }
 
   predicate IdFrom(ids: seq<int>, id: int, i: nat)
-    decreases |ids| - i
+    requires i <= |ids|
   {
-    i < |ids| && (ids[i] == id || IdFrom(ids, id, i + 1))
+    ListEnd(ids, i, (x: int) => x != id) < |ids|
   }
 
   function KeptFrom(closed: seq<ClosedTodo>, ids: seq<int>, now: int, i: nat): seq<ClosedTodo>
@@ -1053,10 +1053,9 @@ module WorkPane {
   }
 
   lemma IdFromMeansIn(ids: seq<int>, id: int, i: nat)
+    requires i <= |ids|
     ensures IdFrom(ids, id, i) <==> exists k :: i <= k < |ids| && ids[k] == id
-    decreases |ids| - i
   {
-    if i < |ids| { IdFromMeansIn(ids, id, i + 1); }
   }
 
   // The brief projects are real ids, each once.

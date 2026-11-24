@@ -33,18 +33,28 @@ lemma isNameCode_ensures(c: int)
 {
 }
 
+function isNonSpaceCode(c: int): bool
+{
+  (c != 32)
+}
+
+lemma isNonSpaceCode_ensures(c: int)
+  ensures (isNonSpaceCode(c) <==> (c != 32))
+{
+}
+
 function yearPart(s: string): bool
   requires (|s| >= 8)
 {
   var first := (s[0] as int);
-  ((((first >= 49) && (first <= 57)) && digitsFrom(s[1..4], 0)) && ((s[4] as int) == 46))
+  ((((first >= 49) && (first <= 57)) && (scanEnd(s, 1, isDigitCode) >= 4)) && ((s[4] as int) == 46))
 }
 
 function seqFrom(s: string, a: nat): bool
   requires (a < |s|)
 {
   var first := (s[a] as int);
-  (((first >= 49) && (first <= 57)) && digitsFrom(s[(a + 1)..|s|], 0))
+  (((first >= 49) && (first <= 57)) && (scanEnd(s, (a + 1), isDigitCode) == |s|))
 }
 
 function shortMonth(s: string): bool
@@ -81,7 +91,7 @@ lemma isSkillKey_ensures(k: string)
 
 function isSkillName(n: string): bool
 {
-  ((((|n| >= 1) && (|n| <= 64)) && isLowerCode((n[0] as int))) && nameCodesFrom(n, 1))
+  ((((|n| >= 1) && (|n| <= 64)) && isLowerCode((n[0] as int))) && (scanEnd(n, 1, isNameCode) == |n|))
 }
 
 function isReservedName(n: string): bool
@@ -118,7 +128,7 @@ function isConnectorUrl(u: string): bool
   if ((|u| < 8) || (u[0..8] != "https://")) then
     false
   else
-    var j := labelEnd(u, 8);
+    var j := scanEnd(u, 8, isNameCode);
     (((j > 8) && ((j + 15) <= |u|)) && (u[j..(j + 15)] == ".augur-mcp.com/"))
 }
 
@@ -134,45 +144,27 @@ lemma isSecretKey_ensures(k: string)
 
 function isLspCommand(c: string): bool
 {
-  ((|c| > 0) && (((c[0] as int) == 47) || !(spaceFrom(c, 0))))
+  ((|c| > 0) && (((c[0] as int) == 47) || (scanEnd(c, 0, isNonSpaceCode) == |c|)))
 }
 
-function digitsFrom_fun_spec(s: string, i: nat): bool
-  requires (i >= 0)
+function scanEnd_fun_spec(s: string, i: nat, ok: (int) -> bool): int
+  requires (i <= |s|)
 
-function digitsFrom(s: string, i: nat): bool
-  requires (i >= 0)
+function scanEnd(s: string, i: nat, ok: (int) -> bool): int
+  requires (i <= |s|)
 {
-  digitsFrom_fun_spec(s, i)
+  scanEnd_fun_spec(s, i, ok)
 }
 by method {
   var j := i;
-  while ((j < |s|) && isDigitCode((s[j] as int)))
+  while ((j < |s|) && ok((s[j] as int)))
     invariant (i <= j)
+    invariant (j <= |s|)
     decreases (|s| - j)
   {
     j := (j + 1);
   }
-  return (j >= |s|);
-}
-
-function nameCodesFrom_fun_spec(s: string, i: nat): bool
-  requires (i >= 0)
-
-function nameCodesFrom(s: string, i: nat): bool
-  requires (i >= 0)
-{
-  nameCodesFrom_fun_spec(s, i)
-}
-by method {
-  var j := i;
-  while ((j < |s|) && isNameCode((s[j] as int)))
-    invariant (i <= j)
-    decreases (|s| - j)
-  {
-    j := (j + 1);
-  }
-  return (j >= |s|);
+  return j;
 }
 
 function occursFrom_fun_spec(s: string, w: string, i: nat): bool
@@ -192,41 +184,4 @@ by method {
     j := (j + 1);
   }
   return ((j + |w|) <= |s|);
-}
-
-function labelEnd_fun_spec(u: string, i: nat): int
-  requires (i <= |u|)
-
-function labelEnd(u: string, i: nat): int
-  requires (i <= |u|)
-{
-  labelEnd_fun_spec(u, i)
-}
-by method {
-  var j := i;
-  while ((j < |u|) && isNameCode((u[j] as int)))
-    invariant (i <= j)
-    invariant (j <= |u|)
-    decreases (|u| - j)
-  {
-    j := (j + 1);
-  }
-  return j;
-}
-
-function spaceFrom_fun_spec(s: string, i: nat): bool
-
-function spaceFrom(s: string, i: nat): bool
-{
-  spaceFrom_fun_spec(s, i)
-}
-by method {
-  var j := i;
-  while ((j < |s|) && ((s[j] as int) != 32))
-    invariant (i <= j)
-    decreases (|s| - j)
-  {
-    j := (j + 1);
-  }
-  return (j < |s|);
 }

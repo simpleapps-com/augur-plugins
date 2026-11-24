@@ -12,8 +12,8 @@ importers:
         specifier: ^10.0.1
         version: 10.0.1(eslint@10.15.0(jiti@2.7.0))
       '@simpleapps-com/augur-config':
-        specifier: ^2026.11.8
-        version: 2026.11.8(@trivago/prettier-plugin-sort-imports@6.0.2(prettier@3.10.1))(eslint@10.15.0(jiti@2.7.0))(prettier@3.10.1)(typescript@6.0.3)
+        specifier: ^2026.11.9
+        version: 2026.11.9(@trivago/prettier-plugin-sort-imports@6.0.2(prettier@3.10.1))(eslint@10.15.0(jiti@2.7.0))(prettier@3.10.1)(typescript@6.0.3)
       '@types/node':
         specifier: ^24.19.2
         version: 24.19.2
@@ -606,8 +606,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@simpleapps-com/augur-config@2026.11.8':
-    resolution: {integrity: sha512-Y3ETF+ijmEn6PRqDsQ99iQF10McpG0aICRr50cwIsSF4JRZL+jOZIjw7xw7bcx2C9QgREVb056SoBsCUVIcN+g==}
+  '@simpleapps-com/augur-config@2026.11.9':
+    resolution: {integrity: sha512-+N+e141LioaIXbNjJxedeRUlmYZUF3Rz2pJp/GMU8Vvze8ddJZsloEMvYV+MuOgxTlHaY1mGtlRRVajh2gaNeQ==}
     engines: {node: '>=22.0.0'}
     hasBin: true
     peerDependencies:
@@ -2255,7 +2255,7 @@ snapshots:
   '@oxc-resolver/binding-win32-x64-msvc@11.24.2':
     optional: true
 
-  '@simpleapps-com/augur-config@2026.11.8(@trivago/prettier-plugin-sort-imports@6.0.2(prettier@3.10.1))(eslint@10.15.0(jiti@2.7.0))(prettier@3.10.1)(typescript@6.0.3)':
+  '@simpleapps-com/augur-config@2026.11.9(@trivago/prettier-plugin-sort-imports@6.0.2(prettier@3.10.1))(eslint@10.15.0(jiti@2.7.0))(prettier@3.10.1)(typescript@6.0.3)':
     dependencies:
       '@ianvs/prettier-plugin-sort-imports': 4.7.1(prettier@3.10.1)
       '@next/eslint-plugin-next': 16.4.6(eslint@10.15.0(jiti@2.7.0))

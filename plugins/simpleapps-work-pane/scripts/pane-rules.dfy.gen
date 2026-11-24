@@ -76,9 +76,26 @@ lemma isTrackedIssue_ensures(isOpen: bool, isGithub: bool, isIssue: bool, watche
 {
 }
 
+function isIdDigitUnit(c: int): bool
+{
+  ((c >= 48) && (c <= 57))
+}
+
+function idDigitsFrom(s: string, i: nat): bool
+  requires (i <= |s|)
+{
+  (paneRunEnd(s, i, isIdDigitUnit) == |s|)
+}
+
 function isIssueIdOf(id: string, prefix: string): bool
 {
   (((|id| > |prefix|) && (id[0..|prefix|] == prefix)) && idDigitsFrom(id[|prefix|..|id|], 0))
+}
+
+function slashFrom(repo: string, i: nat): bool
+  requires (i <= |repo|)
+{
+  (paneRunEnd(repo, i, (c: int) => (c != 47)) < |repo|)
 }
 
 function hasOwner(repo: string): bool
@@ -348,9 +365,21 @@ function staleShown(statusRead: bool, checkOk: bool, statusStale: bool, localSta
     localStale
 }
 
+function nameStartBefore(repo: string, i: nat): int
+  requires (i <= |repo|)
+{
+  paneRunStart(repo, 0, i, (c: int) => (c != 47))
+}
+
 function repoName(repo: string): string
 {
   repo[nameStartBefore(repo, |repo|)..|repo|]
+}
+
+function watchedFrom(id: string, names: seq<string>, i: nat): bool
+  requires (i <= |names|)
+{
+  (paneListEnd(names, i, (n: string) => !(isIssueIdOf(id, (("gh-" + n) + "-")))) < |names|)
 }
 
 function inWatchedNames(id: string, names: seq<string>): bool
@@ -372,9 +401,31 @@ function failedParts(countFailed: bool, countProblem: string, indexFailed: bool,
   (((count + index) + unreadReposFrom(repos, read, 0)) + changes)
 }
 
+function todoAt(todos: seq<IndexTodo>, id: int, i: nat): int
+  requires (i <= |todos|)
+{
+  var j := paneListEnd(todos, i, (t: IndexTodo) => (t.id != id));
+  if (j < |todos|) then
+    j
+  else
+    -1
+}
+
+lemma todoAt_ensures(todos: seq<IndexTodo>, id: int, i: nat)
+  requires (i <= |todos|)
+  ensures ((todoAt(todos, id, i) == -1) || ((i <= todoAt(todos, id, i)) && (todoAt(todos, id, i) < |todos|)))
+{
+}
+
 function uniqueTodos(todos: seq<IndexTodo>): seq<IndexTodo>
 {
   uniqueTodosFrom([], todos, 0)
+}
+
+function remoteHasFrom(remote: seq<IndexTodo>, id: int, i: nat): bool
+  requires (i <= |remote|)
+{
+  (paneListEnd(remote, i, (t: IndexTodo) => (t.id != id)) < |remote|)
 }
 
 function todosToFetch(remote: seq<IndexTodo>, local: seq<LocalTodo>, linked: bool): seq<PaneTarget>
@@ -395,6 +446,12 @@ function completedIds(records: seq<FetchedTodo>): seq<int>
 function skipClosed(targets: seq<PaneTarget>, closed: seq<ClosedTodo>, now: int): seq<PaneTarget>
 {
   notClosedFrom(targets, closed, now, 0)
+}
+
+function idFrom(ids: seq<int>, id: int, i: nat): bool
+  requires (i <= |ids|)
+{
+  (paneListEnd(ids, i, (x: int) => (x != id)) < |ids|)
 }
 
 function rememberClosed(closed: seq<ClosedTodo>, ids: seq<int>, now: int): seq<ClosedTodo>
@@ -445,79 +502,66 @@ function withBriefProblem(result: PaneSync, hasProblem: bool, problem: string): 
 
 const BASECAMP_ORIGIN: string := "https://basecamp.augur-mcp.com"
 
-function idDigitsFrom_fun_spec(s: string, i: nat): bool
-  requires (i >= 0)
+function paneRunEnd_fun_spec(s: string, i: nat, ok: (int) -> bool): int
+  requires (i <= |s|)
 
-function idDigitsFrom(s: string, i: nat): bool
-  requires (i >= 0)
+function paneRunEnd(s: string, i: nat, ok: (int) -> bool): int
+  requires (i <= |s|)
 {
-  idDigitsFrom_fun_spec(s, i)
+  paneRunEnd_fun_spec(s, i, ok)
 }
 by method {
   var j := i;
-  while (((j < |s|) && ((s[j] as int) >= 48)) && ((s[j] as int) <= 57))
+  while ((j < |s|) && ok((s[j] as int)))
     invariant (i <= j)
+    invariant (j <= |s|)
     decreases (|s| - j)
   {
     j := (j + 1);
   }
-  return (j >= |s|);
+  return j;
 }
 
-function slashFrom_fun_spec(repo: string, i: nat): bool
-  requires (i >= 0)
+function paneRunStart_fun_spec(s: string, lo: nat, e: nat, ok: (int) -> bool): int
+  requires (lo <= e)
+  requires (e <= |s|)
 
-function slashFrom(repo: string, i: nat): bool
-  requires (i >= 0)
+function paneRunStart(s: string, lo: nat, e: nat, ok: (int) -> bool): int
+  requires (lo <= e)
+  requires (e <= |s|)
 {
-  slashFrom_fun_spec(repo, i)
+  paneRunStart_fun_spec(s, lo, e, ok)
 }
 by method {
-  var j := i;
-  while ((j < |repo|) && ((repo[j] as int) != 47))
-    invariant (i <= j)
-    decreases (|repo| - j)
-  {
-    j := (j + 1);
-  }
-  return (j < |repo|);
-}
-
-function nameStartBefore_fun_spec(repo: string, i: nat): int
-  requires (i <= |repo|)
-
-function nameStartBefore(repo: string, i: nat): int
-  requires (i <= |repo|)
-{
-  nameStartBefore_fun_spec(repo, i)
-}
-by method {
-  var j := i;
-  while ((j > 0) && ((repo[(j - 1)] as int) != 47))
-    invariant (0 <= j)
-    invariant (j <= i)
-    decreases j
+  var j := e;
+  while ((j > lo) && ok((s[(j - 1)] as int)))
+    invariant (lo <= j)
+    invariant (j <= e)
+    decreases (j - lo)
   {
     j := (j - 1);
   }
   return j;
 }
 
-function watchedFrom_fun_spec(id: string, names: seq<string>, i: nat): bool
+function paneListEnd_fun_spec<T>(xs: seq<T>, i: nat, ok: (T) -> bool): int
+  requires (i <= |xs|)
 
-function watchedFrom(id: string, names: seq<string>, i: nat): bool
+function paneListEnd<T>(xs: seq<T>, i: nat, ok: (T) -> bool): int
+  requires (i <= |xs|)
 {
-  watchedFrom_fun_spec(id, names, i)
+  paneListEnd_fun_spec(xs, i, ok)
 }
 by method {
   var j := i;
-  while ((j < |names|) && !(isIssueIdOf(id, (("gh-" + names[j]) + "-"))))
+  while ((j < |xs|) && ok(xs[j]))
     invariant (i <= j)
-    decreases (|names| - j)
+    invariant (j <= |xs|)
+    decreases (|xs| - j)
   {
     j := (j + 1);
   }
-  return (j < |names|);
+  return j;
 }
 
 function tallyFrom_fun_spec(items: seq<PaneItem>, i: nat): Tally
@@ -570,23 +614,6 @@ by method {
     j := (j + 1);
   }
   return acc;
-}
-
-function todoAt_fun_spec(todos: seq<IndexTodo>, id: int, i: nat): int
-
-function todoAt(todos: seq<IndexTodo>, id: int, i: nat): int
-{
-  todoAt_fun_spec(todos, id, i)
-}
-by method {
-  var j := i;
-  while ((j < |todos|) && (todos[j].id != id))
-    invariant (i <= j)
-    decreases (|todos| - j)
-  {
-    j := (j + 1);
-  }
-  return (if (j < |todos|) then j else -1);
 }
 
 function uniqueTodosFrom_fun_spec(acc: seq<IndexTodo>, todos: seq<IndexTodo>, i: nat): seq<IndexTodo>
@@ -658,23 +685,6 @@ by method {
     j := (j + 1);
   }
   return acc;
-}
-
-function remoteHasFrom_fun_spec(remote: seq<IndexTodo>, id: int, i: nat): bool
-
-function remoteHasFrom(remote: seq<IndexTodo>, id: int, i: nat): bool
-{
-  remoteHasFrom_fun_spec(remote, id, i)
-}
-by method {
-  var j := i;
-  while ((j < |remote|) && (remote[j].id != id))
-    invariant (i <= j)
-    decreases (|remote| - j)
-  {
-    j := (j + 1);
-  }
-  return (j < |remote|);
 }
 
 function leftFrom_fun_spec(local: seq<LocalTodo>, remote: seq<IndexTodo>, linked: bool, i: nat): seq<PaneTarget>
@@ -789,23 +799,6 @@ by method {
     j := (j + 1);
   }
   return acc;
-}
-
-function idFrom_fun_spec(ids: seq<int>, id: int, i: nat): bool
-
-function idFrom(ids: seq<int>, id: int, i: nat): bool
-{
-  idFrom_fun_spec(ids, id, i)
-}
-by method {
-  var j := i;
-  while ((j < |ids|) && (ids[j] != id))
-    invariant (i <= j)
-    decreases (|ids| - j)
-  {
-    j := (j + 1);
-  }
-  return (j < |ids|);
 }
 
 function keptFrom_fun_spec(closed: seq<ClosedTodo>, ids: seq<int>, now: int, i: nat): seq<ClosedTodo>
