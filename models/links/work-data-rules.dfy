@@ -1124,22 +1124,22 @@ lemma ProjectInUrlMatchesModel(url: string)
   ProjectInUrlFromMatchesModel(url, 0);
 }
 
-lemma BriefCellFromMatchesModel(s: string, i: nat)
+lemma TableCellFromMatchesModel(s: string, i: nat)
   requires i <= |s|
-  ensures briefCellFrom(s, i) == WorkData.BriefCellFrom(s, i)
+  ensures tableCellFrom(s, i) == WorkData.TableCellFrom(s, i)
   decreases |s| - i
 {
   if i < |s| {
     SpaceRunEndMatchesModel(s, i);
-    if WorkData.Space(s[i] as int) { BriefCellFromMatchesModel(s, spaceRunEnd(s, i)); }
-    else { BriefCellFromMatchesModel(s, i + 1); }
+    if WorkData.Space(s[i] as int) { TableCellFromMatchesModel(s, spaceRunEnd(s, i)); }
+    else { TableCellFromMatchesModel(s, i + 1); }
   }
 }
 
-lemma BriefCellMatchesModel(text: string)
-  ensures briefCell(text) == WorkData.BriefCell(text)
+lemma TableCellMatchesModel(text: string)
+  ensures tableCell(text) == WorkData.TableCell(text)
 {
-  BriefCellFromMatchesModel(text, 0);
+  TableCellFromMatchesModel(text, 0);
 }
 
 lemma IsQuietMatchesModel(hasUpdated: bool, todayMs: int, updatedMs: int)
@@ -1236,6 +1236,18 @@ lemma IssueOrderMatchesModel(repoA: string, repoB: string, numberA: int, numberB
   ensures issueOrder(repoA, repoB, numberA, numberB) == WorkData.IssueOrder(repoA, repoB, numberA, numberB)
 {
   CompareTextMatchesModel(repoA, repoB);
+}
+
+lemma SiteOfMatchesModel(sites: seq<string>, hub: string)
+  ensures siteOf(sites, hub) == WorkData.SiteOf(sites, hub)
+{
+}
+
+lemma TodoOrderMatchesModel(siteA: string, siteB: string, updatedA: string, updatedB: string)
+  ensures todoOrder(siteA, siteB, updatedA, updatedB) == WorkData.TodoOrder(siteA, siteB, updatedA, updatedB)
+{
+  CompareTextMatchesModel(siteA, siteB);
+  CompareTextMatchesModel(updatedB, updatedA);
 }
 
 // ---------------------------------------------------------------- the chart

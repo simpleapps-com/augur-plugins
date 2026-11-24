@@ -1354,17 +1354,73 @@ module WorkData {
 
   function ProjectInUrl(url: string): string { ProjectInUrlFrom(url, 0) }
 
-  // A brief's cell: `|` escaped, each run of whitespace one space.
-  function BriefCellFrom(s: string, i: nat): string
+  // A Markdown table cell (briefs, the digest, the list): `|` escaped, each run of whitespace
+  // one space.
+  function TableCellFrom(s: string, i: nat): string
     requires i <= |s|
     decreases |s| - i
   {
     if i >= |s| then ""
-    else if Space(s[i] as int) then " " + BriefCellFrom(s, SpaceRunEnd(s, i))
-    else (if s[i] == '|' then "\\|" else s[i..i + 1]) + BriefCellFrom(s, i + 1)
+    else if Space(s[i] as int) then " " + TableCellFrom(s, SpaceRunEnd(s, i))
+    else (if s[i] == '|' then "\\|" else s[i..i + 1]) + TableCellFrom(s, i + 1)
   }
 
-  function BriefCell(text: string): string { BriefCellFrom(text, 0) }
+  function TableCell(text: string): string { TableCellFrom(text, 0) }
+
+  // A cell that stays in its row: no line end ends the row, and every `|` is escaped, so none
+  // starts a new column (GH #41).
+  predicate EscapedPipes(t: string)
+  {
+    forall k :: 0 <= k < |t| && t[k] == '|' ==> k > 0 && t[k - 1] == '\\'
+  }
+
+  predicate OneCell(t: string)
+  {
+    EscapedPipes(t) && forall k :: 0 <= k < |t| ==> !LineEnd(t[k] as int)
+  }
+
+  lemma OneCellJoins(a: string, b: string)
+    requires OneCell(a) && OneCell(b)
+    ensures OneCell(a + b)
+  {
+    var t := a + b;
+    forall k | 0 <= k < |t| && t[k] == '|'
+      ensures k > 0 && t[k - 1] == '\\'
+    {
+      if k < |a| { assert a[k] == '|'; }
+      else { assert b[k - |a|] == '|'; }
+    }
+    forall k | 0 <= k < |t|
+      ensures !LineEnd(t[k] as int)
+    {
+      if k < |a| { assert t[k] == a[k]; } else { assert t[k] == b[k - |a|]; }
+    }
+  }
+
+  lemma TableCellFromIsOneCell(s: string, i: nat)
+    requires i <= |s|
+    ensures OneCell(TableCellFrom(s, i))
+    decreases |s| - i
+  {
+    if i < |s| {
+      if Space(s[i] as int) {
+        TableCellFromIsOneCell(s, SpaceRunEnd(s, i));
+        OneCellJoins(" ", TableCellFrom(s, SpaceRunEnd(s, i)));
+      } else {
+        TableCellFromIsOneCell(s, i + 1);
+        LineEndsAreSpace(s[i] as int);
+        var head := if s[i] == '|' then "\\|" else s[i..i + 1];
+        assert OneCell(head);
+        OneCellJoins(head, TableCellFrom(s, i + 1));
+      }
+    }
+  }
+
+  lemma TableCellIsOneCell(text: string)
+    ensures OneCell(TableCell(text))
+  {
+    TableCellFromIsOneCell(text, 0);
+  }
 
   predicate MarkersInOrder(start: int, end: int) { start != -1 && end >= start }
 
@@ -1391,6 +1447,15 @@ module WorkData {
   function IssueOrder(repoA: string, repoB: string, numberA: int, numberB: int): int
   {
     if CompareText(repoA, repoB) != 0 then CompareText(repoA, repoB) else numberA - numberB
+  }
+
+  // The list's Basecamp table (GH #41): a todo's Site is its hub's first `sites` entry, else the
+  // hub id; rows by site, then newest first.
+  function SiteOf(sites: seq<string>, hub: string): string { if |sites| > 0 then sites[0] else hub }
+
+  function TodoOrder(siteA: string, siteB: string, updatedA: string, updatedB: string): int
+  {
+    if CompareText(siteA, siteB) != 0 then CompareText(siteA, siteB) else CompareText(updatedB, updatedA)
   }
 
   // Digits as Number prints them: leading zeros dropped, one zero kept.

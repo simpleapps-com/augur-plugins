@@ -5,7 +5,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import {
-  briefCell,
+  tableCell,
   compareText,
   isQuiet,
   markersInOrder,
@@ -110,7 +110,7 @@ function between(body: string, markers: readonly [string, string]): string | nul
   return markersInOrder(start, end) ? trimText(body.slice(start + open.length, end)) : null;
 }
 
-const link = (item: BriefItem) => `[${briefCell(item.title)}](${item.url})`;
+const link = (item: BriefItem) => `[${tableCell(item.title)}](${item.url})`;
 const bullet = (item: BriefItem) => `- ${link(item)} · ${item.source}`;
 
 function changes(items: BriefItem[], baseline: BriefItem[]) {
@@ -151,7 +151,7 @@ function openSection(items: BriefItem[], today: string, asOf: string): string[] 
     .sort((a, b) => compareText(b.updated, a.updated))
     .map((i) => {
       const notes = [i.due && `due ${i.due}`, quiet(i) && "quiet 14+ days"];
-      return `| ${link(i)} | ${i.source} | ${briefCell(i.owner || "nobody")} | ${i.updated} | ${notes.filter(Boolean).join(", ")} |`;
+      return `| ${link(i)} | ${i.source} | ${tableCell(i.owner || "nobody")} | ${i.updated} | ${notes.filter(Boolean).join(", ")} |`;
     });
   return [
     `## Open now (${items.length})`,

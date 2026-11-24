@@ -1548,13 +1548,14 @@ function projectInUrlFrom(url: string, i: number): string {
   return "";
 }
 
-/** A brief's table cell: `|` escaped, each run of whitespace one space. */
-export function briefCell(text: string): string {
+/** A Markdown table cell (briefs, the digest, the list): `|` escaped, each run of whitespace
+    one space, so a value can never split its row. */
+export function tableCell(text: string): string {
   //@ verify
-  return briefCellFrom(text, 0);
+  return tableCellFrom(text, 0);
 }
 
-function briefCellFrom(s: string, i: number): string {
+function tableCellFrom(s: string, i: number): string {
   //@ verify
   //@ pure
   //@ type i nat
@@ -1734,6 +1735,24 @@ export function issueOrder(repoA: string, repoB: string, numberA: number, number
   //@ verify
   const byRepo = compareText(repoA, repoB);
   return byRepo !== 0 ? byRepo : numberA - numberB;
+}
+
+/** A Basecamp todo's Site on the list: its hub's first `sites` entry, else the hub id. */
+export function siteOf(sites: string[], hub: string): string {
+  //@ verify
+  return sites.length > 0 ? sites[0]! : hub;
+}
+
+/** Todos by site, then newest first. */
+export function todoOrder(
+  siteA: string,
+  siteB: string,
+  updatedA: string,
+  updatedB: string,
+): number {
+  //@ verify
+  const bySite = compareText(siteA, siteB);
+  return bySite !== 0 ? bySite : compareText(updatedB, updatedA);
 }
 
 // ---------------------------------------------------------------- the chart (chart.md)

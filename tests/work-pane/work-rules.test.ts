@@ -9,7 +9,7 @@ import {
   arrowOf,
   autoSyncOf,
   basecampId,
-  briefCell,
+  tableCell,
   chartLabel,
   chartRef,
   chartTitle,
@@ -77,10 +77,12 @@ import {
   rowsLeftOut,
   scalarProblem,
   shortRef,
+  siteOf,
   slug,
   splitSegments,
   statusOf,
   todoLabel,
+  todoOrder,
   todoProject,
   trimText,
   waitsOn,
@@ -748,7 +750,7 @@ test("brief decisions: the project in a URL, cells, quiet, markers", () => {
     const url = draw(["/projects/", "12", "/", "x", "https://3.basecamp.com/1"], 5);
     assert.equal(projectInUrl(url), /\/projects\/(\d+)\//.exec(url)?.[1] ?? "", url);
     const text = draw(["a", "|", " ", "\n", "\u00a0", "\t", "b"], 6);
-    assert.equal(briefCell(text), text.replace(/\|/g, "\\|").replace(/\s+/g, " "));
+    assert.equal(tableCell(text), text.replace(/\|/g, "\\|").replace(/\s+/g, " "));
   }
   const DAY = 86_400_000;
   for (const diff of [0, 14 * DAY - 1, 14 * DAY, 20 * DAY, -DAY])
@@ -841,6 +843,18 @@ test("list decisions", () => {
     assert.equal(isListed(a, b, c, d), a ? b : c && d);
   assert.ok(issueOrder("a", "b", 9, 1) < 0);
   assert.ok(issueOrder("b", "b", 2, 10) < 0);
+  // GH #41: a todo's Site, and todos by site, then newest first
+  assert.equal(siteOf(["shop", "other"], "hub"), "shop");
+  assert.equal(siteOf([], "hub"), "hub");
+  const byCode = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+  for (const [sa, sb, ua, ub] of [
+    ["a", "b", "2026-01-01", "2026-02-01"],
+    ["b", "a", "2026-02-01", "2026-01-01"],
+    ["a", "a", "2026-01-01", "2026-02-01"],
+    ["a", "a", "2026-02-01", "2026-01-01"],
+    ["a", "a", "2026-01-01", "2026-01-01"],
+  ] as const)
+    assert.equal(Math.sign(todoOrder(sa, sb, ua, ub)), byCode(sa, sb) || byCode(ub, ua));
 });
 
 test("chart decisions", () => {

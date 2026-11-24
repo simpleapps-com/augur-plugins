@@ -1106,9 +1106,9 @@ function projectInUrl(url: string): string
   projectInUrlFrom(url, 0)
 }
 
-function briefCell(text: string): string
+function tableCell(text: string): string
 {
-  briefCellFrom(text, 0)
+  tableCellFrom(text, 0)
 }
 
 function isQuiet(hasUpdated: bool, todayMs: int, updatedMs: int): bool
@@ -1254,6 +1254,23 @@ function issueOrder(repoA: string, repoB: string, numberA: int, numberB: int): i
     byRepo
   else
     (numberA - numberB)
+}
+
+function siteOf(sites: seq<string>, hub: string): string
+{
+  if (|sites| > 0) then
+    sites[0]
+  else
+    hub
+}
+
+function todoOrder(siteA: string, siteB: string, updatedA: string, updatedB: string): int
+{
+  var bySite := compareText(siteA, siteB);
+  if (bySite != 0) then
+    bySite
+  else
+    compareText(updatedB, updatedA)
 }
 
 function isAlnumUnit(c: int): bool
@@ -2040,13 +2057,13 @@ by method {
   return "";
 }
 
-function briefCellFrom_fun_spec(s: string, i: nat): string
+function tableCellFrom_fun_spec(s: string, i: nat): string
   requires (i <= |s|)
 
-function briefCellFrom(s: string, i: nat): string
+function tableCellFrom(s: string, i: nat): string
   requires (i <= |s|)
 {
-  briefCellFrom_fun_spec(s, i)
+  tableCellFrom_fun_spec(s, i)
 }
 by method {
   var acc := "";
