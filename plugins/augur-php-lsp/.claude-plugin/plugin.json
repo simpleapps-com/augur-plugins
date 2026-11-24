@@ -1,0 +1,15 @@
+{
+  "name": "augur-php-lsp",
+  "displayName": "Augur PHP LSP",
+  "description": "Claude Code only. The Intelephense PHP language server tuned for the Augur monorepo: vendor copies, caches, clones and worktrees left out of the index, and memory for the whole monorepo, so symbol lookups return the real source.",
+  "version": "2026.11.1",
+  "author": {
+    "name": "SimpleApps",
+    "email": "info@simpleapps.com",
+    "url": "https://www.simpleapps.com"
+  },
+  "homepage": "https://www.simpleapps.com",
+  "repository": "https://github.com/simpleapps-com/augur-plugins",
+  "license": "MIT",
+  "keywords": ["php", "lsp", "intelephense", "claude-code"]
+}

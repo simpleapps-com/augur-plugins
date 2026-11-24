@@ -1,0 +1,29 @@
+{
+  "intelephense": {
+    "command": "intelephense",
+    "args": ["--stdio"],
+    "extensionToLanguage": { ".php": "php" },
+    "settings": {
+      "intelephense": {
+        "maxMemory": 4096,
+        "files": {
+          "exclude": [
+            "**/.DS_Store/**",
+            "**/.git/**",
+            "**/.hg/**",
+            "**/.history/**",
+            "**/.svn/**",
+            "**/CVS/**",
+            "**/bower_components/**",
+            "**/build/**",
+            "**/clones/**",
+            "**/node_modules/**",
+            "**/runtime/**",
+            "**/vendor/**",
+            "**/worktrees/**"
+          ]
+        }
+      }
+    }
+  }
+}

@@ -179,3 +179,32 @@ export function isConnectorUrl(u: string): boolean {
   const j = labelEnd(u, 8);
   return j > 8 && j + 15 <= u.length && u.slice(j, j + 15) === ".augur-mcp.com/";
 }
+
+/** A key that holds a secret: an Intelephense licence, in either spelling. A plugin's .lsp.json
+    ships to every installer, so it MUST NOT hold one (model: Marketplace.IsSecretKey, GH #36). */
+export function isSecretKey(k: string): boolean {
+  //@ verify
+  //@ ensures \result <==> (k === "licenceKey" || k === "licenseKey")
+  return k === "licenceKey" || k === "licenseKey";
+}
+
+/** `s` has a space at `i` or later. */
+function spaceFrom(s: string, i: number): boolean {
+  //@ verify
+  //@ pure
+  //@ type i nat
+  let j = i;
+  while (j < s.length && s.charCodeAt(j) !== 32) {
+    //@ invariant i <= j
+    //@ decreases s.length - j
+    j = j + 1;
+  }
+  return j < s.length;
+}
+
+/** An LSP server's command: a binary, never empty, with no spaces unless it is an absolute path
+    (Claude Code's rule; model: Marketplace.IsLspCommand). */
+export function isLspCommand(c: string): boolean {
+  //@ verify
+  return c.length > 0 && (c.charCodeAt(0) === 47 || !spaceFrom(c, 0));
+}

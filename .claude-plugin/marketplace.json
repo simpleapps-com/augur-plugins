@@ -42,6 +42,12 @@
       "source": "./plugins/simpleapps-work-pane",
       "category": "productivity",
       "tags": ["claude-code-only", "mod", "basecamp"]
+    },
+    {
+      "name": "augur-php-lsp",
+      "source": "./plugins/augur-php-lsp",
+      "category": "development",
+      "tags": ["augur", "claude-code-only", "php"]
     }
   ]
 }

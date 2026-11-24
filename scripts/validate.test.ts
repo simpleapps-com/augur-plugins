@@ -271,6 +271,53 @@ test("hooks.json: valid JSON, hooks or modules, and every plugin-root file it ru
   ]);
 });
 
+test(".lsp.json: servers name a binary and their extensions, and hold no secret (GH #36)", async () => {
+  const plugin = (name) => JSON.stringify({ name, version: VERSION });
+  const server = (extra = {}) => ({
+    command: "intelephense",
+    args: ["--stdio"],
+    extensionToLanguage: { ".php": "php" },
+    ...extra,
+  });
+  const good = await repo({
+    ".claude-plugin/marketplace.json": marketplace(["demo", "lsp", "abs"].map(entry)),
+    "plugins/lsp/.claude-plugin/plugin.json": plugin("lsp"),
+    "plugins/lsp/.lsp.json": JSON.stringify({
+      intelephense: server({ settings: { intelephense: { maxMemory: 4096 } } }),
+    }),
+    "plugins/abs/.claude-plugin/plugin.json": plugin("abs"),
+    "plugins/abs/.lsp.json": JSON.stringify({ x: server({ command: "/opt/my tools/x" }) }),
+  });
+  assert.deepEqual((await validate(good)).errors, []);
+
+  const names = ["broken", "list", "spaced", "nomap", "secret", "odd"];
+  const files = Object.fromEntries(
+    names.map((n) => [`plugins/${n}/.claude-plugin/plugin.json`, plugin(n)]),
+  );
+  const bad = await repo({
+    ...files,
+    ".claude-plugin/marketplace.json": marketplace(["demo", ...names].map(entry)),
+    "plugins/broken/.lsp.json": "{ not json",
+    "plugins/list/.lsp.json": "[]",
+    "plugins/spaced/.lsp.json": JSON.stringify({ s: server({ command: "intelephense --stdio" }) }),
+    "plugins/nomap/.lsp.json": JSON.stringify({ n: { command: "x", extensionToLanguage: [] } }),
+    "plugins/secret/.lsp.json": JSON.stringify({
+      k: server({ initializationOptions: { licenceKey: "x" }, settings: { licenseKey: "y" } }),
+    }),
+    "plugins/odd/.lsp.json": JSON.stringify({ o: "not a server" }),
+  });
+  assert.deepEqual((await validate(bad)).errors, [
+    "plugins/broken/.lsp.json is not valid JSON",
+    "plugins/list/.lsp.json MUST be an object of servers",
+    'plugins/nomap/.lsp.json "n" MUST have an "extensionToLanguage" object',
+    'plugins/odd/.lsp.json "o" MUST have a "command" naming a binary (no spaces unless an absolute path)',
+    'plugins/odd/.lsp.json "o" MUST have an "extensionToLanguage" object',
+    'plugins/secret/.lsp.json MUST NOT hold a secret: "licenceKey"',
+    'plugins/secret/.lsp.json MUST NOT hold a secret: "licenseKey"',
+    'plugins/spaced/.lsp.json "s" MUST have a "command" naming a binary (no spaces unless an absolute path)',
+  ]);
+});
+
 test("proofs: proved files are listed, and hand-written Dafny never escapes the proof", async () => {
   const proved = "//@ backend dafny\nexport function f() {}\n";
   const good = await repo({
