@@ -18,6 +18,7 @@
   "include": [
     "scripts/**/*.ts",
     "plugins/*/scripts/**/*.ts",
+    "plugins/*/skills/*/scripts/*.ts",
     "tests/**/*.ts",
     "plugins/*/hooks/*.mjs",
     "*.mjs"
