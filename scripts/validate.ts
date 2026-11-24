@@ -409,12 +409,22 @@ async function checkProofs(run: Run, plugins: string[]): Promise<void> {
       // The first word: the file (split always returns at least one item)
       .map((line) => String(line.trim().split(/\s+/)[0])),
   );
-  // The repo's own scripts, and each plugin's (a mod's proved rules ship with it)
-  for (const dir of ["scripts", ...plugins.map((plugin) => `plugins/${plugin}/scripts`)]) {
+  for (const dir of await scriptDirs(run, plugins)) {
     for (const file of await listDir(join(run.root, dir)))
       await checkProofScript(run, `${dir}/${file}`, listed);
   }
   await checkModels(run);
+}
+
+/** The repo's own scripts, each plugin's (a mod's proved rules ship with it), and each skill's. */
+async function scriptDirs(run: Run, plugins: string[]): Promise<string[]> {
+  const dirs = ["scripts"];
+  for (const plugin of plugins) {
+    dirs.push(`plugins/${plugin}/scripts`);
+    for (const skill of await listDir(join(run.root, "plugins", plugin, "skills")))
+      dirs.push(`plugins/${plugin}/skills/${skill}/scripts`);
+  }
+  return dirs;
 }
 
 /** One script: a proved `.ts` is listed; a `.dfy` adds no escape to its `.dfy.gen`. */

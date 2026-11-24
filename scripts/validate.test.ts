@@ -296,13 +296,18 @@ test("proofs: proved files are listed, and hand-written Dafny never escapes the 
     "models/links/link.dfy": "lemma {:verify false} B() {}\n",
     "plugins/demo/scripts/pane-rules.ts": proved,
     "plugins/demo/scripts/pane-rules.dfy": "lemma {:trusted} T() {}\n",
+    "plugins/demo/skills/tool/scripts/tool-rules.ts": proved,
+    "plugins/demo/skills/tool/scripts/tool-rules.dfy": "lemma {:axiom} S()\n",
   });
   assert.deepEqual((await validate(bad)).errors, [
+    "Missing SKILL.md: plugins/demo/skills/tool/SKILL.md",
     "scripts/orphan.dfy escapes the proof: method M() { expect true; }",
     "scripts/rules.dfy escapes the proof: lemma L() { assume false; }",
     "scripts/unlisted.ts is proved but not listed in LemmaScript-files.txt",
     "plugins/demo/scripts/pane-rules.dfy escapes the proof: lemma {:trusted} T() {}",
     "plugins/demo/scripts/pane-rules.ts is proved but not listed in LemmaScript-files.txt",
+    "plugins/demo/skills/tool/scripts/tool-rules.dfy escapes the proof: lemma {:axiom} S()",
+    "plugins/demo/skills/tool/scripts/tool-rules.ts is proved but not listed in LemmaScript-files.txt",
     "models/Model.dfy escapes the proof: lemma {:axiom} A()",
     "models/links/link.dfy escapes the proof: lemma {:verify false} B() {}",
   ]);
