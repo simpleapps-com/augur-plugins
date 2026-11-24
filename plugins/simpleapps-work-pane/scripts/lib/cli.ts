@@ -1,4 +1,4 @@
-// The `work` commands. The Work pane runs `refresh` and `status`; the others are for a person at a
+// The `work` commands. The Work pane runs `refresh`, `status` and `log-check`; the others are for a person at a
 // shell. Usage: wiki Work-Pane.
 import { readFileSync } from "node:fs";
 
@@ -9,15 +9,15 @@ import { followGithub } from "./follow.ts";
 import type { Api } from "./github.ts";
 import { syncGithub } from "./github.ts";
 import type { RefreshReport } from "./refresh.ts";
-import { readTodoFiles, refreshWork, todoFiles, workStatus } from "./refresh.ts";
+import { logCheck, readTodoFiles, refreshWork, todoFiles, workStatus } from "./refresh.ts";
 import { writeSummary } from "./summary.ts";
 import { linkWork, validateWork } from "./tree.ts";
 
 const USAGE =
-  "usage: work <refresh [--todos <file|dir>] [--project-todos <file|dir>] [--trigger <name>] [--json] | status [--json] | brief <hub> [--todos <file>] [--summary <file>] | validate | link | sync-gh [hub] | follow [--depth N] | import-bc <file.json>... | chart [all] | summary [--today YYYY-MM-DD]> [--root <dir>]";
+  "usage: work <refresh [--todos <file|dir>] [--project-todos <file|dir>] [--trigger <name>] [--partial] [--json] | status [--json] | log-check --trigger <name> --outcome ok|failed [--detail <text>] | brief <hub> [--todos <file>] [--summary <file>] | validate | link | sync-gh [hub] | follow [--depth N] | import-bc <file.json>... | chart [all] | summary [--today YYYY-MM-DD]> [--root <dir>]";
 
 /** Options that take no value. */
-const FLAGS = new Set(["json"]);
+const FLAGS = new Set(["json", "partial"]);
 
 type Write = (line: string) => void;
 
@@ -30,6 +30,7 @@ interface Run {
   today: string;
   write: Write;
   api: Api | undefined;
+  now: () => number;
 }
 
 const option = (run: Run, name: string) => {
@@ -167,6 +168,7 @@ function refresh(run: Run): number {
     ...(projectTodos && { projectTodos }),
     ...(api && { api }),
     ...(trigger && { trigger }),
+    partial: run.options.partial === true,
   });
   if (run.options.json) write(JSON.stringify(report));
   else for (const line of refreshLines(report)) write(line);
@@ -174,8 +176,20 @@ function refresh(run: Run): number {
   return report.ok ? 0 : 1;
 }
 
-function status({ root, options, write }: Run): number {
-  const s = workStatus(root);
+/** `log-check --trigger <name> --outcome ok|failed --detail <text>`: one line per check the pane ran. */
+function logCheckCommand(run: Run): number {
+  const trigger = option(run, "trigger");
+  const outcome = option(run, "outcome");
+  if (trigger === undefined || (outcome !== "ok" && outcome !== "failed")) {
+    run.write(USAGE);
+    return 2;
+  }
+  run.write(logCheck(run.root, run.now(), trigger, outcome === "ok", option(run, "detail") ?? ""));
+  return 0;
+}
+
+function status({ root, options, write, now }: Run): number {
+  const s = workStatus(root, now());
   if (options.json) {
     write(JSON.stringify(s));
     return 0;
@@ -186,12 +200,16 @@ function status({ root, options, write }: Run): number {
   write(`watch_repos: ${s.watch_repos.join(", ") || "none"}`);
   write(`auto_sync: ${s.auto_sync}, every ${s.sync_minutes} minute(s)`);
   write(`last sync: ${s.last_sync ?? "never"}`);
+  write(`last check: ${s.last_check ?? "never"}`);
+  if (s.stale)
+    write(`STALE: no ok check or sync in over ${3 * s.sync_minutes} minutes (3 × sync_minutes)`);
   return 0;
 }
 
 const COMMANDS: Record<string, (run: Run) => number> = {
   refresh,
   status,
+  "log-check": logCheckCommand,
   brief,
   validate,
   link,
@@ -216,13 +234,14 @@ function parseArgs(args: string[]) {
   return { options, positional };
 }
 
-/** Run one command; the exit code. `today` is the person's local date, so "due today" matches their day. */
+/** Run one command; the exit code. `today` is the person's local date, so "due today" matches their day; `now` is the clock for logs and staleness. */
 export function runWork(
   args: string[],
   defaultRoot: string,
   write: Write,
   api?: Api,
   today?: string,
+  now: () => number = Date.now,
 ): number {
   const { options, positional } = parseArgs(args);
   const command = COMMANDS[String(positional[0])];
@@ -241,5 +260,6 @@ export function runWork(
     today: typeof day === "string" ? day : (today ?? new Date().toLocaleDateString("en-CA")),
     write,
     api,
+    now,
   });
 }

@@ -11,7 +11,7 @@ Claude plugins for Augur, from SimpleApps. Add the marketplace once and install 
 | [SimpleApps Work](plugins/simpleapps-work/README.md) | SimpleApps staff working with Basecamp 2 from any Claude surface | `/plugin install simpleapps-work --marketplace simpleapps-com/augur-plugins` |
 | [Augur Build](plugins/augur-build/README.md) | Developers, including third parties, building on Augur: wiki, shipping, code checks and proofs | `/plugin install augur-build --marketplace simpleapps-com/augur-plugins` |
 | [SimpleApps Status Line](plugins/simpleapps-statusline/README.md) | SimpleApps developers: status lines under the prompt. **Claude Code only** | `/plugin install simpleapps-statusline --marketplace simpleapps-com/augur-plugins` |
-| [SimpleApps Work Pane](plugins/simpleapps-work-pane/README.md) | SimpleApps staff: a Work pane for a `simpleapps-work` project, with what you track and a Sync. **Claude Code only**; needs SimpleApps Work | `/plugin install simpleapps-work-pane --marketplace simpleapps-com/augur-plugins` |
+| [SimpleApps Work Pane](plugins/simpleapps-work-pane/README.md) | SimpleApps staff: a Work pane for a `simpleapps-work` project, with what you track and a Sync. **Claude Code only**; needs SimpleApps Work | Runs only in the project that holds `work/`: see its [Install](plugins/simpleapps-work-pane/README.md#install) |
 
 On claude.ai, Desktop, and Cowork, add the marketplace (below), then install plugins from it.
 

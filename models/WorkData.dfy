@@ -1498,4 +1498,116 @@ module WorkData {
   }
 
   function PlainText(html: string): string { PlainFrom(html, 0) }
+
+  // ---------------------------------------------------------------- check log and staleness (GH34)
+  // Every check the pane runs is a line in work/check.log, as every refresh is a line in
+  // work/sync.log, both `<time> <trigger> ok|failed …`. A line records a success when its third
+  // word is exactly `ok`. work/ is stale when no ok check and no ok sync is within three check
+  // intervals: no session was checking, or every check failed. An ok check counts even when it
+  // started no sync, so a quiet stretch with nothing to sync is current.
+
+  predicate IsOkLogLine(line: string)
+  {
+    var a := SolidRunEnd(line, 0);
+    a < |line| &&
+    var b := SolidRunEnd(line, a + 1);
+    b + 3 <= |line| && line[b..b + 3] == " ok" &&
+    (b + 3 == |line| || (b + 4 <= |line| && line[b + 3..b + 4] == " "))
+  }
+
+  // GH34 c-ok: the logs' own success and failure lines.
+  lemma OkLogLineExamples()
+    ensures IsOkLogLine("t a ok")
+    ensures IsOkLogLine("t a ok 3s")
+    ensures !IsOkLogLine("t a failed 3s")
+    ensures !IsOkLogLine("t a okay")
+    ensures !IsOkLogLine("t ok")
+    ensures !IsOkLogLine("t a partial 3s")
+  {
+    // GH35: a sync that could not read Basecamp logs `partial`, which is not a success
+    assert SolidRunEnd("t a partial 3s", 0) == 1;
+    assert SolidRunEnd("t a partial 3s", 2) == 3;
+    assert "t a partial 3s"[3..6] == " pa";
+    assert SolidRunEnd("t a ok", 0) == 1;
+    assert SolidRunEnd("t a ok", 2) == 3;
+    assert SolidRunEnd("t a ok 3s", 0) == 1;
+    assert SolidRunEnd("t a ok 3s", 2) == 3;
+    assert SolidRunEnd("t a failed 3s", 0) == 1;
+    assert SolidRunEnd("t a failed 3s", 2) == 3;
+    assert "t a failed 3s"[3..6] == " fa";
+    assert SolidRunEnd("t a okay", 0) == 1;
+    assert SolidRunEnd("t a okay", 2) == 3;
+    assert "t a okay"[6..7] == "a";
+    assert SolidRunEnd("t ok", 0) == 1;
+    assert SolidRunEnd("t ok", 2) == 4;
+  }
+
+  const StaleIntervals: int := 3
+
+  // The later of the last ok check and the last ok sync, among those that exist.
+  function LatestOk(hasCheck: bool, checkMs: int, hasSync: bool, syncMs: int): int
+  {
+    if !hasSync || (hasCheck && checkMs > syncMs) then checkMs else syncMs
+  }
+
+  predicate IsWorkStale(hasCheck: bool, checkMs: int, hasSync: bool, syncMs: int, now: int, minutes: int)
+  {
+    !(hasCheck || hasSync) ||
+    now - LatestOk(hasCheck, checkMs, hasSync, syncMs) > StaleIntervals * minutes * 60000
+  }
+
+  // GH34 c-stale: with nothing recorded, work/ is stale.
+  lemma NothingRecordedIsStale(checkMs: int, syncMs: int, now: int, minutes: int)
+    ensures IsWorkStale(false, checkMs, false, syncMs, now, minutes)
+  {
+  }
+
+  // GH34 c-stale: an ok check within three intervals keeps work/ current, however old the sync
+  // (a quiet stretch); so does an ok sync.
+  lemma RecentOkIsCurrent(hasCheck: bool, checkMs: int, hasSync: bool, syncMs: int, now: int, minutes: int)
+    requires (hasCheck && now - checkMs <= StaleIntervals * minutes * 60000) ||
+             (hasSync && now - syncMs <= StaleIntervals * minutes * 60000)
+    ensures !IsWorkStale(hasCheck, checkMs, hasSync, syncMs, now, minutes)
+  {
+  }
+
+  // GH34 c-stale: when every record there is is older than three intervals, work/ is stale.
+  lemma AllOldIsStale(hasCheck: bool, checkMs: int, hasSync: bool, syncMs: int, now: int, minutes: int)
+    requires hasCheck ==> now - checkMs > StaleIntervals * minutes * 60000
+    requires hasSync ==> now - syncMs > StaleIntervals * minutes * 60000
+    ensures IsWorkStale(hasCheck, checkMs, hasSync, syncMs, now, minutes)
+  {
+  }
+
+  // Refuted: before GH34 nothing was ever flagged, so the 2026-11-24 gap (9 h 45 min since the
+  // last sync, at 5-minute checks, no check recorded) went unseen.
+  predicate OldIsWorkStale(hasCheck: bool, checkMs: int, hasSync: bool, syncMs: int, now: int, minutes: int)
+  {
+    false
+  }
+
+  // A log line is one line: each line end in a detail becomes a space, so error text can never
+  // split an entry or forge one that reads ok (the review's finding).
+  function OneLineFrom(s: string, i: nat): string
+    decreases |s| - i
+  {
+    if i >= |s| then "" else (if LineEnd(s[i] as int) then " " else s[i..i + 1]) + OneLineFrom(s, i + 1)
+  }
+
+  lemma OneLineHasNoLineEnd(s: string, i: nat)
+    ensures forall k :: 0 <= k < |OneLineFrom(s, i)| ==> !LineEnd(OneLineFrom(s, i)[k] as int)
+    ensures |OneLineFrom(s, i)| == if i >= |s| then 0 else |s| - i
+    decreases |s| - i
+  {
+    if i < |s| { OneLineHasNoLineEnd(s, i + 1); }
+  }
+
+  // Appending is atomic; the file is trimmed back to the last 200 lines only past 400.
+  predicate LogOverflows(lines: int) { lines > 400 }
+
+  lemma OldMissedTheGap()
+    ensures !OldIsWorkStale(false, 0, true, 0, 35100000, 5)
+    ensures IsWorkStale(false, 0, true, 0, 35100000, 5)
+  {
+  }
 }

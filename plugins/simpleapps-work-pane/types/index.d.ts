@@ -25,6 +25,9 @@ export type Snapshot = {
   // The pane's `needs:` lines: what this machine lacks (node, a signed-in gh), then what the
   // project's config gets in the way of (a .mcp.json server that hides the Basecamp connector)
   setup?: string[];
+  // A failed check over a work/ with no ok check or sync in 3 × sync_minutes (GH #34), and that span
+  stale?: boolean;
+  staleMinutes?: number;
 };
 
 /** A Basecamp todo to fetch with get_todo, with the names get_todo doesn't return. */
@@ -51,6 +54,9 @@ export type Status = {
   auto_sync: boolean;
   sync_minutes: number;
   last_sync: string | null;
+  // The last work/check.log line, and whether work/ has no ok check or sync in 3 × sync_minutes
+  last_check?: string | null;
+  stale?: boolean;
   items: {
     id: string;
     source: string;

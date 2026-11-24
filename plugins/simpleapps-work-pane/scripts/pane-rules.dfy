@@ -7,6 +7,28 @@ datatype Pending = not_checked | never_synced | up_to_date | changed
 
 datatype Outcome = did_not_run | locked | failed | synced
 
+datatype PaneStep = idle | sync | check | pane
+
+datatype PaneItem = PaneItem(status: string, source: string, kind: string, mine: bool, watched: bool)
+
+datatype Tally = Tally(basecamp: int, github: int)
+
+datatype PaneTarget = PaneTarget(id: int, projectId: int, projectName: string, list: string)
+
+datatype IndexTodo = IndexTodo(id: int, projectId: int, projectName: string, list: string, updatedKnown: bool, updatedMs: int)
+
+datatype LocalTodo = LocalTodo(num: int, updatedKnown: bool, updatedMs: int, hasProject: bool, projectId: int, mine: bool)
+
+datatype LinkedTodo = LinkedTodo(num: int, hasProject: bool, projectId: int)
+
+datatype FetchedTodo = FetchedTodo(hasId: bool, id: int, completed: bool)
+
+datatype ClosedTodo = ClosedTodo(id: int, at: int)
+
+datatype McpServer = McpServer(name: string, hasUrl: bool, url: string)
+
+datatype PaneSync = PaneSync(at: int, ok: bool, detail: string)
+
 function countColour(known: bool, open: int, complete: bool): Colour
 {
   if !(known) then
@@ -194,6 +216,233 @@ lemma notesBriefProblem_ensures(synced: bool, hasProblem: bool)
 {
 }
 
+function startsPane(isWork: bool): bool
+{
+  isWork
+}
+
+lemma startsPane_ensures(isWork: bool)
+  ensures (startsPane(isWork) <==> isWork)
+{
+}
+
+function commandStep(isWork: bool, args: string): PaneStep
+{
+  if !(isWork) then
+    PaneStep.idle
+  else
+    if (args == "sync") then
+      PaneStep.sync
+    else
+      if (args == "check") then
+        PaneStep.check
+      else
+        PaneStep.pane
+}
+
+function startsAutoSync(autoSync: bool, hasChanges: bool, syncing: bool): bool
+{
+  ((autoSync && hasChanges) && !(syncing))
+}
+
+lemma startsAutoSync_ensures(autoSync: bool, hasChanges: bool, syncing: bool)
+  ensures (startsAutoSync(autoSync, hasChanges, syncing) <==> ((autoSync && hasChanges) && !(syncing)))
+{
+}
+
+function showsStale(checkOk: bool, statusStale: bool): bool
+{
+  (!(checkOk) && statusStale)
+}
+
+lemma showsStale_ensures(checkOk: bool, statusStale: bool)
+  ensures (showsStale(checkOk, statusStale) <==> (!(checkOk) && statusStale))
+{
+}
+
+function waitsForConnector(notLoaded: bool, tries: int): bool
+{
+  (notLoaded && (tries < 3))
+}
+
+lemma waitsForConnector_ensures(notLoaded: bool, tries: int)
+  ensures (waitsForConnector(notLoaded, tries) <==> (notLoaded && (tries < 3)))
+{
+}
+
+function recordsFullSync(synced: bool, basecampRead: bool): bool
+{
+  (synced && basecampRead)
+}
+
+lemma recordsFullSync_ensures(synced: bool, basecampRead: bool)
+  ensures (recordsFullSync(synced, basecampRead) <==> (synced && basecampRead))
+{
+}
+
+function checkRuns(isTimer: bool, due: bool): bool
+{
+  (!(isTimer) || due)
+}
+
+lemma checkRuns_ensures(isTimer: bool, due: bool)
+  ensures (checkRuns(isTimer, due) <==> (!(isTimer) || due))
+{
+}
+
+function syncBegins(syncing: bool): bool
+{
+  !(syncing)
+}
+
+lemma syncBegins_ensures(syncing: bool)
+  ensures (syncBegins(syncing) <==> !(syncing))
+{
+}
+
+function checkSucceeded(failedParts: int): bool
+{
+  (failedParts == 0)
+}
+
+lemma checkSucceeded_ensures(failedParts: int)
+  ensures (checkSucceeded(failedParts) <==> (failedParts == 0))
+{
+}
+
+function runsLinkedPass(refreshOk: bool, basecampRead: bool, hasLinked: bool): bool
+{
+  ((refreshOk && basecampRead) && hasLinked)
+}
+
+lemma runsLinkedPass_ensures(refreshOk: bool, basecampRead: bool, hasLinked: bool)
+  ensures (runsLinkedPass(refreshOk, basecampRead, hasLinked) <==> ((refreshOk && basecampRead) && hasLinked))
+{
+}
+
+function commandChecks(openingRan: bool, openingNotLoaded: bool): bool
+{
+  (!(openingRan) || openingNotLoaded)
+}
+
+lemma commandChecks_ensures(openingRan: bool, openingNotLoaded: bool)
+  ensures (commandChecks(openingRan, openingNotLoaded) <==> (!(openingRan) || openingNotLoaded))
+{
+}
+
+function logsCheck(isRetry: bool, ok: bool, retriesLeft: bool): bool
+{
+  ((!(isRetry) || ok) || !(retriesLeft))
+}
+
+lemma logsCheck_ensures(isRetry: bool, ok: bool, retriesLeft: bool)
+  ensures (logsCheck(isRetry, ok, retriesLeft) <==> ((!(isRetry) || ok) || !(retriesLeft)))
+{
+}
+
+function staleShown(statusRead: bool, checkOk: bool, statusStale: bool, localStale: bool): bool
+{
+  if statusRead then
+    showsStale(checkOk, statusStale)
+  else
+    localStale
+}
+
+function repoName(repo: string): string
+{
+  repo[nameStartBefore(repo, |repo|)..|repo|]
+}
+
+function inWatchedNames(id: string, names: seq<string>): bool
+{
+  watchedFrom(id, names, 0)
+}
+
+function tally(items: seq<PaneItem>): Tally
+{
+  tallyFrom(items, 0)
+}
+
+function failedParts(countFailed: bool, countProblem: string, indexFailed: bool, indexProblem: string, repos: seq<string>, read: seq<bool>, changesRead: bool): seq<string>
+  requires (|repos| == |read|)
+{
+  var count := (if countFailed then [(("Basecamp count (" + countProblem) + ")")] else []);
+  var index := (if indexFailed then [(("Basecamp index (" + indexProblem) + ")")] else []);
+  var changes := (if changesRead then [] else ["GitHub changes"]);
+  (((count + index) + unreadReposFrom(repos, read, 0)) + changes)
+}
+
+function uniqueTodos(todos: seq<IndexTodo>): seq<IndexTodo>
+{
+  uniqueTodosFrom([], todos, 0)
+}
+
+function todosToFetch(remote: seq<IndexTodo>, local: seq<LocalTodo>, linked: bool): seq<PaneTarget>
+{
+  (editedFrom(remote, local, 0) + leftFrom(local, remote, linked, 0))
+}
+
+function linkedTargets(found: seq<LinkedTodo>): seq<PaneTarget>
+{
+  linkedFrom(found, 0)
+}
+
+function completedIds(records: seq<FetchedTodo>): seq<int>
+{
+  completedFrom(records, 0)
+}
+
+function skipClosed(targets: seq<PaneTarget>, closed: seq<ClosedTodo>, now: int): seq<PaneTarget>
+{
+  notClosedFrom(targets, closed, now, 0)
+}
+
+function rememberClosed(closed: seq<ClosedTodo>, ids: seq<int>, now: int): seq<ClosedTodo>
+{
+  (keptFrom(closed, ids, now, 0) + closedNowFrom(ids, now, 0))
+}
+
+function briefProjectIds(ids: seq<int>): seq<int>
+{
+  projectIdsFrom([], ids, 0)
+}
+
+function duplicateNames(servers: seq<McpServer>): seq<string>
+{
+  onConnectorUrlFrom(servers, 0)
+}
+
+function syncResultOf(ran: bool, locked: bool, failed: bool, step: string, why: string, at: int): PaneSync
+{
+  var outcome := outcomeOf(ran, locked, failed);
+  if outcome.did_not_run? then
+    PaneSync(at, false, "work refresh did not run")
+  else
+    if outcome.locked? then
+      PaneSync(at, false, "another sync is running")
+    else
+      if outcome.failed? then
+        PaneSync(at, false, ((("failed at " + step) + ": ") + why))
+      else
+        PaneSync(at, true, "synced")
+}
+
+function withBasecampSkipped(result: PaneSync, skipped: bool, problem: string): PaneSync
+{
+  if (recordsFullSync(result.ok, !(skipped)) || !(result.ok)) then
+    result
+  else
+    PaneSync(result.at, false, (((result.detail + ", GitHub only; Basecamp skipped (") + problem) + ")"))
+}
+
+function withBriefProblem(result: PaneSync, hasProblem: bool, problem: string): PaneSync
+{
+  if !(notesBriefProblem(result.ok, hasProblem)) then
+    result
+  else
+    PaneSync(result.at, result.ok, (((result.detail + "; briefs kept their last Basecamp read (") + problem) + ")"))
+}
+
 const BASECAMP_ORIGIN: string := "https://basecamp.augur-mcp.com"
 
 function idDigitsFrom_fun_spec(s: string, i: nat): bool
@@ -248,4 +497,591 @@ by method {
     j := (j + 1);
   }
   return (j < |repo|);
+}
+
+function nameStartBefore_fun_spec(repo: string, i: nat): int
+  requires (i <= |repo|)
+  ensures 0 <= nameStartBefore_fun_spec(repo, i) <= i
+  decreases i
+{
+  // Back from i to just after a "/", or to the start
+  if i == 0 || (repo[i - 1] as int) == 47 then i else nameStartBefore_fun_spec(repo, i - 1)
+}
+
+function nameStartBefore(repo: string, i: nat): int
+  requires (i <= |repo|)
+{
+  nameStartBefore_fun_spec(repo, i)
+}
+by method {
+  var j := i;
+  while ((j > 0) && ((repo[(j - 1)] as int) != 47))
+    invariant (0 <= j)
+    invariant (j <= i)
+    invariant nameStartBefore_fun_spec(repo, j) == nameStartBefore_fun_spec(repo, i)
+    decreases j
+  {
+    j := (j - 1);
+  }
+  return j;
+}
+
+function watchedFrom_fun_spec(id: string, names: seq<string>, i: nat): bool
+  decreases |names| - i
+{
+  i < |names| && (isIssueIdOf(id, ("gh-" + names[i]) + "-") || watchedFrom_fun_spec(id, names, i + 1))
+}
+
+function watchedFrom(id: string, names: seq<string>, i: nat): bool
+{
+  watchedFrom_fun_spec(id, names, i)
+}
+by method {
+  var j := i;
+  while ((j < |names|) && !(isIssueIdOf(id, (("gh-" + names[j]) + "-"))))
+    invariant (i <= j)
+    invariant j <= |names| || j == i
+    invariant watchedFrom_fun_spec(id, names, j) == watchedFrom_fun_spec(id, names, i)
+    decreases (|names| - j)
+  {
+    j := (j + 1);
+  }
+  return (j < |names|);
+}
+
+function tallyFrom_fun_spec(items: seq<PaneItem>, i: nat): Tally
+  decreases |items| - i
+{
+  if i >= |items| then Tally(0, 0)
+  else
+    var rest := tallyFrom_fun_spec(items, i + 1);
+    var it := items[i];
+    var open := it.status == "open";
+    Tally(rest.basecamp + (if isTrackedTodo(open, it.source == "basecamp", it.kind == "todo", it.mine) then 1 else 0),
+          rest.github + (if isTrackedIssue(open, it.source == "github", it.kind == "issue", it.watched) then 1 else 0))
+}
+
+function tallyFrom(items: seq<PaneItem>, i: nat): Tally
+{
+  tallyFrom_fun_spec(items, i)
+}
+by method {
+  var b := 0;
+  var g := 0;
+  var j := i;
+  while (j < |items|)
+    invariant (i <= j)
+    invariant j <= |items| || j == i
+    invariant b + tallyFrom_fun_spec(items, j).basecamp == tallyFrom_fun_spec(items, i).basecamp
+    invariant g + tallyFrom_fun_spec(items, j).github == tallyFrom_fun_spec(items, i).github
+    decreases (|items| - j)
+  {
+    var it := items[j];
+    var open := (it.status == "open");
+    var i_t0 := isTrackedTodo(open, (it.source == "basecamp"), (it.kind == "todo"), it.mine);
+    if i_t0 {
+      b := (b + 1);
+    }
+    var i_t1 := isTrackedIssue(open, (it.source == "github"), (it.kind == "issue"), it.watched);
+    if i_t1 {
+      g := (g + 1);
+    }
+    j := (j + 1);
+  }
+  return Tally(b, g);
+}
+
+function unreadReposFrom_fun_spec(repos: seq<string>, read: seq<bool>, i: nat): seq<string>
+  requires (|repos| == |read|)
+  decreases |repos| - i
+{
+  if i >= |repos| then [] else (if !read[i] then [repos[i]] else []) + unreadReposFrom_fun_spec(repos, read, i + 1)
+}
+
+function unreadReposFrom(repos: seq<string>, read: seq<bool>, i: nat): seq<string>
+  requires (|repos| == |read|)
+{
+  unreadReposFrom_fun_spec(repos, read, i)
+}
+by method {
+  var acc: seq<string> := [];
+  var j := i;
+  while (j < |repos|)
+    invariant (i <= j)
+    invariant j <= |repos| || j == i
+    invariant acc + unreadReposFrom_fun_spec(repos, read, j) == unreadReposFrom_fun_spec(repos, read, i)
+    decreases (|repos| - j)
+  {
+    if !(read[j]) {
+      acc := (acc + [repos[j]]);
+    }
+    j := (j + 1);
+  }
+  return acc;
+}
+
+function todoAt_fun_spec(todos: seq<IndexTodo>, id: int, i: nat): int
+  ensures todoAt_fun_spec(todos, id, i) == -1 || (i <= todoAt_fun_spec(todos, id, i) < |todos|)
+  decreases |todos| - i
+{
+  if i >= |todos| then -1 else if todos[i].id == id then i else todoAt_fun_spec(todos, id, i + 1)
+}
+
+function todoAt(todos: seq<IndexTodo>, id: int, i: nat): int
+{
+  todoAt_fun_spec(todos, id, i)
+}
+by method {
+  var j := i;
+  while ((j < |todos|) && (todos[j].id != id))
+    invariant (i <= j)
+    invariant j <= |todos| || j == i
+    invariant todoAt_fun_spec(todos, id, j) == todoAt_fun_spec(todos, id, i)
+    decreases (|todos| - j)
+  {
+    j := (j + 1);
+  }
+  return (if (j < |todos|) then j else -1);
+}
+
+function uniqueTodosFrom_fun_spec(acc: seq<IndexTodo>, todos: seq<IndexTodo>, i: nat): seq<IndexTodo>
+  decreases |todos| - i
+{
+  if i >= |todos| then acc
+  else
+    var t := todos[i];
+    var k := todoAt(acc, t.id, 0);
+    uniqueTodosFrom_fun_spec(if k < 0 then acc + [t] else acc[0..k] + [t] + acc[k + 1..], todos, i + 1)
+}
+
+function uniqueTodosFrom(acc: seq<IndexTodo>, todos: seq<IndexTodo>, i: nat): seq<IndexTodo>
+{
+  uniqueTodosFrom_fun_spec(acc, todos, i)
+}
+by method {
+  var out := acc;
+  var j := i;
+  while (j < |todos|)
+    invariant (i <= j)
+    invariant j <= |todos| || j == i
+    invariant uniqueTodosFrom_fun_spec(out, todos, j) == uniqueTodosFrom_fun_spec(acc, todos, i)
+    decreases (|todos| - j)
+  {
+    var t := todos[j];
+    var i_t2 := todoAt(out, t.id, 0);
+    var k := i_t2;
+    out := (if (k < 0) then (out + [t]) else ((out[0..k] + [t]) + out[(k + 1)..]));
+    j := (j + 1);
+  }
+  return out;
+}
+
+function localAt_fun_spec(local: seq<LocalTodo>, num: int, i: nat): int
+  ensures localAt_fun_spec(local, num, i) == -1 || (i <= localAt_fun_spec(local, num, i) < |local|)
+  decreases |local| - i
+{
+  // The last match: a later one wins, as a Map keeps the last value of a key
+  if i >= |local| then -1
+  else
+    var rest := localAt_fun_spec(local, num, i + 1);
+    if rest != -1 then rest else if local[i].num == num then i else -1
+}
+
+function localAt(local: seq<LocalTodo>, num: int, i: nat): int
+{
+  localAt_fun_spec(local, num, i)
+}
+by method {
+  var found := -1;
+  var j := i;
+  while (j < |local|)
+    invariant (i <= j)
+    invariant ((found == -1) || ((i <= found) && (found < |local|)))
+    invariant j <= |local| || j == i
+    invariant (if localAt_fun_spec(local, num, j) != -1 then localAt_fun_spec(local, num, j) else found) == localAt_fun_spec(local, num, i)
+    decreases (|local| - j)
+  {
+    if (local[j].num == num) {
+      found := j;
+    }
+    j := (j + 1);
+  }
+  return found;
+}
+
+function editedFrom_fun_spec(remote: seq<IndexTodo>, local: seq<LocalTodo>, i: nat): seq<PaneTarget>
+  decreases |remote| - i
+{
+  if i >= |remote| then []
+  else
+    var r := remote[i];
+    var k := localAt(local, r.id, 0);
+    var beforeKnown := k >= 0 && local[k].updatedKnown;
+    var beforeMs := if k >= 0 then local[k].updatedMs else 0;
+    (if isEdited(beforeKnown, beforeMs, r.updatedKnown, r.updatedMs) then [PaneTarget(r.id, r.projectId, r.projectName, r.list)] else [])
+      + editedFrom_fun_spec(remote, local, i + 1)
+}
+
+function editedFrom(remote: seq<IndexTodo>, local: seq<LocalTodo>, i: nat): seq<PaneTarget>
+{
+  editedFrom_fun_spec(remote, local, i)
+}
+by method {
+  var acc: seq<PaneTarget> := [];
+  var j := i;
+  while (j < |remote|)
+    invariant (i <= j)
+    invariant j <= |remote| || j == i
+    invariant acc + editedFrom_fun_spec(remote, local, j) == editedFrom_fun_spec(remote, local, i)
+    decreases (|remote| - j)
+  {
+    var r := remote[j];
+    var i_t3 := localAt(local, r.id, 0);
+    var k := i_t3;
+    var beforeKnown := ((k >= 0) && local[k].updatedKnown);
+    var beforeMs := (if (k >= 0) then local[k].updatedMs else 0);
+    var i_t4 := isEdited(beforeKnown, beforeMs, r.updatedKnown, r.updatedMs);
+    if i_t4 {
+      acc := (acc + [PaneTarget(r.id, r.projectId, r.projectName, r.list)]);
+    }
+    j := (j + 1);
+  }
+  return acc;
+}
+
+function remoteHasFrom_fun_spec(remote: seq<IndexTodo>, id: int, i: nat): bool
+  decreases |remote| - i
+{
+  i < |remote| && (remote[i].id == id || remoteHasFrom_fun_spec(remote, id, i + 1))
+}
+
+function remoteHasFrom(remote: seq<IndexTodo>, id: int, i: nat): bool
+{
+  remoteHasFrom_fun_spec(remote, id, i)
+}
+by method {
+  var j := i;
+  while ((j < |remote|) && (remote[j].id != id))
+    invariant (i <= j)
+    invariant j <= |remote| || j == i
+    invariant remoteHasFrom_fun_spec(remote, id, j) == remoteHasFrom_fun_spec(remote, id, i)
+    decreases (|remote| - j)
+  {
+    j := (j + 1);
+  }
+  return (j < |remote|);
+}
+
+function leftFrom_fun_spec(local: seq<LocalTodo>, remote: seq<IndexTodo>, linked: bool, i: nat): seq<PaneTarget>
+  decreases |local| - i
+{
+  if i >= |local| then []
+  else
+    var l := local[i];
+    (if hasLeft(remoteHasFrom(remote, l.num, 0), l.hasProject, linked, l.mine) then [PaneTarget(l.num, l.projectId, "", "")] else [])
+      + leftFrom_fun_spec(local, remote, linked, i + 1)
+}
+
+function leftFrom(local: seq<LocalTodo>, remote: seq<IndexTodo>, linked: bool, i: nat): seq<PaneTarget>
+{
+  leftFrom_fun_spec(local, remote, linked, i)
+}
+by method {
+  var acc: seq<PaneTarget> := [];
+  var j := i;
+  while (j < |local|)
+    invariant (i <= j)
+    invariant j <= |local| || j == i
+    invariant acc + leftFrom_fun_spec(local, remote, linked, j) == leftFrom_fun_spec(local, remote, linked, i)
+    decreases (|local| - j)
+  {
+    var l := local[j];
+    var i_t6 := remoteHasFrom(remote, l.num, 0);
+    var i_t5 := hasLeft(i_t6, l.hasProject, linked, l.mine);
+    if i_t5 {
+      acc := (acc + [PaneTarget(l.num, l.projectId, "", "")]);
+    }
+    j := (j + 1);
+  }
+  return acc;
+}
+
+function linkedFrom_fun_spec(found: seq<LinkedTodo>, i: nat): seq<PaneTarget>
+  decreases |found| - i
+{
+  if i >= |found| then []
+  else (if found[i].hasProject then [PaneTarget(found[i].num, found[i].projectId, "", "")] else []) + linkedFrom_fun_spec(found, i + 1)
+}
+
+function linkedFrom(found: seq<LinkedTodo>, i: nat): seq<PaneTarget>
+{
+  linkedFrom_fun_spec(found, i)
+}
+by method {
+  var acc: seq<PaneTarget> := [];
+  var j := i;
+  while (j < |found|)
+    invariant (i <= j)
+    invariant j <= |found| || j == i
+    invariant acc + linkedFrom_fun_spec(found, j) == linkedFrom_fun_spec(found, i)
+    decreases (|found| - j)
+  {
+    var f := found[j];
+    if f.hasProject {
+      acc := (acc + [PaneTarget(f.num, f.projectId, "", "")]);
+    }
+    j := (j + 1);
+  }
+  return acc;
+}
+
+function completedFrom_fun_spec(records: seq<FetchedTodo>, i: nat): seq<int>
+  decreases |records| - i
+{
+  if i >= |records| then []
+  else (if records[i].hasId && records[i].completed then [records[i].id] else []) + completedFrom_fun_spec(records, i + 1)
+}
+
+function completedFrom(records: seq<FetchedTodo>, i: nat): seq<int>
+{
+  completedFrom_fun_spec(records, i)
+}
+by method {
+  var acc: seq<int> := [];
+  var j := i;
+  while (j < |records|)
+    invariant (i <= j)
+    invariant j <= |records| || j == i
+    invariant acc + completedFrom_fun_spec(records, j) == completedFrom_fun_spec(records, i)
+    decreases (|records| - j)
+  {
+    var r := records[j];
+    if (r.hasId && r.completed) {
+      acc := (acc + [r.id]);
+    }
+    j := (j + 1);
+  }
+  return acc;
+}
+
+function closedAt_fun_spec(closed: seq<ClosedTodo>, id: int, i: nat): int
+  ensures closedAt_fun_spec(closed, id, i) == -1 || (i <= closedAt_fun_spec(closed, id, i) < |closed|)
+  decreases |closed| - i
+{
+  if i >= |closed| then -1
+  else
+    var rest := closedAt_fun_spec(closed, id, i + 1);
+    if rest != -1 then rest else if closed[i].id == id then i else -1
+}
+
+function closedAt(closed: seq<ClosedTodo>, id: int, i: nat): int
+{
+  closedAt_fun_spec(closed, id, i)
+}
+by method {
+  var found := -1;
+  var j := i;
+  while (j < |closed|)
+    invariant (i <= j)
+    invariant ((found == -1) || ((i <= found) && (found < |closed|)))
+    invariant j <= |closed| || j == i
+    invariant (if closedAt_fun_spec(closed, id, j) != -1 then closedAt_fun_spec(closed, id, j) else found) == closedAt_fun_spec(closed, id, i)
+    decreases (|closed| - j)
+  {
+    if (closed[j].id == id) {
+      found := j;
+    }
+    j := (j + 1);
+  }
+  return found;
+}
+
+function notClosedFrom_fun_spec(targets: seq<PaneTarget>, closed: seq<ClosedTodo>, now: int, i: nat): seq<PaneTarget>
+  decreases |targets| - i
+{
+  if i >= |targets| then []
+  else
+    var k := closedAt(closed, targets[i].id, 0);
+    (if !skipsClosed(k >= 0, now, if k >= 0 then closed[k].at else 0) then [targets[i]] else [])
+      + notClosedFrom_fun_spec(targets, closed, now, i + 1)
+}
+
+function notClosedFrom(targets: seq<PaneTarget>, closed: seq<ClosedTodo>, now: int, i: nat): seq<PaneTarget>
+{
+  notClosedFrom_fun_spec(targets, closed, now, i)
+}
+by method {
+  var acc: seq<PaneTarget> := [];
+  var j := i;
+  while (j < |targets|)
+    invariant (i <= j)
+    invariant j <= |targets| || j == i
+    invariant acc + notClosedFrom_fun_spec(targets, closed, now, j) == notClosedFrom_fun_spec(targets, closed, now, i)
+    decreases (|targets| - j)
+  {
+    var i_t7 := closedAt(closed, targets[j].id, 0);
+    var k := i_t7;
+    var i_t8 := skipsClosed((k >= 0), now, (if (k >= 0) then closed[k].at else 0));
+    if !(i_t8) {
+      acc := (acc + [targets[j]]);
+    }
+    j := (j + 1);
+  }
+  return acc;
+}
+
+function idFrom_fun_spec(ids: seq<int>, id: int, i: nat): bool
+  decreases |ids| - i
+{
+  i < |ids| && (ids[i] == id || idFrom_fun_spec(ids, id, i + 1))
+}
+
+function idFrom(ids: seq<int>, id: int, i: nat): bool
+{
+  idFrom_fun_spec(ids, id, i)
+}
+by method {
+  var j := i;
+  while ((j < |ids|) && (ids[j] != id))
+    invariant (i <= j)
+    invariant j <= |ids| || j == i
+    invariant idFrom_fun_spec(ids, id, j) == idFrom_fun_spec(ids, id, i)
+    decreases (|ids| - j)
+  {
+    j := (j + 1);
+  }
+  return (j < |ids|);
+}
+
+function keptFrom_fun_spec(closed: seq<ClosedTodo>, ids: seq<int>, now: int, i: nat): seq<ClosedTodo>
+  decreases |closed| - i
+{
+  if i >= |closed| then []
+  else ((if isRecentlyClosed(now, closed[i].at) && !idFrom(ids, closed[i].id, 0) then [closed[i]] else [])
+    + keptFrom_fun_spec(closed, ids, now, i + 1))
+}
+
+function keptFrom(closed: seq<ClosedTodo>, ids: seq<int>, now: int, i: nat): seq<ClosedTodo>
+{
+  keptFrom_fun_spec(closed, ids, now, i)
+}
+by method {
+  var acc: seq<ClosedTodo> := [];
+  var j := i;
+  while (j < |closed|)
+    invariant (i <= j)
+    invariant j <= |closed| || j == i
+    invariant acc + keptFrom_fun_spec(closed, ids, now, j) == keptFrom_fun_spec(closed, ids, now, i)
+    decreases (|closed| - j)
+  {
+    var c := closed[j];
+    var i_t9 := isRecentlyClosed(now, c.at);
+    var i_branch0 := i_t9;
+    if i_branch0 {
+      var i_t10 := idFrom(ids, c.id, 0);
+      i_branch0 := !(i_t10);
+    }
+    if i_branch0 {
+      acc := (acc + [c]);
+    }
+    j := (j + 1);
+  }
+  return acc;
+}
+
+function closedNowFrom_fun_spec(ids: seq<int>, now: int, i: nat): seq<ClosedTodo>
+  decreases |ids| - i
+{
+  if i >= |ids| then []
+  else (if !idFrom(ids, ids[i], i + 1) then [ClosedTodo(ids[i], now)] else []) + closedNowFrom_fun_spec(ids, now, i + 1)
+}
+
+function closedNowFrom(ids: seq<int>, now: int, i: nat): seq<ClosedTodo>
+{
+  closedNowFrom_fun_spec(ids, now, i)
+}
+by method {
+  var acc: seq<ClosedTodo> := [];
+  var j := i;
+  while (j < |ids|)
+    invariant (i <= j)
+    invariant j <= |ids| || j == i
+    invariant acc + closedNowFrom_fun_spec(ids, now, j) == closedNowFrom_fun_spec(ids, now, i)
+    decreases (|ids| - j)
+  {
+    var i_t11 := idFrom(ids, ids[j], (j + 1));
+    if !(i_t11) {
+      acc := (acc + [ClosedTodo(ids[j], now)]);
+    }
+    j := (j + 1);
+  }
+  return acc;
+}
+
+function projectIdsFrom_fun_spec(acc: seq<int>, ids: seq<int>, i: nat): seq<int>
+  decreases |ids| - i
+{
+  if i >= |ids| then acc
+  else projectIdsFrom_fun_spec(if isProjectId(ids[i]) && !idFrom(acc, ids[i], 0) then acc + [ids[i]] else acc, ids, i + 1)
+}
+
+function projectIdsFrom(acc: seq<int>, ids: seq<int>, i: nat): seq<int>
+{
+  projectIdsFrom_fun_spec(acc, ids, i)
+}
+by method {
+  var out := acc;
+  var j := i;
+  while (j < |ids|)
+    invariant (i <= j)
+    invariant j <= |ids| || j == i
+    invariant projectIdsFrom_fun_spec(out, ids, j) == projectIdsFrom_fun_spec(acc, ids, i)
+    decreases (|ids| - j)
+  {
+    var i_t12 := isProjectId(ids[j]);
+    var i_branch1 := i_t12;
+    if i_branch1 {
+      var i_t13 := idFrom(out, ids[j], 0);
+      i_branch1 := !(i_t13);
+    }
+    if i_branch1 {
+      out := (out + [ids[j]]);
+    }
+    j := (j + 1);
+  }
+  return out;
+}
+
+function onConnectorUrlFrom_fun_spec(servers: seq<McpServer>, i: nat): seq<string>
+  decreases |servers| - i
+{
+  if i >= |servers| then []
+  else (if servers[i].hasUrl && isBasecampUrl(servers[i].url) then [servers[i].name] else []) + onConnectorUrlFrom_fun_spec(servers, i + 1)
+}
+
+function onConnectorUrlFrom(servers: seq<McpServer>, i: nat): seq<string>
+{
+  onConnectorUrlFrom_fun_spec(servers, i)
+}
+by method {
+  var acc: seq<string> := [];
+  var j := i;
+  while (j < |servers|)
+    invariant (i <= j)
+    invariant j <= |servers| || j == i
+    invariant acc + onConnectorUrlFrom_fun_spec(servers, j) == onConnectorUrlFrom_fun_spec(servers, i)
+    decreases (|servers| - j)
+  {
+    var s := servers[j];
+    var i_branch2 := s.hasUrl;
+    if i_branch2 {
+      var i_t14 := isBasecampUrl(s.url);
+      i_branch2 := i_t14;
+    }
+    if i_branch2 {
+      acc := (acc + [s.name]);
+    }
+    j := (j + 1);
+  }
+  return acc;
 }

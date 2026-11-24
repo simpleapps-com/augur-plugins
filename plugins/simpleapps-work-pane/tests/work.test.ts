@@ -4,6 +4,7 @@ import { expect, mock, test } from "claude-code/testing";
 
 import {
   CONNECTOR,
+  NOT_WORK,
   briefProjectIds,
   changedSinceArgv,
   checkSummary,
@@ -177,6 +178,12 @@ test("change detection: edited, new and departed todos, linked ones, closed ones
   expect(todosToFetch(remote, STATUS, false).map((t) => t.id)).toEqual([13]);
   // On a Sync every departed local todo is read again
   expect(todosToFetch(remote, STATUS, true).map((t) => t.id)).toEqual([13, 12]);
+  // A malformed local id parses to NaN and is skipped, never fetched as departed
+  const malformed = {
+    ...STATUS,
+    items: [{ ...STATUS.items[0], id: "bc-todo-x" } as Status["items"][number]],
+  };
+  expect(todosToFetch([], malformed, true)).toEqual([]);
   expect(
     linkedTargets({
       ok: true,
@@ -274,6 +281,14 @@ interface World {
   connected: boolean;
   /** The project's .mcp.json, or none. */
   mcpFile: string | undefined;
+  /** The session root holds work/README.md: a simpleapps-work project. */
+  hasWork: boolean;
+  /** Every pane open. */
+  opens: number;
+  /** How many connect calls fail as "still connecting" first: a fresh `claude -p` run. */
+  slowConnects: number;
+  /** How many tool calls fail as "no connected MCP tool" first, though connected. */
+  toolFails: number;
   status: Status | undefined;
   calls: string[];
   /** Every server `$.mcp.connect` was asked for. */
@@ -301,6 +316,10 @@ function stubs(on: On, overrides: Partial<World> = {}): World & { clock: MockClo
     ghSignedIn: true,
     connected: true,
     mcpFile: undefined,
+    hasWork: true,
+    opens: 0,
+    slowConnects: 0,
+    toolFails: 0,
     status: STATUS,
     calls: [] as string[],
     connects: [] as string[],
@@ -326,6 +345,7 @@ function stubs(on: On, overrides: Partial<World> = {}): World & { clock: MockClo
     if (e.path !== "/p/.mcp.json" || world.mcpFile === undefined) throw new Error("ENOENT");
     return { value: world.mcpFile };
   });
+  on("fs.exists", (_$, e) => ({ value: world.hasWork && e.path === "/p/work/README.md" }));
   on("fs.write", (_$, e) => {
     world.writes.set(e.path, e.text);
     return { value: undefined };
@@ -342,13 +362,19 @@ function stubs(on: On, overrides: Partial<World> = {}): World & { clock: MockClo
   on("mcp.connect", (_$, e) => {
     world.connects.push(e.server);
     return {
-      value: world.connected
-        ? { isConnected: true, server: CONNECTOR }
-        : { isConnected: false, reason: "unlisted", message: "not listed" },
+      value:
+        world.connected && world.connects.length > world.slowConnects
+          ? { isConnected: true, server: CONNECTOR }
+          : { isConnected: false, reason: "unlisted", message: "not listed" },
     };
   });
   on("mcp.call", (_$, e) => {
     world.calls.push(e.tool);
+    // Connected, but the tools not callable yet: what a fresh session can see for a moment
+    if (world.toolFails > 0) {
+      world.toolFails--;
+      return { deny: `no connected MCP tool ${e.tool}` };
+    }
     if (e.tool === "count_my_todos")
       return { value: text({ open: 1, complete: true, fingerprint: "f1" }) };
     if (e.tool === "list_my_todo_index") return { value: text(INDEX) };
@@ -357,7 +383,10 @@ function stubs(on: On, overrides: Partial<World> = {}): World & { clock: MockClo
   });
   on("session.start", () => ({ cwd: "/p" }));
   on("command.register", () => ({ value: { command: "work" } }));
-  on("ui.open", () => ({ value: { isPlaced: true } }));
+  on("ui.open", () => {
+    world.opens++;
+    return { value: { isPlaced: true } };
+  });
   on("ui.toast", () => ({ value: undefined }));
   return world;
 }
@@ -388,6 +417,199 @@ test("/work check counts what you track, and the pane shows it", async ($, on) =
     expect(await ui.find({ type: "Text", text: "never synced" })).toBeDefined();
     await ui.unmount();
   }
+});
+
+test("outside a work project the pane stays idle: no pane, no gh, no checks", async ($, on) => {
+  const world = stubs(on, { hasWork: false });
+  await $.session.start(START);
+  await world.clock.advance(30 * 60_000);
+  expect(world.runs).toEqual([]);
+  expect(world.calls).toEqual([]);
+  expect(world.connects).toEqual([]);
+  expect(world.opens).toBe(0);
+  // /work still answers, and says where the pane runs
+  for (const args of ["", "check", "sync"]) {
+    expect((await $.command.run(work(args))).text).toBe(NOT_WORK);
+  }
+  expect(world.runs).toEqual([]);
+  expect(world.opens).toBe(0);
+});
+
+const logs = (world: World) => world.runs.filter((argv) => argv.includes("log-check"));
+const outcomeOf = (argv: string[] | undefined) => argv?.[(argv?.indexOf("--outcome") ?? -2) + 1];
+
+test("each check that runs is logged once, with whether it started a sync; a tick that is not due is not (GH #34)", async ($, on) => {
+  const world = stubs(on);
+  await $.session.start(START);
+  await $.command.run(work("check"));
+  // One line: `/work check` waited for the opening check and used its reading (commandChecks)
+  const before = logs(world).length;
+  expect(before).toBe(1);
+  for (const argv of logs(world)) {
+    expect(outcomeOf(argv)).toBe("ok");
+    expect(String(argv.at(-1))).toMatch(/ · no sync$/);
+    // Written by the scripts, on the project's work/
+    expect(argv.slice(2, 4)).toEqual(["--root", "/p/work"]);
+  }
+  // A tick inside the interval is not due: no line
+  await world.clock.advance(60_000);
+  expect(logs(world).length).toBe(before);
+  // Past the interval the timer checks, and logs once
+  await world.clock.advance(5 * 60_000);
+  expect(logs(world).length).toBe(before + 1);
+  expect(logs(world).at(-1)).toContain("timer");
+});
+
+test("a check that starts a sync says so (GH #34)", async ($, on) => {
+  const world = stubs(on, { status: { ...STATUS, auto_sync: true } });
+  // Synced before, so GitHub's changes since then are pending; no session start, so the
+  // command's own check is the one that starts the sync, and the command waits for it
+  world.store.set("lastSyncAt", "2026-11-22T00:00:00Z");
+  await $.command.run(work(""));
+  expect(logs(world).some((argv) => String(argv.at(-1)).endsWith(" · sync started"))).toBe(true);
+  expect(world.runs.some((argv) => argv.includes("refresh"))).toBe(true);
+});
+
+test("a failed check is logged as failed, and over a stale record the pane shows stale in red (GH #34)", async ($, on) => {
+  const world = stubs(on, { connected: false, status: { ...STATUS, stale: true } });
+  await $.session.start(START);
+  await $.command.run(work(""));
+  expect(outcomeOf(logs(world).at(-1))).toBe("failed");
+  const ui = await $.ui.mount({ ...PANE, surface: "terminal" });
+  expect(
+    await ui.find({ type: "Text", text: "stale: no ok check or sync in 15 min" }),
+  ).toBeDefined();
+  await ui.unmount();
+});
+
+test("when work status cannot run, the check is still logged as failed (GH #34)", async ($, on) => {
+  const world = stubs(on, { status: undefined });
+  await $.session.start(START);
+  await $.command.run(work(""));
+  const last = logs(world).at(-1);
+  expect(outcomeOf(last)).toBe("failed");
+  expect(String(last?.at(-1))).toBe("work status · no sync");
+});
+
+test("cycle refuted design: a failing work status is logged once per interval, not every tick", async ($, on) => {
+  // WorkPane OldLoggedTicksNotDue: the due test comes before work status
+  const world = stubs(on, { status: undefined });
+  await $.session.start(START);
+  await $.command.run(work(""));
+  const opened = logs(world).length;
+  for (let i = 0; i < 3; i++) await world.clock.advance(60_000);
+  expect(logs(world).length).toBe(opened);
+  await world.clock.advance(3 * 60_000);
+  expect(logs(world).length).toBe(opened + 1);
+  expect(outcomeOf(logs(world).at(-1))).toBe("failed");
+});
+
+test("cycle-3: one sync at a time in a process; the second is turned away", async ($, on) => {
+  const world = stubs(on);
+  const first = $.command.run(work("sync"));
+  const second = $.command.run(work("sync"));
+  const answers = [(await first).text, (await second).text];
+  expect(answers).toContain("Work sync: already syncing");
+  expect(answers).toContain("Work sync: synced");
+  expect(
+    world.runs.filter((argv) => argv.includes("refresh") && !argv.includes("command+linked"))
+      .length,
+  ).toBe(1);
+});
+
+const refreshes = (world: World) => world.runs.filter((argv) => argv.includes("refresh"));
+
+test("a headless /work sync waits for a connector that is still connecting (GH #35)", async ($, on) => {
+  // A fresh `claude -p "/work sync"`: no session start, and the first connect is not ready yet
+  const world = stubs(on, { slowConnects: 1 });
+  const pending = $.command.run(work("sync"));
+  await world.clock.advance(2000);
+  expect((await pending).text).toBe("Work sync: synced");
+  expect(refreshes(world)[0]).not.toContain("--partial");
+  expect(world.store.get("lastSyncAt")).toBe(new Date(NOW).toISOString());
+});
+
+test("a sync that cannot read Basecamp refreshes GitHub as partial and records no sync (GH #35)", async ($, on) => {
+  const world = stubs(on, { connected: false });
+  const pending = $.command.run(work("sync"));
+  for (let i = 0; i < 3; i++) await world.clock.advance(2000);
+  const answer = await pending;
+  expect(answer.text).toMatch(
+    /^Work sync: synced, GitHub only; Basecamp skipped \(tool not loaded/,
+  );
+  // Every refresh is partial, and the linked pass does not run (WorkPane cycle-2: no `ok` line)
+  expect(refreshes(world).length).toBe(1);
+  expect(refreshes(world).every((argv) => argv.includes("--partial"))).toBe(true);
+  expect(world.runs.some((argv) => argv.includes("command+linked"))).toBe(false);
+  expect(world.store.get("lastSyncAt")).toBeUndefined();
+  expect(world.store.get("lastOkAt")).toBeUndefined();
+});
+
+test("cycle-4: a headless /work check waits for the sync the opening check started, and logs one 'sync started'", async ($, on) => {
+  const world = stubs(on, { status: { ...STATUS, auto_sync: true } });
+  world.store.set("lastSyncAt", "2026-11-22T00:00:00Z");
+  await $.session.start(START);
+  const answer = await $.command.run(work("check"));
+  // The sync finished before the command answered, so `claude -p` cannot exit mid-sync
+  expect(refreshes(world).length).toBeGreaterThan(0);
+  expect(answer.text).toMatch(/check ok$/);
+  const started = logs(world).filter((argv) => String(argv.at(-1)).endsWith(" · sync started"));
+  expect(started.length).toBe(1);
+});
+
+test("cycle: a stored sync_minutes of 10 makes a 5-minute tick not due", async ($, on) => {
+  const world = stubs(on, { status: { ...STATUS, sync_minutes: 10 } });
+  await $.session.start(START);
+  await $.command.run(work("check"));
+  expect(world.store.get("syncMinutes")).toBe(10);
+  const before = logs(world).length;
+  await world.clock.advance(6 * 60_000);
+  expect(logs(world).length).toBe(before);
+  await world.clock.advance(5 * 60_000);
+  expect(logs(world).length).toBe(before + 1);
+});
+
+test("cycle-5: stale clears once a check succeeds", async ($, on) => {
+  const world = stubs(on, { connected: false, status: { ...STATUS, stale: true } });
+  await $.command.run(work(""));
+  const stale = { type: "Text", text: "stale: no ok check or sync in 15 min" } as const;
+  let ui = await $.ui.mount({ ...PANE, surface: "terminal" });
+  expect(await ui.find(stale)).toBeDefined();
+  await ui.unmount();
+  world.connected = true;
+  await $.command.run(work(""));
+  expect(world.store.get("lastOkAt")).toBe(NOW);
+  ui = await $.ui.mount({ ...PANE, surface: "terminal" });
+  expect(await ui.findAll(stale)).toEqual([]);
+  await ui.unmount();
+});
+
+test("cycle-5: with work status unreadable and no ok record, the pane shows stale from its own record", async ($, on) => {
+  stubs(on, { status: undefined });
+  await $.command.run(work(""));
+  const ui = await $.ui.mount({ ...PANE, surface: "terminal" });
+  expect(
+    await ui.find({ type: "Text", text: "stale: no ok check or sync in 15 min" }),
+  ).toBeDefined();
+  await ui.unmount();
+});
+
+test("a connector that never connects logs its failure once, not once per retry", async ($, on) => {
+  const world = stubs(on, { connected: false });
+  await $.session.start(START);
+  // The opening check, then 8 retries 15 s apart: only the opening and the last one are logged
+  for (let i = 0; i < 9; i++) await world.clock.advance(15_000);
+  const failed = logs(world).filter((argv) => outcomeOf(argv) === "failed");
+  expect(failed.length).toBe(2);
+  expect(failed[0]).toContain("open");
+  expect(failed[1]).toContain("retry");
+});
+
+test("/work check looks again when the connector connects before its tools can be called", async ($, on) => {
+  const world = stubs(on, { toolFails: 2 });
+  const pending = $.command.run(work("check"));
+  for (let i = 0; i < 3; i++) await world.clock.advance(2000);
+  expect((await pending).text).toMatch(/check ok$/);
 });
 
 test("/work sync fetches what changed, refreshes work/, and fetches the linked todos it found", async ($, on) => {
