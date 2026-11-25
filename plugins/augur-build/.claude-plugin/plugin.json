@@ -2,7 +2,7 @@
   "name": "augur-build",
   "displayName": "Augur Build",
   "description": "For developers, including third parties, building on Augur: conventions and workflows for Augur projects.",
-  "version": "2026.11.10",
+  "version": "2026.11.11",
   "author": {
     "name": "SimpleApps",
     "email": "info@simpleapps.com",
