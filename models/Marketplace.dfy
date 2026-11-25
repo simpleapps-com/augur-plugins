@@ -116,32 +116,98 @@ module Marketplace {
   }
 
   // ---------------------------------------------------------------- connectors
-  // A connector URL: `https://<label>.augur-mcp.com/...`, the label one or more of a-z, 0-9, -.
+  // A connector URL is a SimpleApps service, `https://<label>.augur-mcp.com/...` (the label one or
+  // more of a-z, 0-9, -), or a vendor's own MCP server, named here by a fixed prefix: its origin
+  // and `/` (GH64, the owner, 2026-11-25: "allow named vendor hosts"). Only Semrush so far.
 
   const Scheme: string := "https://"
   const Domain: string := ".augur-mcp.com/"
+  const SemrushRoot: string := "https://mcp.semrush.com/"
 
   // The host label starts at 8 and ends where the scan for label characters stops.
-  predicate IsConnectorUrl(u: string)
+  predicate IsAugurUrl(u: string)
   {
     |u| >= 8 && u[..8] == Scheme &&
     var j := ScanEnd(u, 8, NameCode);
     j > 8 && j + 15 <= |u| && u[j..j + 15] == Domain
   }
 
-  // The three shipped connectors pass, and a lookalike domain does not.
+  // A named vendor host: the URL starts with its root, trailing `/` included, so a longer host
+  // (`mcp.semrush.com.example.io`) never matches.
+  predicate IsVendorUrl(u: string)
+  {
+    |u| >= |SemrushRoot| && u[..|SemrushRoot|] == SemrushRoot
+  }
+
+  predicate IsConnectorUrl(u: string)
+  {
+    IsAugurUrl(u) || IsVendorUrl(u)
+  }
+
+  // The shipped connectors pass, and lookalike domains do not.
   lemma ShippedConnectorsPass()
     ensures IsConnectorUrl("https://intelligence.augur-mcp.com/mcp")
+    ensures IsConnectorUrl("https://mcp.semrush.com/v2/mcp")
     ensures !IsConnectorUrl("https://augur-mcp.com/mcp")
     ensures !IsConnectorUrl("https://evil.example.com/.augur-mcp.com/")
+    ensures !IsConnectorUrl("https://mcp.semrush.com.example.io/mcp")
   {
     var u := "https://intelligence.augur-mcp.com/mcp";
     ScanEndIs(u, 8, 20, NameCode);
+    var s := "https://mcp.semrush.com/v2/mcp";
+    assert s[..|SemrushRoot|] == SemrushRoot;
     var v := "https://augur-mcp.com/mcp";
     ScanEndIs(v, 8, 17, NameCode);
+    assert v[..|SemrushRoot|] != SemrushRoot by { assert v[8] != SemrushRoot[8]; }
     var w := "https://evil.example.com/.augur-mcp.com/";
     ScanEndIs(w, 8, 12, NameCode);
     assert w[12..27] != Domain by { assert w[13] != Domain[1]; }
+    assert w[..|SemrushRoot|] != SemrushRoot by { assert w[8] != SemrushRoot[8]; }
+    var x := "https://mcp.semrush.com.example.io/mcp";
+    ScanEndIs(x, 8, 11, NameCode);
+    assert x[11..26] != Domain by { assert x[12] != Domain[1]; }
+    assert x[..|SemrushRoot|] != SemrushRoot by { assert x[23] != SemrushRoot[23]; }
+  }
+
+  // ---------------------------------------------------------------- help (every skill and command)
+  // Every skill MUST answer `help` with how it is used (the owner, 2026-11-25, "all of them
+  // every one"). A SKILL.md says how in the shared Help block: its opening marker, then the
+  // `## Help` heading on the next line. The shared-block check (validate.ts) keeps every copy's
+  // text identical, so a hand-written `## Help` without the marker fails here.
+  const HelpHeading: string := "<!-- shared:help -->\n## Help\n"
+
+  predicate HasHelpSection(text: string) { OccursFrom(text, HelpHeading, 0) }
+
+  // A command's `argument-hint` lists `help`: `[a | b | help]`, or `[help]` for a command with no
+  // other subcommand (a mod's). Where it sits in the hint is not checked.
+  const HelpHint: string := " | help]"
+  const HelpAlone: string := "[help]"
+
+  predicate HintListsHelp(hint: string) { OccursFrom(hint, HelpHint, 0) || OccursFrom(hint, HelpAlone, 0) }
+
+  lemma HelpExamples()
+    ensures HasHelpSection("# Repo\n" + HelpHeading + "\nHow it is used.")
+    ensures HintListsHelp("[write | audit | help]")
+    ensures HintListsHelp(HelpAlone)
+    ensures !HintListsHelp("[help")
+    ensures !HasHelpSection("## Help")
+  {
+    var s := "# Repo\n" + HelpHeading + "\nHow it is used.";
+    assert s[7..7 + |HelpHeading|] == HelpHeading;
+    OccursFromFindsMatch(s, HelpHeading, 0, 7);
+    OccursFromFindsMatch("[write | audit | help]", HelpHint, 0, 14);
+    OccursFromFindsMatch(HelpAlone, HelpAlone, 0, 0);
+  }
+
+  // ---------------------------------------------------------------- commands
+  // A command that shares a skill's name replaces the skill's description in Claude's listing, so
+  // its `description` MUST be the skill's, word for word (wiki Skill-Authoring).
+  predicate SameDescription(command: string, skill: string) { command == skill }
+
+  lemma SameDescriptionExamples()
+    ensures SameDescription("Ships code.", "Ships code.")
+    ensures !SameDescription("Ships code", "Ships code.")
+  {
   }
 
   // ---------------------------------------------------------------- LSP plugins (GH36)

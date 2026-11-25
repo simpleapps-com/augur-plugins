@@ -37,7 +37,7 @@ In a folder you have not trusted yet, no mod loads until you answer the trust pr
 
 ## Check it
 
-`/plan-usage` prints the same lines plus the raw reading, so it works without seeing the terminal:
+`/plan-usage help` explains the command and the two lines. `/plan-usage` prints the same lines plus the raw reading, so it works without seeing the terminal:
 
 ```bash
 claude -p "/plan-usage"

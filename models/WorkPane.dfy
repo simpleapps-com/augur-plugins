@@ -263,7 +263,7 @@ module WorkPane {
   // where the pane runs. In a work project, `/work sync` syncs, `/work check` checks and answers,
   // and anything else opens the pane and checks, as before.
 
-  datatype PaneStep = Idle | SyncStep | CheckStep | OpenPane
+  datatype PaneStep = Idle | SyncStep | CheckStep | OpenPane | HelpStep
 
   // GH33 c-idle: a session start opens the pane, reads the setup and starts the timer only here.
   predicate StartsPane(isWork: bool)
@@ -271,20 +271,28 @@ module WorkPane {
     isWork
   }
 
-  // What `/work <args>` does, `args` trimmed.
+  // What `/work <args>` does, `args` trimmed. `help` explains the command in any project and
+  // touches nothing: every command answers help (the owner, 2026-11-25).
   function CommandStep(isWork: bool, args: string): PaneStep
   {
-    if !isWork then Idle
+    if args == "help" then HelpStep
+    else if !isWork then Idle
     else if args == "sync" then SyncStep
     else if args == "check" then CheckStep
     else OpenPane
   }
 
   // GH33 c-idle: outside a work project nothing starts, and no command does anything, whatever
-  // its arguments.
+  // its arguments, except `help`, which only explains.
   lemma IdleOutsideWork(args: string)
     ensures !StartsPane(false)
-    ensures CommandStep(false, args) == Idle
+    ensures args != "help" ==> CommandStep(false, args) == Idle
+  {
+  }
+
+  // `help` is the same answer everywhere, and never opens the pane, syncs or checks.
+  lemma HelpEverywhere(isWork: bool)
+    ensures CommandStep(isWork, "help") == HelpStep
   {
   }
 
@@ -294,7 +302,7 @@ module WorkPane {
     ensures StartsPane(true)
     ensures CommandStep(true, args) != Idle
     ensures CommandStep(true, "sync") == SyncStep && CommandStep(true, "check") == CheckStep
-    ensures args != "sync" && args != "check" ==> CommandStep(true, args) == OpenPane
+    ensures args != "sync" && args != "check" && args != "help" ==> CommandStep(true, args) == OpenPane
   {
   }
 

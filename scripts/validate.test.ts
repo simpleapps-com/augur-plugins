@@ -17,9 +17,9 @@ after(async () => {
 });
 
 const skill = (name, body = "Does a thing.", extra = "") =>
-  `---\nname: ${name}\ndescription: "Use when testing"\n${extra}---\n\n${body}\n`;
-const command = (name, body = "Run it.") =>
-  `---\nname: ${name}\ndescription: Test command\n---\n\n${body}\n`;
+  `---\nname: ${name}\ndescription: "Use when testing"\n${extra}---\n\n${body}\n\n<!-- shared:help -->\n## Help\n\nHow it is used.\n<!-- /shared:help -->\n`;
+const command = (name, body = "Run it.", hint = "[go | help] [...]") =>
+  `---\nname: ${name}\ndescription: Test command\nargument-hint: "${hint}"\n---\n\n${body}\n`;
 const words = (count) => Array.from({ length: count }, () => "word").join(" ");
 const marketplace = (entries) => JSON.stringify({ name: "augur", plugins: entries });
 const entry = (name) => ({ name, source: `./plugins/${name}` });
@@ -41,6 +41,8 @@ async function repo(files = {}) {
     "plugins/demo/.claude-plugin/plugin.json": JSON.stringify({ name: "demo", version: VERSION }),
     "plugins/demo/.mcp.json": JSON.stringify({ mcpServers: server("Demo") }),
     "plugins/demo/skills/alpha/SKILL.md": skill("alpha"),
+    // A second skill, so the shared Help block every skill carries has its two copies
+    "plugins/demo/skills/beta/SKILL.md": skill("beta"),
     "plugins/demo/commands/go.md": command("go", 'Load Skill("alpha") then Skill("demo:alpha").'),
     ".claude/CLAUDE.md": "# Demo\n",
   };
@@ -54,7 +56,7 @@ async function repo(files = {}) {
 
 test("a valid repo passes and counts its skills", async () => {
   const result = await validate(await repo());
-  assert.deepEqual(result, { errors: [], warnings: [], skillCount: 1 });
+  assert.deepEqual(result, { errors: [], warnings: [], skillCount: 2 });
 });
 
 test("marketplace.json: no versions, and every source is an existing ./plugins/<name>", async () => {
@@ -128,11 +130,12 @@ test("skill frontmatter, naming and missing files", async () => {
       "Missing description in frontmatter: plugins/demo/skills/empty-front/SKILL.md",
       "Missing name in frontmatter: plugins/demo/skills/empty-front/SKILL.md",
       "No frontmatter: plugins/demo/skills/no-front/SKILL.md",
+      "plugins/demo/skills/empty-front/SKILL.md MUST have the shared Help block: every skill answers help",
       'Name mismatch: plugins/demo/skills/renamed/SKILL.md frontmatter name="something-else" but directory="renamed"',
     ].sort(),
   );
   // alpha, Bad_Name, empty-front and renamed have frontmatter, so they count
-  assert.equal(skillCount, 4);
+  assert.equal(skillCount, 5);
 });
 
 test("skills: claude.ai's six keys only, no anthropic/claude in names, description ≤ 1,024", async () => {
@@ -150,6 +153,7 @@ test("skills: claude.ai's six keys only, no anthropic/claude in names, descripti
     'Frontmatter key "model" in plugins/demo/skills/extra-keys/SKILL.md is rejected by claude.ai',
     'Frontmatter key "when_to_use" in plugins/demo/skills/extra-keys/SKILL.md is rejected by claude.ai',
     'Invalid name "claude-helper" in plugins/demo/skills/claude-helper/SKILL.md (must not contain anthropic or claude)',
+    "plugins/demo/skills/long/SKILL.md MUST have the shared Help block: every skill answers help",
   ]);
 });
 
@@ -173,6 +177,9 @@ test("commands: frontmatter, name, and Skill() references outside code", async (
     "plugins/demo/commands/notes.txt": "ignored, not markdown",
     "plugins/demo/commands/bare.md": "No frontmatter here.\n",
     "plugins/demo/commands/misnamed.md": command("other"),
+    "plugins/demo/commands/no-help.md": command("no-help", "Run it.", "[go | audit]"),
+    "plugins/demo/commands/no-hint.md":
+      "---\nname: no-hint\ndescription: Test command\n---\n\nRun it.\n",
     "plugins/demo/commands/refs.md": command(
       "refs",
       'Skill("missing") and Skill(\'demo:gone\') and Skill("demo:alpha:extra").\n\n```\nSkill("in-a-fence")\n```\n\n`Skill("inline-code")`',
@@ -182,6 +189,8 @@ test("commands: frontmatter, name, and Skill() references outside code", async (
   assert.deepEqual(errors, [
     "No frontmatter: plugins/demo/commands/bare.md",
     'Name mismatch: plugins/demo/commands/misnamed.md frontmatter name="other" but file="misnamed.md"',
+    'plugins/demo/commands/no-help.md argument-hint MUST list help: "[... | help]"',
+    'plugins/demo/commands/no-hint.md argument-hint MUST list help: "[... | help]"',
     'Unknown Skill("missing") in plugins/demo/commands/refs.md',
     'Unknown Skill("demo:gone") in plugins/demo/commands/refs.md',
   ]);
@@ -215,14 +224,14 @@ test(".mcp.json: http on augur-mcp.com, keyed by title, described, no auth field
   assert.deepEqual((await validate(root)).errors, [
     "plugins/broken/.mcp.json is not valid JSON",
     'plugins/demo/.mcp.json "Wrong" type MUST be "http"',
-    'plugins/demo/.mcp.json "Wrong" url MUST be https://<service>.augur-mcp.com/...',
+    'plugins/demo/.mcp.json "Wrong" url MUST be https://<service>.augur-mcp.com/... or a named vendor host',
     'plugins/demo/.mcp.json "Wrong" title MUST equal its key "Wrong"',
     'plugins/demo/.mcp.json "Wrong" MUST have a description',
     'plugins/demo/.mcp.json "Wrong" MUST NOT set headers',
     'plugins/demo/.mcp.json "Wrong" MUST NOT set headersHelper',
     'plugins/demo/.mcp.json "Wrong" MUST NOT set oauth',
     'plugins/demo/.mcp.json "Empty" type MUST be "http"',
-    'plugins/demo/.mcp.json "Empty" url MUST be https://<service>.augur-mcp.com/...',
+    'plugins/demo/.mcp.json "Empty" url MUST be https://<service>.augur-mcp.com/... or a named vendor host',
     'plugins/demo/.mcp.json "Empty" title MUST equal its key "Empty"',
     'plugins/demo/.mcp.json "Empty" MUST have a description',
     'plugins/nulled/.mcp.json MUST have an "mcpServers" object',
@@ -395,6 +404,33 @@ test("shared blocks: two or more identical copies pass; differing, lone or stray
     }),
   );
   assert.deepEqual(stray.errors, [`Shared-block marker outside a matched block in ${alpha}`]);
+  // A reference file may carry a copy; its text is held to the same rule
+  const ref = "plugins/demo/skills/beta/references/detail.md";
+  const inRef = await validate(
+    await repo({
+      [alpha]: skill("alpha") + block("rule"),
+      [ref]: `# Detail${block("rule")}`,
+      "plugins/demo/skills/beta/references/notes.txt": "not markdown",
+    }),
+  );
+  assert.deepEqual(inRef.errors, []);
+  const refDiffers = await validate(
+    await repo({ [alpha]: skill("alpha") + block("rule"), [ref]: `# Detail${block("other")}` }),
+  );
+  assert.deepEqual(refDiffers.errors, [`Shared block "git" in ${ref} differs from ${alpha}`]);
+});
+
+test("a command's description is its same-named skill's, word for word", async () => {
+  const matching =
+    '---\nname: beta\ndescription: "Use when testing"\nargument-hint: "[x | help]"\n---\n';
+  const ok = await validate(await repo({ "plugins/demo/commands/beta.md": matching }));
+  assert.deepEqual(ok.errors, []);
+  const drifted = await validate(
+    await repo({ "plugins/demo/commands/alpha.md": command("alpha") }),
+  );
+  assert.deepEqual(drifted.errors, [
+    "plugins/demo/commands/alpha.md description MUST be its skill's description, word for word",
+  ]);
 });
 
 test("an empty folder reports only the missing marketplace", async () => {
@@ -427,7 +463,7 @@ const MISSING = "FAIL (1):\n  - Missing or invalid .claude-plugin/marketplace.js
 test("run directly, it prints the report and sets the exit code", async () => {
   const pass = spawnSync(process.execPath, [SCRIPT], { cwd: await repo(), encoding: "utf8" });
   assert.equal(pass.status, 0);
-  assert.equal(pass.stdout, "PASS: 1 skill(s) validated\n");
+  assert.equal(pass.stdout, "PASS: 2 skill(s) validated\n");
   const fail = spawnSync(process.execPath, [SCRIPT], {
     cwd: await repo({ ".claude-plugin/marketplace.json": null }),
     encoding: "utf8",

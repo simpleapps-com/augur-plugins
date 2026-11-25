@@ -311,6 +311,9 @@ test("startsPane and commandStep: idle outside a work project, unchanged inside 
       const before = args === "sync" ? "sync" : args === "check" ? "check" : "pane";
       assert.equal(commandStep(isWork, args), isWork ? before : "idle");
     }
+    // help explains the command in any project, and is the only answer outside one
+    assert.equal(commandStep(isWork, "help"), "help");
+    assert.equal(commandStep(isWork, "Help"), isWork ? "pane" : "idle");
   }
 });
 

@@ -2,3 +2,4 @@ scripts/rules.ts
 plugins/simpleapps-work-pane/scripts/pane-rules.ts
 plugins/simpleapps-work-pane/scripts/work-rules.ts
 plugins/augur-build/skills/repo/scripts/cleanup-rules.ts
+plugins/simpleapps-statusline/scripts/usage-rules.ts

@@ -92,6 +92,24 @@ lemma IsReservedNameMatchesModel(n: string)
   OccursFromMatchesModel(n, "claude", 0);
 }
 
+lemma HasHelpSectionMatchesModel(text: string)
+  ensures hasHelpSection(text) == Marketplace.HasHelpSection(text)
+{
+  OccursFromMatchesModel(text, "<!-- shared:help -->\n## Help\n", 0);
+}
+
+lemma HintListsHelpMatchesModel(hint: string)
+  ensures hintListsHelp(hint) == Marketplace.HintListsHelp(hint)
+{
+  OccursFromMatchesModel(hint, " | help]", 0);
+  OccursFromMatchesModel(hint, "[help]", 0);
+}
+
+lemma SameDescriptionMatchesModel(command: string, skill: string)
+  ensures sameDescription(command, skill) == Marketplace.SameDescription(command, skill)
+{
+}
+
 lemma DescriptionFitsMatchesModel(length: nat)
   ensures descriptionFits(length) == Marketplace.DescriptionFits(length)
 {
@@ -106,13 +124,25 @@ lemma BudgetOfMatchesModel(words: nat)
 
 // ---------------------------------------------------------------- connectors
 
-lemma IsConnectorUrlMatchesModel(u: string)
-  ensures isConnectorUrl(u) == Marketplace.IsConnectorUrl(u)
+lemma IsAugurUrlMatchesModel(u: string)
+  ensures isAugurUrl(u) == Marketplace.IsAugurUrl(u)
 {
   if |u| >= 8 {
     ScanEndMatchesModel(u, 8, isNameCode);
     Text.ScanEndAgree(u, 8, isNameCode, Marketplace.NameCode);
   }
+}
+
+lemma IsVendorUrlMatchesModel(u: string)
+  ensures isVendorUrl(u) == Marketplace.IsVendorUrl(u)
+{
+}
+
+lemma IsConnectorUrlMatchesModel(u: string)
+  ensures isConnectorUrl(u) == Marketplace.IsConnectorUrl(u)
+{
+  IsAugurUrlMatchesModel(u);
+  IsVendorUrlMatchesModel(u);
 }
 
 // ---------------------------------------------------------------- LSP plugins (GH36)

@@ -71,3 +71,9 @@ Read-only. Changes no file.
 - **Never retype the script.** It is always copied from `<skill-copy>`. In chat, show that file's text unchanged.
 - **Another `cld`.** A `cld` elsewhere on `PATH` is reported, never removed or edited.
 - **Blocked outside the project.** `<bin>` is outside the project folder, so Claude Code may prompt for, or its sandbox may refuse, a read or write there. A refused step is reported as not checked or not written, never worked around with another command; the report gives the exact commands for the user to run themselves (in Claude Code, typed with a leading `!`).
+
+<!-- shared:help -->
+## Help
+
+`help` as the argument (`/<skill> help`), or a request such as "how do I use this skill?", explains how the skill is used and changes nothing. The answer comes from this file: what the skill does; each subcommand with one line and an example call, and what a bare call does (a skill with no subcommands gives three example requests instead); the settings and their defaults; and what works on each surface. `help` is reserved: it is never read as another argument (a title, a file, a target). To answer it, MUST NOT run a command, call any tool except to read this skill's own files, or write anything.
+<!-- /shared:help -->

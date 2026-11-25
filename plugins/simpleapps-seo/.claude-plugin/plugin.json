@@ -1,0 +1,15 @@
+{
+  "name": "simpleapps-seo",
+  "displayName": "SimpleApps SEO",
+  "description": "SEO work: rankings, keywords, traffic, backlinks and competitors for any domain from Semrush, page speed (Core Web Vitals, Lighthouse) from Google's PageSpeed Insights, and a site's findings turned into reviewed cleanup tasks. Built for the SimpleApps team; anyone with a Semrush API plan can use it.",
+  "version": "2026.11.1",
+  "author": {
+    "name": "SimpleApps",
+    "email": "info@simpleapps.com",
+    "url": "https://www.simpleapps.com"
+  },
+  "homepage": "https://www.simpleapps.com",
+  "repository": "https://github.com/simpleapps-com/augur-plugins",
+  "license": "MIT",
+  "keywords": ["seo", "semrush", "keywords", "backlinks", "site-audit"]
+}

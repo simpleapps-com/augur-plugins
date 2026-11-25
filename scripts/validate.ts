@@ -6,9 +6,10 @@
 //     (claude.ai's sync rejects it), and every plugin folder is listed in the marketplace
 //   - no top-level bin/ in a plugin (chat and Cowork refuse the whole plugin)
 //   - SKILL.md: only the six frontmatter keys claude.ai accepts, name rules, description
-//     length, name/directory match, 5K-token budget
-//   - Skill("X") references in commands resolve to a real skill
-//   - .mcp.json: http servers on augur-mcp.com, keyed by their title, with a description,
+//     length, name/directory match, 5K-token budget, the shared Help block
+//   - commands: Skill("X") references resolve; `argument-hint` lists help; the description is
+//     the same-named skill's, word for word
+//   - .mcp.json: http servers on augur-mcp.com or a named vendor host (rules.ts), keyed by their title, with a description,
 //     and no headers, headersHelper, or oauth
 //   - hooks/hooks.json parses, has hooks or modules, and every ${CLAUDE_PLUGIN_ROOT} file exists
 //   - .lsp.json parses; each server has a binary `command` and an `extensionToLanguage` map, and
@@ -16,7 +17,7 @@
 //   - proofs: every proved file is listed in LemmaScript-files.txt, and no hand-written Dafny
 //     uses assume, {:axiom}, {:verify false}, {:trusted} or expect
 //   - CLAUDE.md under 200 lines
-//   - shared blocks (`<!-- shared:<name> -->` … `<!-- /shared:<name> -->`) in SKILL.md files are
+//   - shared blocks (`<!-- shared:<name> -->` … `<!-- /shared:<name> -->`) in SKILL.md and references/*.md are
 //     closed, and every copy of a name is identical, so safeguards copied between skills cannot drift
 //
 // Rules: wiki/Plugin-Format.md and wiki/Skill-Authoring.md. Every decision about a value is a
@@ -32,6 +33,9 @@ import { pathToFileURL } from "node:url";
 import {
   budgetOf,
   descriptionFits,
+  hasHelpSection,
+  hintListsHelp,
+  sameDescription,
   isCalVer,
   isConnectorUrl,
   isLspCommand,
@@ -60,6 +64,8 @@ interface Run {
   errors: string[];
   warnings: string[];
   shared: { name: string; rel: string; block: string }[];
+  /** Each skill's description, by `<plugin>/<skill>`, for its command's word-for-word check. */
+  descriptions: Map<string, string>;
 }
 
 export interface Result {
@@ -229,6 +235,7 @@ async function checkSkill(
   skillDir: string,
   rel: string,
   skillName: string,
+  key: string,
 ): Promise<boolean> {
   const text = await readText(join(skillDir, "SKILL.md"));
   if (text === null) {
@@ -239,7 +246,17 @@ async function checkSkill(
   const fm = checkFrontmatter(run, text, rel, skillName, `directory="${skillName}"`);
   if (!fm) return false;
   checkSkillFields(run, fm, rel);
+  if (!hasHelpSection(text))
+    run.errors.push(`${rel} MUST have the shared Help block: every skill answers help`);
   collectShared(run, rel, text);
+  run.descriptions.set(key, fm.description ?? "");
+  // A reference file MAY carry a shared block too, so detail loads only when it is read
+  const refDir = join(skillDir, "references");
+  for (const file of await listDir(refDir)) {
+    if (!file.endsWith(".md")) continue;
+    const refText = await readFile(join(refDir, file), "utf8");
+    collectShared(run, rel.replace(/SKILL\.md$/, `references/${file}`), refText);
+  }
 
   const words = text.split(/\s+/).filter(Boolean).length;
   const budget = budgetOf(words);
@@ -285,22 +302,37 @@ async function checkSkills(run: Run, plugins: string[]): Promise<Set<string>> {
       const skillDir = join(skillsDir, skillName);
       if (!(await stat(skillDir)).isDirectory()) continue;
       const rel = `plugins/${plugin}/skills/${skillName}/SKILL.md`;
-      if (await checkSkill(run, skillDir, rel, skillName)) known.add(skillName);
+      if (await checkSkill(run, skillDir, rel, skillName, `${plugin}/${skillName}`))
+        known.add(skillName);
     }
   }
   return known;
 }
 
-/** One command file: frontmatter, and every `Skill("X")` in its prose resolves. */
+/**
+ * One command file: frontmatter, a hint that lists help, the description of the same-named skill
+ * word for word (`skillDescription`, when the plugin has that skill), and every `Skill("X")` in
+ * its prose resolves.
+ */
 function checkCommand(
   run: Run,
   text: string,
   rel: string,
   file: string,
   knownSkills: Set<string>,
+  skillDescription: string | undefined,
 ): void {
-  if (!checkFrontmatter(run, text, rel, file.replace(/\.md$/, ""), `file="${file}"`)) return;
+  const fm = checkFrontmatter(run, text, rel, file.replace(/\.md$/, ""), `file="${file}"`);
+  if (!fm) return;
+  if (!hintListsHelp(fm["argument-hint"] ?? ""))
+    run.errors.push(`${rel} argument-hint MUST list help: "[... | help]"`);
+  if (skillDescription !== undefined && !sameDescription(fm.description ?? "", skillDescription))
+    run.errors.push(`${rel} description MUST be its skill's description, word for word`);
+  checkSkillRefs(run, text, rel, knownSkills);
+}
 
+/** Every `Skill("X")` in a command's prose names a real skill. */
+function checkSkillRefs(run: Run, text: string, rel: string, knownSkills: Set<string>): void {
   // Strip fenced code blocks and inline code spans before scanning:
   // those are illustrative documentation, not operative skill loads.
   const prose = text.replace(/```[\s\S]*?```/g, "").replace(/`[^`]*`/g, "");
@@ -319,17 +351,27 @@ async function checkCommands(run: Run, plugins: string[], knownSkills: Set<strin
     for (const file of await listDir(cmdDir)) {
       if (!file.endsWith(".md")) continue;
       const text = await readFile(join(cmdDir, file), "utf8");
-      checkCommand(run, text, `plugins/${plugin}/commands/${file}`, file, knownSkills);
+      const skillDescription = run.descriptions.get(`${plugin}/${file.replace(/\.md$/, "")}`);
+      checkCommand(
+        run,
+        text,
+        `plugins/${plugin}/commands/${file}`,
+        file,
+        knownSkills,
+        skillDescription,
+      );
     }
   }
 }
 
-/** One connector entry: http on augur-mcp.com, keyed by its title, described, no auth fields. */
+/** One connector entry: http on augur-mcp.com or a named vendor host, keyed by its title, described, no auth fields. */
 function checkConnector(run: Run, where: string, key: string, value: unknown): void {
   const server = (value ?? {}) as Json;
   if (server.type !== "http") run.errors.push(`${where} type MUST be "http"`);
   if (!isConnectorUrl(String(server.url)))
-    run.errors.push(`${where} url MUST be https://<service>.augur-mcp.com/...`);
+    run.errors.push(
+      `${where} url MUST be https://<service>.augur-mcp.com/... or a named vendor host`,
+    );
   if (server.title !== key) run.errors.push(`${where} title MUST equal its key "${key}"`);
   if (!server.description) run.errors.push(`${where} MUST have a description`);
   for (const field of CONNECTOR_BANNED.filter((f) => f in server))
@@ -525,6 +567,7 @@ export async function validate(root: string): Promise<Result> {
     errors: [],
     warnings: [],
     shared: [],
+    descriptions: new Map(),
   };
   const plugins = await listPlugins(run);
   await checkPlugins(run, plugins);

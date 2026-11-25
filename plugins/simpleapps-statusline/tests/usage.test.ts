@@ -8,6 +8,7 @@ import type {
 import { expect, mock, test } from "claude-code/testing";
 
 import {
+  HELP,
   checkText,
   accountLabel,
   costUsd,
@@ -344,6 +345,17 @@ test("/plan-usage answers with the lines and the raw reading", async ($, on) => 
     /^octo:acme-work \(feat\/x\) · 7 issues · 2 PRs · me@example\.com \(max\) · v2\.1\.296\nOpus 5\.5\nSession \$4\.12 · ctx 38%\n5-hour 62%/,
   );
   expect(answer.text).toContain('"kind":"seven_day"');
+});
+
+test("/plan-usage help explains the command, and takes no new reading", async ($, on) => {
+  const world: World = { ghCalls: 0, countCalls: 0, store: new Map(), nested: true };
+  stubs(on, () => USAGE, world);
+  await $.session.start({ surface: "terminal", isInteractive: true, cwd: "/work" });
+  const calls = world.ghCalls;
+  const answer = await $.command.run(planUsage(" help "));
+  expect(answer.text).toBe(HELP);
+  expect(answer.text).toContain("/plan-usage help");
+  expect(world.ghCalls).toBe(calls);
 });
 
 test("issue and PR counts are cached five minutes per repo", async ($, on) => {

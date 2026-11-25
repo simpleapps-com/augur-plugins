@@ -44,7 +44,9 @@ The first word decides:
 | `/wip` with a reference | Creates the WIP and investigates it, or refreshes an existing one | [references/item.md](references/item.md) |
 | `/wip` alone | Refreshes the WIP for the current work | [references/item.md](references/item.md) |
 | `/wip` with other text | A freeform WIP, after confirming its title | [references/item.md](references/item.md) |
+| `/wip help` | Explains how the skill is used; changes nothing | [Help](#help) |
 
+- **`help`** is the subcommand only as the whole argument; `help` followed by more text is other text (a freeform title, after the title is confirmed).
 - **Reserved words** (`triage`, `investigate`, `implement`, `process`) as the first word are always the subcommand. The `[file]` after `investigate` or `implement` MUST resolve to one existing WIP (a path, a file name, `GH42`, `BC123`, `#42`); with none given, use the WIP for the current work as bare `/wip` finds it. Anything that does not resolve: stop and ask. A freeform title never starts with a reserved word.
 - **A reference**: `#N`; a bare number of 1 to 8 digits (`#N`); `owner/repo#N`; a GitHub issue URL; a Basecamp todo, message, upload or forward URL; or `GH<N>` / `BC<N>` naming an existing WIP. `BC<N>` with no WIP: ask for the Basecamp link. A longer bare number: ask what it is.
 - **`only`** right after a reference, and nothing else after it, stops after creating the WIP. Anywhere else it is just a word.
@@ -100,3 +102,9 @@ No secrets, tokens or credentials go in a WIP.
 ## After a run
 
 Report what was read, written or deleted, and the WIP's status and unticked criteria. Then stop: MUST NOT commit, and MUST NOT suggest the next command.
+
+<!-- shared:help -->
+## Help
+
+`help` as the argument (`/<skill> help`), or a request such as "how do I use this skill?", explains how the skill is used and changes nothing. The answer comes from this file: what the skill does; each subcommand with one line and an example call, and what a bare call does (a skill with no subcommands gives three example requests instead); the settings and their defaults; and what works on each surface. `help` is reserved: it is never read as another argument (a title, a file, a target). To answer it, MUST NOT run a command, call any tool except to read this skill's own files, or write anything.
+<!-- /shared:help -->

@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "Semrush": {
+      "type": "http",
+      "url": "https://mcp.semrush.com/v2/mcp",
+      "title": "Semrush",
+      "description": "SEO, traffic and competitor data for any domain, from your own Semrush account."
+    }
+  }
+}

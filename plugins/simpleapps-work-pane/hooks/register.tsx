@@ -81,6 +81,16 @@ const SYNC_TIMEOUT_MS = 10 * 60 * 1000;
 const NOT_LOADED = "tool not loaded";
 export const NOT_WORK =
   "Work: no work/README.md here. The pane runs only in a simpleapps-work project; open a session there.";
+/** `/work help`: how the command is used, the same in every project (proved `commandStep`). */
+export const HELP = [
+  "/work: the Work pane, for a simpleapps-work project (a folder holding work/README.md).",
+  "  /work        open the pane and check for changes",
+  "  /work sync   bring work/ up to date from Basecamp and GitHub",
+  '  /work check  print one line about the last check (works headless: claude -p "/work check")',
+  "  /work help   this help",
+  "In the pane: s syncs. Checks run every sync_minutes (5 by default, set in work/README.md).",
+  "Needs the simpleapps-work plugin's SimpleApps Basecamp connector signed in (/mcp), gh signed in, and Node 22.18+.",
+].join("\n");
 const RETRY_MS = 15 * 1000;
 
 const snapshot = atom(
@@ -869,8 +879,8 @@ async function start($: EngineInterface): Promise<void> {
   await $.command.register({
     name: "work",
     description:
-      "Open the Work pane and check for changes; `/work sync` brings work/ up to date; `/work check` prints the check.",
-    argumentHint: "[sync | check]",
+      "Open the Work pane and check for changes; `/work sync` brings work/ up to date; `/work check` prints the check; `/work help` explains it.",
+    argumentHint: "[sync | check | help]",
   });
   // Outside a work project: no pane, no gh, no timer (GH #33, proved `startsPane`)
   if (!startsPane(await isWorkProject($))) return;
@@ -885,6 +895,7 @@ async function start($: EngineInterface): Promise<void> {
 
 async function command($: EngineInterface, args: string): Promise<{ text?: string }> {
   const step = commandStep(await isWorkProject($), args.trim());
+  if (step === "help") return { text: HELP };
   if (step === "idle") return { text: NOT_WORK };
   await $.ui.open({ id: PANE, title: TITLE, columns: 28 });
   // Wait for the session's opening check and any sync running, so a headless run never exits

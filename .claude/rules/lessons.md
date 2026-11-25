@@ -10,6 +10,10 @@ Load Skill("rules") and run `/rules lessons` to review, consolidate and promote 
 
 - MUST NOT use the AskUserQuestion dialog (multiple-choice "survey" questions); ask in plain text as the last line of the reply, inside the TL;DR, with a recommendation, then stop. Anchor: 2026-11-23, shown the dialog, the user said "NEVER GIVE ME THESE SURVERY ASK ME QUETIONS".
 
+## Folder boundary
+
+- A skill's text MUST be read from the base directory the Skill tool names, or from the repo's plugin source, never from the plugin cache; promoted to `work-habits.md` and the `rules` catalogue. Anchor: 2026-11-25, `/wip 64` read the `wip` skill's files from the plugin cache; the user: "there MUST be a better way to use the skill data than to read outside the folder".
+
 ## Porting
 
 - When porting a skill, MUST keep every rule about how to write instructions for Claude, and mark a surface-specific one with its surface instead of dropping it; only content that fits nowhere MAY be cut, and the cut is named in the report. Anchor: 2026-11-25, the `writing-style` port dropped the `ultrathink` section as "Claude Code-specific"; the user: "keep ultrathink".

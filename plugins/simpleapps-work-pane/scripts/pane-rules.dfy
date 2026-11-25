@@ -7,7 +7,7 @@ datatype Pending = not_checked | never_synced | up_to_date | changed
 
 datatype Outcome = did_not_run | locked | failed | synced
 
-datatype PaneStep = idle | sync | check | pane
+datatype PaneStep = idle | sync | check | pane | help
 
 datatype PaneItem = PaneItem(status: string, source: string, kind: string, mine: bool, watched: bool)
 
@@ -245,16 +245,19 @@ lemma startsPane_ensures(isWork: bool)
 
 function commandStep(isWork: bool, args: string): PaneStep
 {
-  if !(isWork) then
-    PaneStep.idle
+  if (args == "help") then
+    PaneStep.help
   else
-    if (args == "sync") then
-      PaneStep.sync
+    if !(isWork) then
+      PaneStep.idle
     else
-      if (args == "check") then
-        PaneStep.check
+      if (args == "sync") then
+        PaneStep.sync
       else
-        PaneStep.pane
+        if (args == "check") then
+          PaneStep.check
+        else
+          PaneStep.pane
 }
 
 function startsAutoSync(autoSync: bool, hasChanges: bool, syncing: bool): bool

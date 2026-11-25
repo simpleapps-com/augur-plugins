@@ -99,6 +99,26 @@ function isReservedName(n: string): bool
   (occursFrom(n, "anthropic", 0) || occursFrom(n, "claude", 0))
 }
 
+function hasHelpSection(text: string): bool
+{
+  occursFrom(text, "<!-- shared:help -->\u000A## Help\u000A", 0)
+}
+
+function hintListsHelp(hint: string): bool
+{
+  (occursFrom(hint, " | help]", 0) || occursFrom(hint, "[help]", 0))
+}
+
+function sameDescription(command: string, skill: string): bool
+{
+  (command == skill)
+}
+
+lemma sameDescription_ensures(command: string, skill: string)
+  ensures (sameDescription(command, skill) <==> (command == skill))
+{
+}
+
 function descriptionFits(length: nat): bool
   requires (length >= 0)
 {
@@ -123,13 +143,23 @@ function budgetOf(words: nat): Budget
       Budget.fits
 }
 
-function isConnectorUrl(u: string): bool
+function isAugurUrl(u: string): bool
 {
   if ((|u| < 8) || (u[0..8] != "https://")) then
     false
   else
     var j := scanEnd(u, 8, isNameCode);
     (((j > 8) && ((j + 15) <= |u|)) && (u[j..(j + 15)] == ".augur-mcp.com/"))
+}
+
+function isVendorUrl(u: string): bool
+{
+  ((|u| >= 24) && (u[0..24] == "https://mcp.semrush.com/"))
+}
+
+function isConnectorUrl(u: string): bool
+{
+  (isAugurUrl(u) || isVendorUrl(u))
 }
 
 function isSecretKey(k: string): bool
