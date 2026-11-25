@@ -2,7 +2,7 @@
   "name": "simpleapps-statusline",
   "displayName": "SimpleApps Status Line",
   "description": "Claude Code only. Two status lines under the prompt: GitHub user, project, branch, open issues and PRs, Anthropic account and Claude Code version; then the model, session cost, and meters for context and each plan limit.",
-  "version": "2026.11.2",
+  "version": "2026.11.3",
   "author": {
     "name": "SimpleApps",
     "email": "info@simpleapps.com",
