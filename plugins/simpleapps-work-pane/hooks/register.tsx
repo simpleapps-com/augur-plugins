@@ -27,10 +27,12 @@ import {
   hasOwner,
   inWatchedNames,
   isDue,
+  isWebUrl,
   linkedTargets as provedLinkedTargets,
   logsCheck,
   nextFilter,
   nextRetries,
+  openerOf,
   pendingOf,
   rememberClosed as provedRememberClosed,
   repoName,
@@ -957,13 +959,29 @@ function viewToggle($: EngineInterface, ui: Ui, shown: View) {
   );
 }
 
+/** Open a row's page in the browser: only an https:// URL (proved `isWebUrl`), with the OS's own
+    opener (proved `openerOf`), as argv with no shell. A Link would print its URL instead wherever
+    the terminal has no hyperlinks. */
+async function openPage($: EngineInterface, url: string): Promise<void> {
+  if (!isWebUrl(url)) return;
+  const machine = await $.session.machine().catch(() => undefined);
+  await $.process
+    .run([openerOf(machine?.sysname ?? ""), url], { timeoutMs: 10_000 })
+    .catch(() => undefined);
+}
+
 /** One line per item: its id opens its page, ⧉ copies the id, and the title is cut to the pane's
     width, so a wider pane shows more of it. */
 function itemRows($: EngineInterface, ui: Ui, rows: ListRow[]) {
-  const { Box, Text, Button, Link } = ui;
+  const { Box, Text, Button } = ui;
   return rows.map((row) => (
     <Box flexDirection="row" columnGap={1}>
-      <Link href={row.url} label={row.ref} />
+      <Button
+        key={`open:${row.ref}`}
+        label={row.ref}
+        plain
+        onPress={() => void openPage($, row.url)}
+      />
       <Button
         key={`copy:${row.ref}`}
         label="⧉"

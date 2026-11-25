@@ -513,6 +513,23 @@ lemma nextFilter_ensures(current: string, clicked: string)
 {
 }
 
+function isWebUrl(url: string): bool
+{
+  var n := |WEB_SCHEME|;
+  ((|url| > n) && (url[0..n] == WEB_SCHEME))
+}
+
+function openerOf(sysname: string): string
+{
+  if (sysname == "Darwin") then
+    "open"
+  else
+    if (sysname == "Windows_NT") then
+      "explorer"
+    else
+      "xdg-open"
+}
+
 function filterKeys(hasBasecamp: bool, basecampKey: string, repos: seq<string>): seq<string>
 {
   if hasBasecamp then
@@ -533,6 +550,8 @@ function showsGroup(filter: string, key: string, keys: seq<string>): bool
 }
 
 const BASECAMP_ORIGIN: string := "https://basecamp.augur-mcp.com"
+
+const WEB_SCHEME: string := "https://"
 
 function paneRunEnd_fun_spec(s: string, i: nat, ok: (int) -> bool): int
   requires (i <= |s|)

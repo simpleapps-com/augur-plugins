@@ -631,3 +631,14 @@ lemma FilterKeysMatchesModel(hasBasecamp: bool, basecampKey: string, repos: seq<
   ensures filterKeys(hasBasecamp, basecampKey, repos) == WorkPane.FilterKeys(hasBasecamp, basecampKey, repos)
 {
 }
+
+lemma IsWebUrlMatchesModel(url: string)
+  ensures isWebUrl(url) == WorkPane.IsWebUrl(url)
+{
+  assert WEB_SCHEME == WorkPane.WebScheme;
+}
+
+lemma OpenerOfMatchesModel(sysname: string)
+  ensures openerOf(sysname) == WorkPane.OpenerOf(sysname)
+{
+}
