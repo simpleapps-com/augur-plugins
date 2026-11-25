@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# cld: update Claude Code, then start it.
+# Written by the augur-build `launcher` skill: `/launcher audit` checks this copy,
+# `/launcher write` updates it. A hand edit shows up in the audit as a difference.
+#
+# All arguments pass through to `claude`, so anything the CLI accepts works:
+#   cld                    # fresh session
+#   cld -c                 # continue the most recent conversation here
+#   cld -r                 # resume via the interactive picker
+#   cld --model opus       # pick a model
+#   cld "fix the tests"    # start with a prompt
+set -euo pipefail
+
+# A failed update (offline, locked binary, rate limit) MUST NOT block the
+# session. Report it and start anyway.
+if ! claude update; then
+  echo "cld: 'claude update' failed; starting the existing version." >&2
+fi
+
+exec claude "$@"
