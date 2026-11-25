@@ -1,4 +1,5 @@
-// Work pane: counts, change detection, and Sync for the project's work/ folder.
+// Work pane: counts, change detection, and Sync for the project's work/ folder (Summary), and the
+// work list from work/list.json with copyable ids (List, GH #47).
 // This mod is the sensor and courier: it watches Basecamp and GitHub for changes and fetches changed
 // Basecamp todos through the SimpleApps Basecamp connector (only a mod can reach it). Everything
 // else, from importing to the chart, is `work refresh` in ../scripts. Every decision about a value,
@@ -21,18 +22,21 @@ import {
   countMark,
   duplicateNames,
   failedParts as provedFailedParts,
+  filterKeys,
   hasChanges,
   hasOwner,
   inWatchedNames,
   isDue,
   linkedTargets as provedLinkedTargets,
   logsCheck,
+  nextFilter,
   nextRetries,
   pendingOf,
   rememberClosed as provedRememberClosed,
   repoName,
   runsLinkedPass,
   shouldRetry,
+  showsGroup,
   skipClosed as provedSkipClosed,
   staleShown,
   startsAutoSync,
@@ -55,8 +59,11 @@ import type {
   Status,
   SyncResult,
   Target,
+  ListRow,
   TodoIndex,
   Tracked,
+  View,
+  WorkList,
 } from "../types";
 
 /** The marketplace's Basecamp connector, from the simpleapps-work plugin, as /mcp lists it. */
@@ -77,6 +84,33 @@ const snapshot = atom(
   { plugin: "simpleapps-work-pane", key: "snapshot" } as const,
   { syncing: false, isError: false } as Snapshot,
 );
+
+// The List view (GH #47): which view shows, and its filter, a group's key or "" for All
+const view = atom({ plugin: "simpleapps-work-pane", key: "view" } as const, "summary" as View);
+const filter = atom({ plugin: "simpleapps-work-pane", key: "filter" } as const, "");
+/** The Basecamp heading's filter key: a colon is never in a repo name, so it is no repo's key. */
+export const BASECAMP_KEY = "basecamp:";
+
+/** work/list.json as `work summary` wrote it; undefined when it is missing or not a list. */
+export function listFrom(json: string): WorkList | undefined {
+  try {
+    const value = JSON.parse(json) as Partial<WorkList> | null;
+    return Array.isArray(value?.basecamp) && Array.isArray(value.github)
+      ? (value as WorkList)
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** The List view's filter keys: Basecamp when it has todos, then each repo (proved `filterKeys`). */
+export function listKeys(work: WorkList): string[] {
+  return filterKeys(
+    work.basecamp.length > 0,
+    BASECAMP_KEY,
+    work.github.map((group) => group.key),
+  );
+}
 
 /** JSON from an MCP tool's first text block; undefined when the call failed or it isn't JSON. */
 export function mcpJson(result: McpToolResult | undefined): unknown {
@@ -662,6 +696,10 @@ export async function check(
     changed,
   );
   const totals = tracked(status);
+  // The List view's rows, as the last `work summary` wrote them beside LIST.md
+  const workList = listFrom(
+    await $.fs.read(`${await $.session.root()}/work/list.json`).catch(() => ""),
+  );
   // What the pane's `needs:` lines show: the machine's gaps, then the project's
   const needs = [...setup, ...serverGaps];
   lastSummary = checkSummary(basecamp.count, pending, issues, [...setup, ...failed], totals);
@@ -696,6 +734,7 @@ export async function check(
     setup: needs,
     stale: staleShown(true, checkOk, status.stale ?? false, localStale),
     staleMinutes: 3 * status.sync_minutes,
+    list: workList,
   }));
   if (syncRun !== undefined) await syncRun;
 }
@@ -888,44 +927,141 @@ export const register: Register = (on) => {
   );
 
   on("ui.render", { component: "Pane", requestId: PANE }, async ($, e) => {
-    const { Box, Text, Button } = $.ui.resolve(e);
+    const ui = $.ui.resolve(e);
     const s = await read($, snapshot);
-    const repos = Object.keys(s.issues ?? {});
-    return (
-      <Box flexDirection="column">
-        {trackedRows(s.tracked).map(([line, bold]) => (
-          <Text bold={bold}>{line}</Text>
-        ))}
-        <Text dimColor>Open GitHub issues</Text>
-        {s.checkedAt !== undefined && repos.length === 0 && <Text dimColor>no repos to watch</Text>}
-        {repos.map((repo) => (
-          <Text color={countColor(s.issues?.[repo])}>
-            {repo}: {s.issues?.[repo] ?? "?"}
-          </Text>
-        ))}
-        <Text> </Text>
-        <Box flexDirection="row" columnGap={1}>
-          <Button
-            key="sync"
-            label={s.syncing ? "Syncing…" : "Sync"}
-            hotkey="s"
-            onPress={() => void sync($, "button")}
-          />
-          <Text>{pendingLabel(s.pending)}</Text>
-        </Box>
-        {s.sync?.ok === true && <Text dimColor>synced {clockTime(s.sync.at)}</Text>}
-        {s.sync?.ok === false && <Text color="yellow">{s.sync.detail}</Text>}
-        {s.checkedAt !== undefined && <Text dimColor>checked {clockTime(s.checkedAt)}</Text>}
-        {s.stale === true && (
-          <Text color="red">stale: no ok check or sync in {s.staleMinutes} min</Text>
-        )}
-        {(s.setup ?? []).map((gap) => (
-          <Text color="yellow">needs: {gap}</Text>
-        ))}
-        {(s.failed ?? []).length > 0 && (
-          <Text color="yellow">check failed: {(s.failed ?? []).join(", ")}</Text>
-        )}
-      </Box>
-    );
+    const shown = await read($, view);
+    const toggle = viewToggle($, ui, shown);
+    return shown === "list" ? listView($, ui, s.list, toggle) : summaryView($, ui, s, toggle);
   });
 };
+
+/** The pane's elements, as `$.ui.resolve` gives them for the surface drawing it. */
+type Ui = ReturnType<EngineInterface["ui"]["resolve"]>;
+type Drawn = ReturnType<typeof viewToggle>;
+
+/** `Summary` and `List` at the top of the pane; the one showing is marked. */
+function viewToggle($: EngineInterface, ui: Ui, shown: View) {
+  const { Box, Button } = ui;
+  return (
+    <Box flexDirection="row" columnGap={1}>
+      {(["summary", "list"] as const).map((name) => (
+        <Button
+          key={name}
+          label={name === "summary" ? "Summary" : "List"}
+          plain
+          variant={shown === name ? "primary" : "secondary"}
+          onPress={() => void update($, view, () => name)}
+        />
+      ))}
+    </Box>
+  );
+}
+
+/** One line per item: its id opens its page, ⧉ copies the id, and the title is cut to the pane's
+    width, so a wider pane shows more of it. */
+function itemRows($: EngineInterface, ui: Ui, rows: ListRow[]) {
+  const { Box, Text, Button, Link } = ui;
+  return rows.map((row) => (
+    <Box flexDirection="row" columnGap={1}>
+      <Link href={row.url} label={row.ref} />
+      <Button
+        key={`copy:${row.ref}`}
+        label="⧉"
+        plain
+        onPress={(press) => void $.ui.copy({ text: row.ref, surface: press.surface })}
+      />
+      <Text wrap="truncate">{row.title}</Text>
+    </Box>
+  ));
+}
+
+/** The List view (GH #47): work/list.json under Basecamp, site and repo headings, filtered by
+    heading (proved `nextFilter`, `showsGroup`). */
+async function listView($: EngineInterface, ui: Ui, work: WorkList | undefined, toggle: Drawn) {
+  const { Box, Text, Button } = ui;
+  const keys = work ? listKeys(work) : [];
+  if (work === undefined || keys.length === 0)
+    return (
+      <Box flexDirection="column">
+        {toggle}
+        <Text dimColor>
+          {work === undefined ? "no list yet: press Sync" : "nothing on your list"}
+        </Text>
+      </Box>
+    );
+  const current = await read($, filter);
+  const basecamp = showsGroup(current, BASECAMP_KEY, keys) ? work.basecamp : [];
+  const github = work.github.filter((group) => showsGroup(current, group.key, keys));
+  return (
+    <Box flexDirection="column">
+      {toggle}
+      <Box flexDirection="row" columnGap={1} flexWrap="wrap">
+        {["", ...keys].map((key) => (
+          <Button
+            key={`filter:${key}`}
+            label={key === "" ? "All" : key === BASECAMP_KEY ? "Basecamp" : key}
+            plain
+            variant={current === key ? "primary" : "secondary"}
+            onPress={() => void update($, filter, (f) => nextFilter(f, key))}
+          />
+        ))}
+      </Box>
+      {basecamp.length > 0 && <Text bold>Basecamp</Text>}
+      {basecamp.map((group) => (
+        <Box flexDirection="column">
+          <Text dimColor> {group.key}</Text>
+          {itemRows($, ui, group.rows)}
+        </Box>
+      ))}
+      {github.map((group) => (
+        <Box flexDirection="column">
+          <Text bold>{group.key}</Text>
+          {itemRows($, ui, group.rows)}
+        </Box>
+      ))}
+    </Box>
+  );
+}
+
+/** The Summary view: what you track, the watched repos' counts, Sync, and the check's state. */
+function summaryView($: EngineInterface, ui: Ui, s: Snapshot, toggle: Drawn) {
+  const { Box, Text, Button } = ui;
+  const repos = Object.keys(s.issues ?? {});
+  return (
+    <Box flexDirection="column">
+      {toggle}
+      {trackedRows(s.tracked).map(([line, bold]) => (
+        <Text bold={bold}>{line}</Text>
+      ))}
+      <Text dimColor>Open GitHub issues</Text>
+      {s.checkedAt !== undefined && repos.length === 0 && <Text dimColor>no repos to watch</Text>}
+      {repos.map((repo) => (
+        <Text color={countColor(s.issues?.[repo])}>
+          {repo}: {s.issues?.[repo] ?? "?"}
+        </Text>
+      ))}
+      <Text> </Text>
+      <Box flexDirection="row" columnGap={1}>
+        <Button
+          key="sync"
+          label={s.syncing ? "Syncing…" : "Sync"}
+          hotkey="s"
+          onPress={() => void sync($, "button")}
+        />
+        <Text>{pendingLabel(s.pending)}</Text>
+      </Box>
+      {s.sync?.ok === true && <Text dimColor>synced {clockTime(s.sync.at)}</Text>}
+      {s.sync?.ok === false && <Text color="yellow">{s.sync.detail}</Text>}
+      {s.checkedAt !== undefined && <Text dimColor>checked {clockTime(s.checkedAt)}</Text>}
+      {s.stale === true && (
+        <Text color="red">stale: no ok check or sync in {s.staleMinutes} min</Text>
+      )}
+      {(s.setup ?? []).map((gap) => (
+        <Text color="yellow">needs: {gap}</Text>
+      ))}
+      {(s.failed ?? []).length > 0 && (
+        <Text color="yellow">check failed: {(s.failed ?? []).join(", ")}</Text>
+      )}
+    </Box>
+  );
+}

@@ -1755,6 +1755,14 @@ export function todoOrder(
   return bySite !== 0 ? bySite : compareText(updatedB, updatedA);
 }
 
+/** work/list.json (GH #47): a row starts a new group when it is the first, or its key (a todo's
+    site, an issue's repo) differs from the row before's. */
+export function startsGroup(first: boolean, prevKey: string, key: string): boolean {
+  //@ verify
+  //@ ensures \result <==> (first || prevKey !== key)
+  return first || prevKey !== key;
+}
+
 // ---------------------------------------------------------------- the chart (chart.md)
 
 /** `[a-zA-Z0-9]`. */

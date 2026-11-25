@@ -1297,6 +1297,16 @@ function todoOrder(siteA: string, siteB: string, updatedA: string, updatedB: str
     compareText(updatedB, updatedA)
 }
 
+function startsGroup(first: bool, prevKey: string, key: string): bool
+{
+  (first || (prevKey != key))
+}
+
+lemma startsGroup_ensures(first: bool, prevKey: string, key: string)
+  ensures (startsGroup(first, prevKey, key) <==> (first || (prevKey != key)))
+{
+}
+
 function isAlnumUnit(c: int): bool
 {
   (isAlphaUnit(c) || isDigitUnit(c))

@@ -1,5 +1,7 @@
-// Write work/LIST.md: every Basecamp todo assigned to you and every open issue in a watched repo,
-// as two tables (Site, BC, Title and Repo, Issue, Title), to pick what to work on (GH #41).
+// Write work/LIST.md and work/list.json: every Basecamp todo assigned to you and every open issue
+// in a watched repo. LIST.md is two tables (Site, BC, Title and Repo, Issue, Title), to pick what
+// to work on (GH #41); list.json is the same list in groups, for the Work pane's List view (GH #47).
+// Both are written from one list, so they never disagree.
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -10,12 +12,22 @@ import {
   parseGithubId,
   shortRef,
   siteOf,
+  startsGroup,
   tableCell,
   todoOrder,
 } from "../work-rules.ts";
 import type { Data } from "./frontmatter.ts";
 import { repoOf } from "./follow.ts";
-import { LIST_FILE, list, listHubs, listWorkFiles, loadWorkFile, text, workOrg } from "./tree.ts";
+import {
+  LIST_FILE,
+  LIST_JSON,
+  list,
+  listHubs,
+  listWorkFiles,
+  loadWorkFile,
+  text,
+  workOrg,
+} from "./tree.ts";
 
 /** Whether an open item belongs on the list. */
 function listed(data: Data, me: Set<string>, watched: Set<string>, org: string): boolean {
@@ -29,32 +41,41 @@ function listed(data: Data, me: Set<string>, watched: Set<string>, org: string):
   );
 }
 
-/** One row: the first column, the item's link, and its title. */
-interface Row {
-  first: string;
+/** One item: its link label (`BC<n>`, `<repo>#<n>`, what the pane copies), its page, its title. */
+interface ListRow {
   ref: string;
   url: string;
   title: string;
 }
 
-/** One part of the list: a heading, then one table, a row per item; nothing when empty. */
-function table(title: string, header: string, rows: Row[]): string[] {
-  if (!rows.length) return [];
-  return [
-    `## ${title} (${rows.length})`,
-    "",
-    header,
-    "| --- | --- | --- |",
-    ...rows.map(
-      (row) =>
-        `| ${tableCell(row.first)} | [${tableCell(row.ref)}](${row.url}) | ${tableCell(row.title)} |`,
-    ),
-    "",
-  ];
+/** Rows next to each other with one key: a todo's site, or an issue's repo. */
+interface ListGroup {
+  key: string;
+  rows: ListRow[];
 }
 
-/** The list, given today's date (YYYY-MM-DD), who you are, and the watched repos. */
-function buildList(root: string, today: string, me: string[], watchRepos: string[]): string {
+/** work/list.json: the list in LIST.md's order, Basecamp todos by site and issues by repo. */
+interface WorkList {
+  basecamp: ListGroup[];
+  github: ListGroup[];
+}
+
+/** Ordered rows in groups: a new group where the key changes (proved `startsGroup`). */
+function grouped(keyed: { key: string; row: ListRow }[]): ListGroup[] {
+  const groups: ListGroup[] = [];
+  let group: ListGroup = { key: "", rows: [] };
+  keyed.forEach(({ key, row }, k) => {
+    if (startsGroup(k === 0, group.key, key)) {
+      group = { key, rows: [] };
+      groups.push(group);
+    }
+    group.rows.push(row);
+  });
+  return groups;
+}
+
+/** The list, given who you are and the watched repos (as written: none lists Basecamp only). */
+function buildGroups(root: string, me: string[], watchRepos: string[]): WorkList {
   const org = workOrg(root);
   const meSet = new Set(me);
   const watched = new Set(watchRepos.map(lower));
@@ -69,8 +90,7 @@ function buildList(root: string, today: string, me: string[], watchRepos: string
     .map((doc) => doc.data)
     .filter((data) => data.type === "item" && data.status === "open")
     .filter((data) => listed(data, meSet, watched, org));
-  const row = (data: Data, first: string): Row => ({
-    first,
+  const row = (data: Data): ListRow => ({
     ref: shortRef(text(data.id), org),
     url: text(data.url),
     title: text(data.title),
@@ -79,26 +99,53 @@ function buildList(root: string, today: string, me: string[], watchRepos: string
   const siteFor = (data: Data) => sites.get(text(data.hub)) ?? siteOf([], text(data.hub));
   const basecamp = items
     .filter((data) => data.source === "basecamp")
-    .map((data) => ({ site: siteFor(data), data }))
-    .sort((a, b) => todoOrder(a.site, b.site, text(a.data.updated), text(b.data.updated)))
-    .map(({ site, data }) => row(data, site));
+    .map((data) => ({ key: siteFor(data), data }))
+    .sort((a, b) => todoOrder(a.key, b.key, text(a.data.updated), text(b.data.updated)))
+    .map(({ key, data }) => ({ key, row: row(data) }));
   // By repo, then issue number; every listed issue's id parses (`listed` keeps only watched repos)
   const github = items
     .filter((data) => data.source !== "basecamp")
     .map((data) => ({ id: parseGithubId(text(data.id), org), data }))
     .sort((a, b) => issueOrder(a.id.repo, b.id.repo, Number(a.id.digits), Number(b.id.digits)))
-    .map(({ id, data }) => row(data, id.repo));
+    .map(({ id, data }) => ({ key: id.repo, row: row(data) }));
+  return { basecamp: grouped(basecamp), github: grouped(github) };
+}
+
+/** One part of LIST.md: a heading, then one table, a row per item with its group's key first;
+    nothing when empty. */
+function table(title: string, header: string, groups: ListGroup[]): string[] {
+  const rows = groups.flatMap((group) => group.rows.map((row) => ({ first: group.key, ...row })));
+  if (!rows.length) return [];
+  return [
+    `## ${title} (${rows.length})`,
+    "",
+    header,
+    "| --- | --- | --- |",
+    ...rows.map(
+      (row) =>
+        `| ${tableCell(row.first)} | [${tableCell(row.ref)}](${row.url}) | ${tableCell(row.title)} |`,
+    ),
+    "",
+  ];
+}
+
+const count = (groups: ListGroup[]) => groups.reduce((n, group) => n + group.rows.length, 0);
+
+/** LIST.md's text for the list, given today's date (YYYY-MM-DD). */
+function listMarkdown(work: WorkList, today: string): string {
   return [
     "# Work list",
     "",
-    `Generated by \`work summary\` on ${today}: Basecamp todos assigned to you, then open issues in \`watch_repos\`. ${items.length} items.`,
+    `Generated by \`work summary\` on ${today}: Basecamp todos assigned to you, then open issues in \`watch_repos\`. ${count(work.basecamp) + count(work.github)} items.`,
     "",
-    ...table("Basecamp todos", "| Site | BC | Title |", basecamp),
-    ...table("GitHub issues", "| Repo | Issue | Title |", github),
+    ...table("Basecamp todos", "| Site | BC | Title |", work.basecamp),
+    ...table("GitHub issues", "| Repo | Issue | Title |", work.github),
   ].join("\n");
 }
 
-/** Write work/LIST.md. */
+/** Write work/LIST.md and work/list.json from one list. */
 export function writeList(root: string, today: string, me: string[], watchRepos: string[]): void {
-  writeFileSync(join(root, LIST_FILE), buildList(root, today, me, watchRepos));
+  const work = buildGroups(root, me, watchRepos);
+  writeFileSync(join(root, LIST_FILE), listMarkdown(work, today));
+  writeFileSync(join(root, LIST_JSON), `${JSON.stringify(work, null, 2)}\n`);
 }

@@ -1250,6 +1250,11 @@ lemma TodoOrderMatchesModel(siteA: string, siteB: string, updatedA: string, upda
   CompareTextMatchesModel(updatedB, updatedA);
 }
 
+lemma StartsGroupMatchesModel(first: bool, prevKey: string, key: string)
+  ensures startsGroup(first, prevKey, key) == WorkData.StartsGroup(first, prevKey, key)
+{
+}
+
 // ---------------------------------------------------------------- the chart
 
 function AsEdges(es: seq<Edge>): seq<WorkData.Edge>

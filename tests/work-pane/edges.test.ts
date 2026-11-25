@@ -353,9 +353,10 @@ test("refresh: stale locks, settings defaults, empty hubs without items, non-Err
   assert.equal(takeLock(root, Date.now()), true);
   rmSync(join(root, ".lock"), { recursive: true });
   const status = workStatus(root);
+  // No watch_repos watches none, though a hub lists `site`: the counts match the list (GH #47)
   assert.deepEqual(
     [status.watch_repos, status.sync_minutes, status.auto_sync, status.org],
-    [["site"], 5, true, ORG],
+    [[], 5, true, ORG],
   );
   assert.deepEqual(
     status.items.map((i) => [i.id, i.project, i.mine]),
@@ -477,6 +478,42 @@ test("list: two tables, the Site fallback, the order, and titles that hold | or 
       "| tool | [tool#10](https://x) | gh-tool-10 |",
       "",
     ].join("\n"),
+  );
+  // GH #47: list.json is the same rows in the same order, in groups by site and repo
+  const row = (ref: string, title: string) => ({ ref, url: "https://x", title });
+  assert.deepEqual(JSON.parse(readFileSync(join(root, "list.json"), "utf8")), {
+    basecamp: [
+      { key: "bare", rows: [row("BC3", "Fix | pipes")] },
+      { key: "ghost", rows: [row("BC4", "one\t  two")] },
+      { key: "shop-site", rows: [row("BC2", "bc-todo-2"), row("BC1", "bc-todo-1")] },
+    ],
+    github: [
+      { key: "site", rows: [row("site#1", "gh-site-1")] },
+      { key: "tool", rows: [row("tool#2", "gh-tool-2"), row("tool#10", "gh-tool-10")] },
+    ],
+  });
+});
+
+test("list: with no watch_repos, LIST.md and list.json show Basecamp only (GH #47)", () => {
+  const root = tree({
+    "README.md": fm(["id: work", "title: Work", "type: index", "summary: x", "me: [Ann]"]),
+    "hubs/shop/README.md": hub("shop", ["repos: [site]"]),
+    "hubs/shop/items/bc-todo-1.md": item("bc-todo-1", "shop", ["assignees: [Ann]"]),
+    "hubs/shop/items/gh-site-1.md": item("gh-site-1", "shop")
+      .replace("source: basecamp", "source: github")
+      .replace("kind: todo", "kind: issue"),
+  });
+  writeSummary(root, TODAY);
+  const markdown = readFileSync(join(root, "LIST.md"), "utf8");
+  assert.match(markdown, /## Basecamp todos \(1\)/);
+  assert.doesNotMatch(markdown, /GitHub issues/);
+  const work = JSON.parse(readFileSync(join(root, "list.json"), "utf8"));
+  assert.equal(work.basecamp.length, 1);
+  assert.deepEqual(work.github, []);
+  // list.json is not a work file: the folder still validates
+  assert.equal(
+    runWork(["validate", "--root", root], root, () => {}),
+    0,
   );
 });
 

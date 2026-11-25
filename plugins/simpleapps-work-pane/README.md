@@ -5,6 +5,7 @@
 A **Work** pane beside the chat for a `simpleapps-work` project: what you track (your open Basecamp todos and the open issues in your watched repos), what changed since your last Sync, and a **Sync** button that brings the project's `work/` folder up to date.
 
 ```
+Summary  List
 Tracking 14
  Basecamp todos 9
  GitHub issues 5
@@ -16,6 +17,18 @@ tool: 12
 [Sync] 2 Basecamp · 1 GitHub changed
 synced 09:41
 checked 10:02
+```
+
+**List** (the toggle at the top) shows the work list itself, the same items in the same order as `work/LIST.md`: Basecamp, with a heading per site, then a heading per watched repo. Each row is one line: the id, which opens the item's page; `⧉`, which copies the id (`BC1234`, `repo#123`); and the title, cut to the pane's width, so a wider pane shows more of it. Click `Basecamp` or a repo to show only that group; click it again, or `All`, for the whole list.
+
+```
+Summary  List
+All Basecamp site
+Basecamp
+ acme
+BC1234 ⧉ Fix the cart tot…
+site
+site#12 ⧉ Checkout erro…
 ```
 
 Open it with `/work`. `/work sync` syncs, and `/work check` prints one line about the last check, which works without seeing the pane (`claude -p "/work check"`). Press `s` in the pane to sync. It checks every `sync_minutes` (5 by default); a check in one session counts for every open session, so each interval is checked once.
@@ -67,7 +80,7 @@ In the frontmatter of `work/README.md`:
 | `me` | Your Basecamp name and GitHub login: what is yours, and who waits on you |
 | `aliases` | `<github login>=<Basecamp name>`, for one person under two names |
 | `org` | The GitHub org a bare repo name is in; `simpleapps-com` when not set |
-| `watch_repos` | Repos whose open issues the pane counts: `<repo>` in the org, or `<owner>/<repo>`; the hubs' repos when not set |
+| `watch_repos` | Repos whose open issues the pane counts, checks for changes and lists: `<repo>` in the org, or `<owner>/<repo>`. When not set, none: the GitHub count is 0 and the list shows Basecamp todos only. A Sync still updates every hub's `repos`, but only a watched repo's new issues start one |
 | `auto_sync` | `false` to sync only when you press Sync; on by default. It works while a session has the pane loaded, or from a scheduled check ([below](#sync-without-an-open-session)) |
 | `sync_minutes` | How often it checks, 1 to 60; 5 by default |
 
@@ -78,6 +91,8 @@ A Sync fetches the Basecamp todos that changed, then runs `work refresh`, which 
 `work/LIST.md` is two tables, one row per item:
 - **Basecamp todos** assigned to you: Site (the hub's first `sites` entry, else the hub id), BC, Title; by site, then newest first.
 - **GitHub issues** open in a watched repo: Repo, Issue, Title; by repo, then issue number.
+
+`work/list.json` is the same list, written in the same step, in groups by site and repo: the pane's List view reads it, so the two never disagree.
 
 Every check the pane runs logs one line to `work/check.log` (`<time> <trigger> ok|failed · <what it saw> · sync started|no sync`). Each line is appended in one atomic write, and line breaks in an error become spaces. Once the log passes 400 lines it is trimmed back to the last 200. Some checks write nothing:
 - a check that is not due, because another session just checked, so a gap in the log means no session was checking;

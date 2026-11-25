@@ -500,6 +500,38 @@ function withBriefProblem(result: PaneSync, hasProblem: bool, problem: string): 
     PaneSync(result.at, result.ok, (((result.detail + "; briefs kept their last Basecamp read (") + problem) + ")"))
 }
 
+function nextFilter(current: string, clicked: string): string
+{
+  if (clicked == current) then
+    ""
+  else
+    clicked
+}
+
+lemma nextFilter_ensures(current: string, clicked: string)
+  ensures (nextFilter(current, clicked) == (if (clicked == current) then "" else clicked))
+{
+}
+
+function filterKeys(hasBasecamp: bool, basecampKey: string, repos: seq<string>): seq<string>
+{
+  if hasBasecamp then
+    ([basecampKey] + repos)
+  else
+    repos
+}
+
+function keyFrom(keys: seq<string>, key: string, i: nat): bool
+  requires (i <= |keys|)
+{
+  (paneListEnd(keys, i, (x: string) => (x != key)) < |keys|)
+}
+
+function showsGroup(filter: string, key: string, keys: seq<string>): bool
+{
+  (((filter == "") || (filter == key)) || !(keyFrom(keys, filter, 0)))
+}
+
 const BASECAMP_ORIGIN: string := "https://basecamp.augur-mcp.com"
 
 function paneRunEnd_fun_spec(s: string, i: nat, ok: (int) -> bool): int
