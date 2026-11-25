@@ -1164,6 +1164,16 @@ module WorkPane {
     assert "file:///etc/passwd"[0] != WebScheme[0];
   }
 
+  // The List view's rows alternate: every second row of a group (index 1, 3, …) is striped, so
+  // neighbouring rows are never both striped or both plain.
+  predicate IsStriped(index: int) { index % 2 == 1 }
+
+  lemma StripesAlternate(index: nat)
+    ensures IsStriped(index) != IsStriped(index + 1)
+    ensures !IsStriped(0)
+  {
+  }
+
   // The program that opens a URL in the browser, by the OS type `session.machine` reports.
   function OpenerOf(sysname: string): string
   {

@@ -642,3 +642,8 @@ lemma OpenerOfMatchesModel(sysname: string)
   ensures openerOf(sysname) == WorkPane.OpenerOf(sysname)
 {
 }
+
+lemma IsStripedMatchesModel(index: nat)
+  ensures isStriped(index) == WorkPane.IsStriped(index)
+{
+}

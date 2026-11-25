@@ -22,6 +22,7 @@ import {
   isProjectId,
   isRecentlyClosed,
   filterKeys,
+  isStriped,
   isTrackedIssue,
   isWebUrl,
   isTrackedTodo,
@@ -350,4 +351,11 @@ test("isWebUrl and openerOf: only https:// pages open, with the OS's opener (GH 
   assert.equal(openerOf("Windows_NT"), "explorer");
   assert.equal(openerOf("Linux"), "xdg-open");
   assert.equal(openerOf(""), "xdg-open");
+});
+
+test("isStriped: every second row, from the second (GH #47)", () => {
+  for (let k = 0; k < 10; k++) {
+    assert.equal(isStriped(k), k % 2 === 1);
+    assert.notEqual(isStriped(k), isStriped(k + 1));
+  }
 });
