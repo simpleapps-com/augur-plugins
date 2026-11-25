@@ -135,6 +135,27 @@ export function isReservedName(n: string): boolean {
   return occursFrom(n, "anthropic", 0) || occursFrom(n, "claude", 0);
 }
 
+/** A SKILL.md has the shared Help block: its marker, then `## Help` on the next line
+    (model: Marketplace.HasHelpSection). */
+export function hasHelpSection(text: string): boolean {
+  //@ verify
+  return occursFrom(text, "<!-- shared:help -->\n## Help\n", 0);
+}
+
+/** A command's `argument-hint` lists `help`: `[a | b | help]`, or `[help]` alone
+    (model: Marketplace.HintListsHelp). */
+export function hintListsHelp(hint: string): boolean {
+  //@ verify
+  return occursFrom(hint, " | help]", 0) || occursFrom(hint, "[help]", 0);
+}
+
+/** A command's description is its skill's, word for word (model: Marketplace.SameDescription). */
+export function sameDescription(command: string, skill: string): boolean {
+  //@ verify
+  //@ ensures \result <==> command === skill
+  return command === skill;
+}
+
 /** A skill description of `length` characters fits the 1,024 limit. */
 export function descriptionFits(length: number): boolean {
   //@ verify
@@ -156,12 +177,25 @@ export function budgetOf(words: number): Budget {
   return "fits";
 }
 
-/** `u` is `https://<label>.augur-mcp.com/...` (model: Marketplace.IsConnectorUrl). */
-export function isConnectorUrl(u: string): boolean {
+/** `u` is `https://<label>.augur-mcp.com/...` (model: Marketplace.IsAugurUrl). */
+function isAugurUrl(u: string): boolean {
   //@ verify
   if (u.length < 8 || u.slice(0, 8) !== "https://") return false;
   const j = scanEnd(u, 8, isNameCode);
   return j > 8 && j + 15 <= u.length && u.slice(j, j + 15) === ".augur-mcp.com/";
+}
+
+/** `u` is on a named vendor's MCP host, `https://mcp.semrush.com/...` (model: Marketplace.IsVendorUrl, GH #64). */
+function isVendorUrl(u: string): boolean {
+  //@ verify
+  return u.length >= 24 && u.slice(0, 24) === "https://mcp.semrush.com/";
+}
+
+/** A connector URL: a SimpleApps service on augur-mcp.com, or a named vendor host
+    (model: Marketplace.IsConnectorUrl). */
+export function isConnectorUrl(u: string): boolean {
+  //@ verify
+  return isAugurUrl(u) || isVendorUrl(u);
 }
 
 /** A key that holds a secret: an Intelephense licence, in either spelling. A plugin's .lsp.json

@@ -31,3 +31,9 @@ Only site admins (Super Users of the site) can sign in. If calls fail with an au
 ## When the connector is unavailable
 
 If the connector's tools are missing, or every call fails to connect, stop calling it. Tell the admin the Augur API connector is unavailable and ask how they want to proceed. MUST NOT fill the gap with guessed or example data.
+
+<!-- shared:help -->
+## Help
+
+`help` as the argument (`/<skill> help`), or a request such as "how do I use this skill?", explains how the skill is used and changes nothing. The answer comes from this file: what the skill does; each subcommand with one line and an example call, and what a bare call does (a skill with no subcommands gives three example requests instead); the settings and their defaults; and what works on each surface. `help` is reserved: it is never read as another argument (a title, a file, a target). To answer it, MUST NOT run a command, call any tool except to read this skill's own files, or write anything.
+<!-- /shared:help -->

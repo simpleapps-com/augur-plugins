@@ -181,6 +181,7 @@ lemma CommandStepMatchesModel(isWork: bool, args: string)
   ensures commandStep(isWork, args) == PaneStep.sync <==> WorkPane.CommandStep(isWork, args) == WorkPane.SyncStep
   ensures commandStep(isWork, args) == PaneStep.check <==> WorkPane.CommandStep(isWork, args) == WorkPane.CheckStep
   ensures commandStep(isWork, args) == PaneStep.pane <==> WorkPane.CommandStep(isWork, args) == WorkPane.OpenPane
+  ensures commandStep(isWork, args) == PaneStep.help <==> WorkPane.CommandStep(isWork, args) == WorkPane.HelpStep
 {
 }
 

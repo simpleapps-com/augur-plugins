@@ -20,6 +20,7 @@ Each entry says when the rule applies, the musts it MUST carry, and where its pr
 - Read the error output (an error overlay, a failing test's message) before guessing at a cause.
 - Fix every failing check or build met along the way. There is no "pre-existing issue": no skipping, no "not from our changes".
 - Stay inside the project folder. Other repos are read where the project keeps them (for example `clones/<name>`, read-only), MUST NOT be read by a path into another project folder, and a blocked read outside is the boundary working, not an obstacle.
+- A skill's files MUST be read from the base directory the Skill tool names for that skill, or from the plugin's source when the project builds the plugin. MUST NOT search the plugin cache (`~/.claude/plugins/`) for a skill's text: a cached copy can be another version, or another plugin's skill with the same name.
 - After the work: report what changed, suggest the project's verify step if the change is untested, then stop. MUST NOT suggest committing, pushing or opening a PR; the user starts those.
 - A question that blocks: MUST NOT end a turn waiting on an answer unless the question is in the visible reply, word for word. The user cannot see the agent's reasoning, so MUST NOT refer to reasoning they never saw. Prefer not blocking: do every part that does not depend on the answer, say what was assumed for the rest, and ask about that.
 

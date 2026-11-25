@@ -6,6 +6,9 @@ import { test } from "node:test";
 import {
   budgetOf,
   descriptionFits,
+  hasHelpSection,
+  hintListsHelp,
+  sameDescription,
   isCalVer,
   isConnectorUrl,
   isLspCommand,
@@ -86,6 +89,74 @@ test("isReservedName finds anthropic or claude anywhere", () => {
   agrees(isReservedName, oracle, samples("claudenthropi-", 14, 20000, seeds));
 });
 
+/**
+ * `count` texts that hold `needle`, or a near miss (one code unit changed, or one dropped), between
+ * random runs of `alphabet`, so both sides of a search are well covered.
+ */
+function embedded(needle: string, alphabet: string, count: number): string[] {
+  const next = random(20261125);
+  const pick = (s: string) => s[Math.floor(next() * s.length)] ?? "";
+  const run = () => {
+    let s = "";
+    for (let i = Math.floor(next() * 6); i > 0; i--) s += pick(alphabet);
+    return s;
+  };
+  const out: string[] = [];
+  for (let n = 0; n < count; n++) {
+    const at = Math.floor(next() * needle.length);
+    const kind = Math.floor(next() * 3);
+    const middle =
+      kind === 0
+        ? needle
+        : kind === 1
+          ? needle.slice(0, at) + pick(alphabet) + needle.slice(at + 1)
+          : needle.slice(0, at) + needle.slice(at + 1);
+    out.push(run() + middle + run());
+  }
+  return out;
+}
+
+test("hasHelpSection finds the shared Help block's marker and heading", () => {
+  const needle = "<!-- shared:help -->\n## Help\n";
+  const oracle = /<!-- shared:help -->\n## Help\n/;
+  const seeds = [
+    `# Repo\n\n${needle}\nHow.`,
+    "# Repo\n\n## Help\n\nHow.",
+    "<!-- shared:help -->\n## Help",
+    "<!-- shared:help -->\n\n## Help\n",
+    "",
+  ];
+  agrees(hasHelpSection, oracle, [...seeds, ...embedded(needle, "\n# Help<!->", 20000)]);
+});
+
+test("hintListsHelp finds | help] or [help]", () => {
+  const oracle = / \| help\]|\[help\]/;
+  const seeds = [
+    "[write | audit | help]",
+    "[status | help] [...]",
+    "[help]",
+    "[write | audit]",
+    "| help]",
+    "[help",
+    "",
+  ];
+  const generated = [
+    ...embedded(" | help]", " |help[]a", 10000),
+    ...embedded("[help]", " |help[]a", 10000),
+  ];
+  agrees(hintListsHelp, oracle, [...seeds, ...generated]);
+});
+
+test("sameDescription is exact equality", () => {
+  assert.equal(sameDescription("Ships code.", "Ships code."), true);
+  for (const [a, b] of [
+    ["Ships code", "Ships code."],
+    ["ships code.", "Ships code."],
+    ["", "x"],
+  ] as const)
+    assert.equal(sameDescription(a, b), false, `${a} vs ${b}`);
+});
+
 test("descriptionFits is at most 1,024", () => {
   assert.equal(descriptionFits(0), true);
   assert.equal(descriptionFits(1024), true);
@@ -100,9 +171,15 @@ test("budgetOf fits to 3,375, warns to 3,750, fails above", () => {
   assert.equal(budgetOf(3751), "over");
 });
 
-test("isConnectorUrl is https://<label>.augur-mcp.com/...", () => {
-  const oracle = /^https:\/\/[a-z0-9-]+\.augur-mcp\.com\//;
+test("isConnectorUrl is https://<label>.augur-mcp.com/... or https://mcp.semrush.com/... (GH #64)", () => {
+  const oracle = /^https:\/\/[a-z0-9-]+\.augur-mcp\.com\/|^https:\/\/mcp\.semrush\.com\//;
   const seeds = [
+    "https://mcp.semrush.com/v2/mcp",
+    "https://mcp.semrush.com/",
+    "https://mcp.semrush.com",
+    "https://mcp.semrush.com.example.io/mcp",
+    "https://xmcp.semrush.com/v2/mcp",
+    "http://mcp.semrush.com/v2/mcp",
     "https://intelligence.augur-mcp.com/mcp",
     "https://api.augur-mcp.com/mcp",
     "https://augur-mcp.com/mcp",
@@ -115,7 +192,8 @@ test("isConnectorUrl is https://<label>.augur-mcp.com/...", () => {
   ];
   const labels = samples("ab-.A", 6, 20000, []);
   const inputs = labels.map((l) => `https://${l}.augur-mcp.com/x`);
-  agrees(isConnectorUrl, oracle, [...seeds, ...inputs]);
+  const vendors = embedded("https://mcp.semrush.com/", "mcp.semrush/v2", 20000);
+  agrees(isConnectorUrl, oracle, [...seeds, ...inputs, ...vendors]);
 });
 
 test("isSecretKey is a licence key in either spelling; isLspCommand is a binary (GH #36)", () => {

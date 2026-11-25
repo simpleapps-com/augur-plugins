@@ -32,7 +32,7 @@ site
 site#12 ⧉ Checkout erro…
 ```
 
-Open it with `/work`. `/work sync` syncs, and `/work check` prints one line about the last check, which works without seeing the pane (`claude -p "/work check"`). Press `s` in the pane to sync. It checks every `sync_minutes` (5 by default); a check in one session counts for every open session, so each interval is checked once.
+Open it with `/work`. `/work sync` syncs, and `/work check` prints one line about the last check, which works without seeing the pane (`claude -p "/work check"`). `/work help` explains the command, in any project. Press `s` in the pane to sync. It checks every `sync_minutes` (5 by default); a check in one session counts for every open session, so each interval is checked once.
 
 This plugin is a **mod**: TypeScript that runs inside Claude Code with your permissions. It is its own plugin, so it can be turned off on its own in `/plugin`.
 

@@ -26,6 +26,12 @@
       "tags": ["basecamp"]
     },
     {
+      "name": "simpleapps-seo",
+      "source": "./plugins/simpleapps-seo",
+      "category": "productivity",
+      "tags": ["seo", "semrush"]
+    },
+    {
       "name": "augur-build",
       "source": "./plugins/augur-build",
       "category": "development",

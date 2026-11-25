@@ -5,6 +5,7 @@ import { expect, mock, test } from "claude-code/testing";
 import {
   BASECAMP_KEY,
   CONNECTOR,
+  HELP,
   NOT_WORK,
   briefProjectIds,
   changedSinceArgv,
@@ -446,8 +447,24 @@ test("outside a work project the pane stays idle: no pane, no gh, no checks", as
   for (const args of ["", "check", "sync"]) {
     expect((await $.command.run(work(args))).text).toBe(NOT_WORK);
   }
+  // /work help explains the command here too
+  expect((await $.command.run(work("help"))).text).toBe(HELP);
   expect(world.runs).toEqual([]);
   expect(world.opens).toBe(0);
+});
+
+test("/work help explains the command and opens, syncs and checks nothing", async ($, on) => {
+  const world = stubs(on);
+  await $.session.start(START);
+  const runs = world.runs.length;
+  const opens = world.opens;
+  const answer = await $.command.run(work(" help "));
+  expect(answer.text).toBe(HELP);
+  expect(answer.text).toContain("/work sync");
+  expect(world.runs.length).toBe(runs);
+  expect(world.opens).toBe(opens);
+  // Let the session's opening check finish before the test ends
+  await $.command.run(work("check"));
 });
 
 const logs = (world: World) => world.runs.filter((argv) => argv.includes("log-check"));

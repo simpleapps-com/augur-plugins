@@ -283,12 +283,13 @@ export function startsPane(isWork: boolean): boolean {
   return isWork;
 }
 
-/** What `/work <args>` does, `args` trimmed: nothing outside a work project; else sync, check
-    and answer, or open the pane and check. */
-export type PaneStep = "idle" | "sync" | "check" | "pane";
+/** What `/work <args>` does, `args` trimmed: `help` explains it, in any project; else nothing
+    outside a work project; else sync, check and answer, or open the pane and check. */
+export type PaneStep = "idle" | "sync" | "check" | "pane" | "help";
 
 export function commandStep(isWork: boolean, args: string): PaneStep {
   //@ verify
+  if (args === "help") return "help";
   if (!isWork) return "idle";
   if (args === "sync") return "sync";
   if (args === "check") return "check";

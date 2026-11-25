@@ -82,3 +82,9 @@ A canonical phrase with its author and work calls up a whole body of thought in 
 Naming a source goes wrong three ways: a name with no vocabulary calls up almost nothing; a source that does not shape the work pulls in the wrong ideas; one source on every skill becomes decoration and stops working.
 
 Naming a source is a technique, not a rule. Most skills SHOULD NOT name an outside discipline at all; keep it rare and deliberate, for a skill whose guidance comes from a named body of thought, where the agent will reason better for being told which.
+
+<!-- shared:help -->
+## Help
+
+`help` as the argument (`/<skill> help`), or a request such as "how do I use this skill?", explains how the skill is used and changes nothing. The answer comes from this file: what the skill does; each subcommand with one line and an example call, and what a bare call does (a skill with no subcommands gives three example requests instead); the settings and their defaults; and what works on each surface. `help` is reserved: it is never read as another argument (a title, a file, a target). To answer it, MUST NOT run a command, call any tool except to read this skill's own files, or write anything.
+<!-- /shared:help -->

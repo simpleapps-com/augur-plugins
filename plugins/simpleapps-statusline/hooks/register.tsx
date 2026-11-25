@@ -5,9 +5,20 @@
 import { atom, read, update } from "claude-code";
 import type { EngineInterface, Register } from "claude-code";
 
+import { usageCommand } from "../scripts/usage-rules";
 import type { Limit, Reading, UsageSnapshot } from "../types";
 
 const COMMAND = "plan-usage";
+
+/** `/plan-usage help`: how the command and the status lines are used (proved `usageCommand`). */
+export const HELP = [
+  "simpleapps-statusline: two status lines under the prompt (Claude Code only).",
+  "  Line 1: GitHub login, project, branch, open issues and PRs, Anthropic account, version.",
+  "  Line 2: model, session cost, then meters for context and each plan limit, with resets.",
+  "  /plan-usage       print the same lines plus the raw reading, without seeing the terminal",
+  "  /plan-usage help  this help",
+  "They refresh after every turn. Remove any statusLine entry from ~/.claude/settings.json so only one draws.",
+].join("\n");
 
 const snapshot = atom(
   { plugin: "simpleapps-statusline", key: "snapshot" } as const,
@@ -402,7 +413,9 @@ export const register: Register = (on) => {
   on("session.start", async ($, e, next) => {
     await $.command.register({
       name: COMMAND,
-      description: "Print this session's usage and the plan limits, with the raw reading.",
+      description:
+        "Print this session's usage and the plan limits, with the raw reading; `/plan-usage help` explains it.",
+      argumentHint: "[help]",
     });
     await measure($);
     return next(e);
@@ -414,7 +427,8 @@ export const register: Register = (on) => {
     return next(e);
   });
 
-  on("command.run", { command: COMMAND }, async ($) => {
+  on("command.run", { command: COMMAND }, async ($, e) => {
+    if (usageCommand(e.args.trim()) === "help") return { text: HELP };
     const { reading, raw, now } = await measure($);
     return { text: checkText(reading, raw, now) };
   }).catch(async (_$, _e, next) => ({
