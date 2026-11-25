@@ -11,12 +11,5 @@
   "homepage": "https://www.simpleapps.com",
   "repository": "https://github.com/simpleapps-com/augur-plugins",
   "license": "MIT",
-  "keywords": ["augur", "developer", "workflow"],
-  "commands": {
-    "launcher": {
-      "content": "Use the `launcher` skill and run its `$ARGUMENTS` subcommand. With no argument, run `audit`.",
-      "description": "Install or check cld, which updates Claude Code and then starts it: write or audit.",
-      "argumentHint": "[write | audit]"
-    }
-  }
+  "keywords": ["augur", "developer", "workflow"]
 }
