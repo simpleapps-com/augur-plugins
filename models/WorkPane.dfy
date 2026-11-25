@@ -604,7 +604,10 @@ module WorkPane {
   // - `$` I/O: processes, the connector, timers, $.store, drawing: every mod test ("the pane in a
   //   session"), with the cycle above as their model.
   // - JSON parsing: mcpJson, stdoutJson, countFrom, the .mcp.json read in duplicateServers, the
-  //   get_todo record shape in completedIds: "labels, colours and parsing", "duplicateServers …".
+  //   get_todo record shape in completedIds: "labels, colours and parsing", "duplicateServers …";
+  //   work/list.json in listFrom (GH #47): "listFrom reads work/list.json …".
+  // - The List view's drawing (GH #47): the repo keys mapped out of list.json for FilterKeys, and
+  //   the groups kept by ShowsGroup: "List shows the list …", "a heading filters the list …".
   // - Number and date parsing: parseIssueCount (parseInt), parsedTime (Date.parse), Number() of
   //   ids and projects: "change detection …", tests/work-pane/pane-lists.test.ts.
   // - Words built from numbers: label, pendingLabel, checkSummary, trackedLabel, trackedRows,
@@ -1121,5 +1124,68 @@ module WorkPane {
   lemma BriefProblemKeepsOk(r: SyncWords, hasProblem: bool, problem: string)
     ensures WithBriefProblem(r, hasProblem, problem).ok == r.ok
   {
+  }
+
+  // The List view (GH #47). The filter is a group's key, or "" for All. A heading clicked while
+  // it is the filter goes back to All; any other heading becomes the filter; All ("") is All.
+  function NextFilter(current: string, clicked: string): string
+  {
+    if clicked == current then "" else clicked
+  }
+
+  lemma SecondClickShowsAll(current: string)
+    ensures NextFilter(current, current) == ""
+  {
+  }
+
+  lemma AllIsAll(current: string)
+    ensures NextFilter(current, "") == ""
+  {
+  }
+
+  // The List view's filter keys: Basecamp's, when it has todos, then each repo's, in list order.
+  function FilterKeys(hasBasecamp: bool, basecampKey: string, repos: seq<string>): seq<string>
+  {
+    if hasBasecamp then [basecampKey] + repos else repos
+  }
+
+  predicate KeyFrom(keys: seq<string>, key: string, i: nat)
+    requires i <= |keys|
+  {
+    ListEnd(keys, i, (x: string) => x != key) < |keys|
+  }
+
+  lemma KeyFromMeansIn(keys: seq<string>, key: string, i: nat)
+    requires i <= |keys|
+    ensures KeyFrom(keys, key, i) <==> exists k :: i <= k < |keys| && keys[k] == key
+  {
+  }
+
+  // A group shows under All, under its own key, and under a filter no group has any more (a sync
+  // emptied it): that falls back to All rather than an empty list.
+  predicate ShowsGroup(filter: string, key: string, keys: seq<string>)
+  {
+    filter == "" || filter == key || !KeyFrom(keys, filter, 0)
+  }
+
+  lemma AllShowsEveryGroup(key: string, keys: seq<string>)
+    ensures ShowsGroup("", key, keys)
+  {
+  }
+
+  // A filter some group has shows that group only.
+  lemma FilterShowsOnlyItsGroup(filter: string, key: string, keys: seq<string>)
+    requires filter != "" && filter in keys
+    ensures ShowsGroup(filter, key, keys) <==> key == filter
+  {
+    KeyFromMeansIn(keys, filter, 0);
+  }
+
+  // A filter no group has shows every group.
+  lemma GoneFilterShowsAll(filter: string, key: string, keys: seq<string>)
+    requires filter !in keys
+    ensures ShowsGroup(filter, key, keys)
+  {
+    KeyFromMeansIn(keys, filter, 0);
   }
 }

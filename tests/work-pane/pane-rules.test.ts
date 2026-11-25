@@ -21,8 +21,10 @@ import {
   isIssueIdOf,
   isProjectId,
   isRecentlyClosed,
+  filterKeys,
   isTrackedIssue,
   isTrackedTodo,
+  nextFilter,
   nextRetries,
   notesBriefProblem,
   outcomeOf,
@@ -31,6 +33,7 @@ import {
   recordsFullSync,
   runsLinkedPass,
   shouldRetry,
+  showsGroup,
   showsStale,
   skipsClosed,
   staleShown,
@@ -306,4 +309,26 @@ test("startsPane and commandStep: idle outside a work project, unchanged inside 
       assert.equal(commandStep(isWork, args), isWork ? before : "idle");
     }
   }
+});
+
+test("nextFilter and showsGroup: the List view's filter (GH #47)", () => {
+  const heads = ["", "basecamp:", "site", "tool"];
+  for (const current of heads)
+    for (const clicked of heads)
+      assert.equal(nextFilter(current, clicked), clicked === current ? "" : clicked);
+  const keys = ["basecamp:", "site"];
+  for (const key of keys) {
+    // All shows every group; a filter some group has shows that group only
+    assert.equal(showsGroup("", key, keys), true);
+    for (const f of keys) assert.equal(showsGroup(f, key, keys), f === key);
+    // A filter no group has any more falls back to All
+    assert.equal(showsGroup("tool", key, keys), true);
+  }
+  assert.equal(showsGroup("tool", "x", []), true);
+});
+
+test("filterKeys: Basecamp's key first when it has todos, then the repos (GH #47)", () => {
+  assert.deepEqual(filterKeys(true, "basecamp:", ["site", "tool"]), ["basecamp:", "site", "tool"]);
+  assert.deepEqual(filterKeys(false, "basecamp:", ["site"]), ["site"]);
+  assert.deepEqual(filterKeys(true, "basecamp:", []), ["basecamp:"]);
 });

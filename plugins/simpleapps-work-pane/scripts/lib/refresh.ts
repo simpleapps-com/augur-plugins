@@ -122,15 +122,12 @@ export function logCheck(
 /** The person's settings from work/README.md frontmatter, with defaults. */
 function readSettings(root: string) {
   const data = readIndex(root);
-  const hubRepos = listHubs(root).flatMap((hub) => list(hub.data.repos));
   const minutes = text(data.sync_minutes);
   return {
     org: orgOf(text(data.org)),
     me: list(data.me),
-    // No list of their own: count the repos their hubs already sync, each once, in the order listed
-    watch_repos: [
-      ...new Set(data.watch_repos === undefined ? hubRepos.sort() : list(data.watch_repos)),
-    ],
+    // Each once, in the order listed; none set watches none, so the counts match the list (GH #47)
+    watch_repos: [...new Set(list(data.watch_repos))],
     // On unless turned off: the pane keeps work/ current without anyone pressing Sync
     auto_sync: autoSyncOf(text(data.auto_sync)),
     sync_minutes: syncMinutesOf(minutes !== "", Number(minutes)),

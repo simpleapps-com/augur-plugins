@@ -607,3 +607,27 @@ lemma StaleShownMatchesModel(statusRead: bool, checkOk: bool, statusStale: bool,
 {
   ShowsStaleMatchesModel(checkOk, statusStale);
 }
+
+lemma NextFilterMatchesModel(current: string, clicked: string)
+  ensures nextFilter(current, clicked) == WorkPane.NextFilter(current, clicked)
+{
+}
+
+lemma KeyFromMatchesModel(keys: seq<string>, key: string, i: nat)
+  requires i <= |keys|
+  ensures keyFrom(keys, key, i) == WorkPane.KeyFrom(keys, key, i)
+{
+  PaneListEndMatchesModel(keys, i);
+  Text.ListEndExt(keys, keys, i);
+}
+
+lemma ShowsGroupMatchesModel(filter: string, key: string, keys: seq<string>)
+  ensures showsGroup(filter, key, keys) == WorkPane.ShowsGroup(filter, key, keys)
+{
+  KeyFromMatchesModel(keys, filter, 0);
+}
+
+lemma FilterKeysMatchesModel(hasBasecamp: bool, basecampKey: string, repos: seq<string>)
+  ensures filterKeys(hasBasecamp, basecampKey, repos) == WorkPane.FilterKeys(hasBasecamp, basecampKey, repos)
+{
+}

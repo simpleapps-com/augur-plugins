@@ -112,6 +112,9 @@ const isHub = (doc: Doc) => SCHEMA_FOR_TYPE[text(doc.data.type)] === "hub";
 /** Generated at the root of work/ by the chart and the digest; never loaded or validated. */
 export const CHART_FILE = "chart.md";
 export const LIST_FILE = "LIST.md";
+/** Written beside LIST.md from the same list, for the Work pane's List view (GH #47). Not `.md`,
+    so the walk below never sees it. */
+export const LIST_JSON = "list.json";
 
 export function renderItem(data: Record<string, unknown>, body: string): string {
   return `---\n${serializeYaml(data, ITEM_KEYS)}\n---\n${body}`;

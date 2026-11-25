@@ -28,7 +28,21 @@ export type Snapshot = {
   // A failed check over a work/ with no ok check or sync in 3 × sync_minutes (GH #34), and that span
   stale?: boolean;
   staleMinutes?: number;
+  // work/list.json, read after each check; unset when it is missing or unreadable
+  list?: WorkList;
 };
+
+/** One item on the list: its link label (`BC<n>`, `<repo>#<n>`, what ⧉ copies), page, title. */
+export type ListRow = { ref: string; url: string; title: string };
+
+/** work/list.json (GH #47): LIST.md's list in its order, todos by site and issues by repo. */
+export type WorkList = {
+  basecamp: { key: string; rows: ListRow[] }[];
+  github: { key: string; rows: ListRow[] }[];
+};
+
+/** Which of the pane's two views shows. */
+export type View = "summary" | "list";
 
 /** A Basecamp todo to fetch with get_todo, with the names get_todo doesn't return. */
 export type Target = { id: number; project_id: number; project_name: string; list: string };
@@ -80,6 +94,6 @@ export type RefreshReport = {
 
 declare module "claude-code" {
   interface PluginState {
-    "simpleapps-work-pane": { snapshot: Snapshot };
+    "simpleapps-work-pane": { snapshot: Snapshot; view: View; filter: string };
   }
 }

@@ -78,6 +78,7 @@ import {
   scalarProblem,
   shortRef,
   siteOf,
+  startsGroup,
   slug,
   splitSegments,
   statusOf,
@@ -855,6 +856,14 @@ test("list decisions", () => {
     ["a", "a", "2026-01-01", "2026-01-01"],
   ] as const)
     assert.equal(Math.sign(todoOrder(sa, sb, ua, ub)), byCode(sa, sb) || byCode(ub, ua));
+  // GH #47: a group starts at the first row, and wherever the key changes
+  for (const first of [true, false])
+    for (const [prev, key] of [
+      ["a", "a"],
+      ["a", "b"],
+      ["", ""],
+    ] as const)
+      assert.equal(startsGroup(first, prev, key), first || prev !== key);
 });
 
 test("chart decisions", () => {

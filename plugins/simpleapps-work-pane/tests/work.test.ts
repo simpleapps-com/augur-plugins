@@ -3,6 +3,7 @@ import type { MockClock } from "claude-code/testing";
 import { expect, mock, test } from "claude-code/testing";
 
 import {
+  BASECAMP_KEY,
   CONNECTOR,
   NOT_WORK,
   briefProjectIds,
@@ -19,6 +20,8 @@ import {
   issueCountArgv,
   label,
   linkedTargets,
+  listFrom,
+  listKeys,
   mcpJson,
   mcpProblem,
   parseCount,
@@ -293,6 +296,10 @@ interface World {
   calls: string[];
   /** Every server `$.mcp.connect` was asked for. */
   connects: string[];
+  /** work/list.json, or none. */
+  listFile: string | undefined;
+  /** Every text `$.ui.copy` was asked to copy, with its surface. */
+  copies: string[];
 }
 
 const ran = (exitCode: number, stdout: string): { value: ProcessRunResult } => ({
@@ -323,6 +330,8 @@ function stubs(on: On, overrides: Partial<World> = {}): World & { clock: MockClo
     status: STATUS,
     calls: [] as string[],
     connects: [] as string[],
+    listFile: undefined,
+    copies: [] as string[],
     ...overrides,
     clock: mock.clock(on, { now: NOW }),
   };
@@ -342,8 +351,14 @@ function stubs(on: On, overrides: Partial<World> = {}): World & { clock: MockClo
     return { value: undefined };
   });
   on("fs.read", (_$, e) => {
-    if (e.path !== "/p/.mcp.json" || world.mcpFile === undefined) throw new Error("ENOENT");
-    return { value: world.mcpFile };
+    const file = e.path === "/p/.mcp.json" ? world.mcpFile : undefined;
+    const list = e.path === "/p/work/list.json" ? world.listFile : undefined;
+    if (file === undefined && list === undefined) throw new Error("ENOENT");
+    return { value: file ?? list };
+  });
+  on("ui.copy", (_$, e) => {
+    world.copies.push(`${e.text}@${e.surface}`);
+    return { value: { isCopied: true } };
   });
   on("fs.exists", (_$, e) => ({ value: world.hasWork && e.path === "/p/work/README.md" }));
   on("fs.write", (_$, e) => {
@@ -697,4 +712,107 @@ test("duplicateServers reads .mcp.json for servers on the connector's URL", asyn
   expect(duplicateServers("null")).toEqual([]);
   expect(duplicateServers("{}")).toEqual([]);
   expect(duplicateServers(servers("x"))).toEqual([]);
+});
+
+// ---------------------------------------------------------------- the List view (GH #47)
+
+const LIST = {
+  basecamp: [
+    {
+      key: "acme",
+      rows: [{ ref: "BC101", url: "https://basecamp.example/101", title: "Fix the cart total" }],
+    },
+    {
+      key: "beta",
+      rows: [{ ref: "BC102", url: "https://basecamp.example/102", title: "New banner" }],
+    },
+  ],
+  github: [
+    {
+      key: "site",
+      rows: [
+        { ref: "site#1", url: "https://github.com/org/site/issues/1", title: "A bug" },
+        { ref: "site#2", url: "https://github.com/org/site/issues/2", title: "Another" },
+      ],
+    },
+  ],
+};
+
+test("listFrom reads work/list.json, and listKeys gives the filters", async () => {
+  expect(listFrom(JSON.stringify(LIST))).toEqual(LIST);
+  expect(listFrom("")).toBeUndefined();
+  expect(listFrom("null")).toBeUndefined();
+  expect(listFrom('{"basecamp":[]}')).toBeUndefined();
+  expect(listKeys(LIST)).toEqual([BASECAMP_KEY, "site"]);
+  expect(listKeys({ basecamp: [], github: LIST.github })).toEqual(["site"]);
+});
+
+async function listPane(
+  $: Parameters<Parameters<typeof test>[1]>[0],
+  surface: "terminal" | "desktop",
+) {
+  const ui = await $.ui.mount({ ...PANE, surface });
+  await ui.press({ key: "list" });
+  return ui;
+}
+
+test("List shows the list under Basecamp, site and repo headings; ⧉ copies the id", async ($, on) => {
+  const world = stubs(on, { listFile: JSON.stringify(LIST) });
+  await $.session.start(START);
+  await $.command.run(work("check"));
+  for (const surface of ["terminal", "desktop"] as const) {
+    const ui = await listPane($, surface);
+    for (const text of ["Basecamp", " acme", " beta", "site", "Fix the cart total", "Another"])
+      expect(await ui.find({ type: "Text", text })).toBeDefined();
+    // The Summary lines are gone
+    expect(await ui.findAll({ type: "Text", text: "Tracking 2" })).toEqual([]);
+    await ui.press({ key: "copy:site#2" });
+    expect(world.copies.at(-1)).toBe(`site#2@${surface}`);
+    await ui.press({ key: "summary" });
+    expect(await ui.find({ type: "Text", text: "Tracking 2" })).toBeDefined();
+    await ui.unmount();
+  }
+});
+
+test("a heading filters the list; a second click, or All, shows it all again", async ($, on) => {
+  stubs(on, { listFile: JSON.stringify(LIST) });
+  await $.command.run(work("check"));
+  const ui = await listPane($, "terminal");
+  await ui.press({ key: "filter:site" });
+  expect(await ui.findAll({ type: "Text", text: "Fix the cart total" })).toEqual([]);
+  expect(await ui.find({ type: "Text", text: "A bug" })).toBeDefined();
+  await ui.press({ key: "filter:site" });
+  expect(await ui.find({ type: "Text", text: "Fix the cart total" })).toBeDefined();
+  await ui.press({ key: `filter:${BASECAMP_KEY}` });
+  expect(await ui.findAll({ type: "Text", text: "A bug" })).toEqual([]);
+  expect(await ui.find({ type: "Text", text: "New banner" })).toBeDefined();
+  await ui.press({ key: "filter:" });
+  expect(await ui.find({ type: "Text", text: "A bug" })).toBeDefined();
+  await ui.unmount();
+});
+
+test("a filter whose group a sync emptied shows the whole list", async ($, on) => {
+  const world = stubs(on, { listFile: JSON.stringify(LIST) });
+  await $.command.run(work("check"));
+  let ui = await listPane($, "terminal");
+  await ui.press({ key: "filter:site" });
+  await ui.unmount();
+  world.listFile = JSON.stringify({ ...LIST, github: [] });
+  await $.command.run(work("check"));
+  ui = await $.ui.mount({ ...PANE, surface: "terminal" });
+  expect(await ui.find({ type: "Text", text: "Fix the cart total" })).toBeDefined();
+  await ui.unmount();
+});
+
+test("List says when there is no list yet, and when it is empty", async ($, on) => {
+  const world = stubs(on);
+  await $.command.run(work("check"));
+  let ui = await listPane($, "terminal");
+  expect(await ui.find({ type: "Text", text: "no list yet: press Sync" })).toBeDefined();
+  await ui.unmount();
+  world.listFile = JSON.stringify({ basecamp: [], github: [] });
+  await $.command.run(work("check"));
+  ui = await $.ui.mount({ ...PANE, surface: "terminal" });
+  expect(await ui.find({ type: "Text", text: "nothing on your list" })).toBeDefined();
+  await ui.unmount();
 });

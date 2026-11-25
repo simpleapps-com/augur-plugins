@@ -1458,6 +1458,17 @@ module WorkData {
     if CompareText(siteA, siteB) != 0 then CompareText(siteA, siteB) else CompareText(updatedB, updatedA)
   }
 
+  // work/list.json (GH #47): the ordered rows go in groups, a new group where the key (a todo's
+  // site, an issue's repo) differs from the row before; the first row always starts one.
+  predicate StartsGroup(first: bool, prevKey: string, key: string) { first || prevKey != key }
+
+  // Rows of one key that are next to each other never split: a key equal to the row before's
+  // continues its group.
+  lemma SameKeyContinues(key: string)
+    ensures !StartsGroup(false, key, key)
+  {
+  }
+
   // Digits as Number prints them: leading zeros dropped, one zero kept.
   function NumberTextFrom(d: string, i: nat): string
     requires i <= |d|

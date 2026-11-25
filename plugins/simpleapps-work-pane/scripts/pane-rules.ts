@@ -901,3 +901,34 @@ export function withBriefProblem(result: PaneSync, hasProblem: boolean, problem:
     detail: result.detail + "; briefs kept their last Basecamp read (" + problem + ")",
   };
 }
+
+// ---------------------------------------------------------------- the List view (GH #47)
+
+/** The List view's filter after a heading is clicked: the filter's own heading again goes back to
+    All (""); any other heading becomes the filter; All ("") stays All. */
+export function nextFilter(current: string, clicked: string): string {
+  //@ verify
+  //@ ensures \result === (clicked === current ? "" : clicked)
+  return clicked === current ? "" : clicked;
+}
+
+/** The List view's filter keys: Basecamp's, when it has todos, then each repo's, in list order. */
+export function filterKeys(hasBasecamp: boolean, basecampKey: string, repos: string[]): string[] {
+  //@ verify
+  return hasBasecamp ? [basecampKey, ...repos] : repos;
+}
+
+/** `keys` holds `key` at or after `i`. */
+function keyFrom(keys: string[], key: string, i: number): boolean {
+  //@ verify
+  //@ type i nat
+  //@ requires i <= keys.length
+  return paneListEnd(keys, i, (x: string) => x !== key) < keys.length;
+}
+
+/** A group shows under All, under its own key, and under a filter that no group in `keys` has any
+    more (a sync emptied it), which falls back to All. */
+export function showsGroup(filter: string, key: string, keys: string[]): boolean {
+  //@ verify
+  return filter === "" || filter === key || !keyFrom(keys, filter, 0);
+}
