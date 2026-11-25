@@ -6,7 +6,7 @@ The `augur` Claude plugin marketplace (public repo). Plugins live in `plugins/<n
 
 - Setup, once per clone: `pnpm --dir repo install` (installs the dev tools and the lefthook git hooks)
 - Quality: `pnpm --dir repo quality` (format, lint, typecheck, knip, tests at 100% coverage, `scripts/validate.ts`). Pre-push and CI run it
-- Code MUST be TypeScript (LemmaScript proves only TypeScript): no Python, no new JavaScript. Scripts run as `node scripts/<name>.ts` (type stripping, no build). Exceptions: tool configs (`*.config.mjs`) and `scripts/check-banned-strings.sh`
+- Code MUST be TypeScript (LemmaScript proves only TypeScript): no Python, no new JavaScript. Scripts run as `node scripts/<name>.ts` (type stripping, no build). Exceptions: tool configs (`*.config.mjs`), `scripts/check-banned-strings.sh`, and the `cld` launcher (`plugins/augur-build/skills/launcher/scripts/cld`, a shell command users install)
 - Proofs: `pnpm --dir repo proofs` MUST pass before submit (needs Dafny). Model first (`models/Marketplace.dfy`), then proved code (`scripts/rules.ts`), then the link (`models/links/`); no `assume`/`{:axiom}` in hand Dafny. See wiki Proofs
 - Validate: `claude plugin validate repo --strict` (CI runs the same; any warning fails). Per plugin: `claude plugin validate repo/plugins/<name> --profile directory`. Mods also: `claude plugin test repo/plugins/<name>`
 - `@simpleapps-com/augur-*` dev packages MUST be on their latest CalVer release (`pnpm --dir repo add -D @simpleapps-com/augur-config@latest`), never pinned to match augur-skills or any other repo
