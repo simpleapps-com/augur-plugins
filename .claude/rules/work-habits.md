@@ -1,11 +1,8 @@
 # Work Habits
 
-Do exactly what was asked. No extra features, no refactoring beyond the request. Read error overlays before guessing at problems. Read, Edit, and Write are the default for files; `cat` and `sed` MAY be used when simpler; for search use the Grep/Glob tools when they are in your tool list, otherwise Bash `grep`/`find` (see bash-simplicity).
-
-MUST stay inside the current project folder. Read other repos and wikis through `clones/<name>`; MUST NOT read them by a path into another project folder; a blocked outside read is the boundary working, not an obstacle. See Skill("project-defaults").
-
-If a check or build fails, fix it. There is no such thing as a "pre-existing issue." Do not skip failures, do not classify them as "not from our changes", do not continue hoping someone else will fix them. Fix every failure you encounter.
-
-After completing work: report what changed, suggest `/verify` if untested, then stop. MUST NOT suggest committing, pushing, submitting, or creating PRs. The user will initiate those when ready.
-
-Load Skill("work-habits") for full conventions on autonomous work.
+- MUST do exactly what was asked: no extra features, no refactoring beyond the request.
+- MUST read the error output (a failing test's message, a check's report) before guessing at a cause.
+- MUST fix every failing check or build met along the way. There is no "pre-existing issue": no skipping, no "not from our changes".
+- MUST stay inside the project folder. Its layout: `repo/` (the code repo), `wiki/` (the wiki, its own git repo), `wip/` (work files), `tmp/` (scratch), and `clones/` (other repos, read-only). Other repos are read through `clones/<name>`, MUST NOT be read by a path into another project folder, and a blocked read outside is the boundary working, not an obstacle.
+- After the work: report what changed, suggest `/code quality` if it is unchecked, then stop. MUST NOT suggest committing, pushing or opening a PR; the user starts those.
+- MUST NOT end a turn waiting on an answer unless the question is in the visible reply, word for word. The user cannot see the reasoning, so MUST NOT refer to reasoning they never saw. Prefer not blocking: do every part that does not depend on the answer, say what was assumed for the rest, and ask about that.

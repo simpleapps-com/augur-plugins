@@ -1,52 +1,19 @@
 # Subagent Briefing
 
-## When to delegate
+<!-- core:subagent-briefing -->
+**When to delegate.** A subagent keeps its exploration out of the main context; only its summary comes back. Delegate broad searches, reads across many files whose content will not end up in the answer, verbose output (full test runs, long logs), and research across the wiki, docs or unfamiliar code. One or two targeted reads are cheaper inline. Independent delegations go out together, in one message, not one after another; each still gets its own complete brief.
 
-Subagents are the single biggest lever for context discipline. The entire exploration happens outside the main agent's context; only the returned summary costs tokens in the main thread. Reach for a subagent, rather than inlining, when:
+**A subagent starts with nothing.** It cannot see this conversation, the wiki, or what was tried. Keep the project's conventions in view (the wiki loaded, where there is one) so the brief can cite them. Every brief MUST give:
 
-- Broad exploration ("where is X wired up", "how does Y work", "find all usages of Z")
-- Multi-file reads where most of the content will not end up in the final answer
-- Verbose command output (full test runs, long logs, large greps)
-- Research across the wiki, external docs, or unfamiliar code
+- the goal, stated plainly;
+- what this session learned: what was tried, ruled out or found;
+- the exact files and line numbers already found;
+- the project conventions that apply: short rules pasted, larger pages pointed to by path, never the whole wiki;
+- the expected output: its format, a length cap, and whether to change code or only report.
 
-Inline work is only cheaper when the answer is one or two targeted Reads or Greps. Once it grows past that, delegate. A complete request up front (specific question, file paths, expected output format, word cap) yields a single-round-trip summary; vague prompts force a second round that erases the saving.
+**Rules do not always carry over.** Not every subagent loads the project's instructions: Claude Code's built-in Explore, Plan and web-fetch agents skip them, and a custom agent can be set to. When it will use a tool a rule governs (the shell, git, a browser), MUST paste that rule into the brief, word for word, and likewise the lessons that bear on its task. A brief passes on an approval the user gave; it cannot create one.
 
-Spawn independent subagents in parallel, not sequentially. When two or more delegations do not depend on each other's output, issue them in a single message with multiple Agent calls. Sequential delegation of independent work doubles wall-clock time for no benefit. Each parallel subagent still needs its own complete briefing (including any operational rules listed below).
+The user cannot see a subagent's report: check what matters in it, then relay that.
+<!-- /core:subagent-briefing -->
 
-## Briefing: zero inherited context
-
-Subagents start with zero context. They cannot see this conversation, the wiki, or what has already been tried. Every Agent/Task call MUST brief the subagent completely, or results come back generic, wrong, or ignore project conventions.
-
-## Required in every subagent prompt
-
-- **Goal**: the outcome the main agent needs, stated plainly
-- **Context learned this session**: what has been tried, ruled out, or discovered (file paths, function names, error messages)
-- **Exact file paths and line numbers**: never leave the subagent to re-search for what the main agent already found
-- **Relevant wiki context**: see Wiki Handling below
-- **Expected output**: format, length cap, and whether to write code or only research
-
-## Wiki handling
-
-The main agent MUST keep the project wiki loaded (via `/wiki` or direct reads) so it can cite conventions when delegating. For each subagent call, pick per-section:
-
-- **Paste** short, load-bearing rules directly into the briefing (e.g., a versioning rule, a naming convention, a commit-safety guardrail)
-- **Point** the subagent at specific pages like `wiki/Deployment.md#publish` for larger context it should internalize itself
-
-MUST NOT spawn a subagent with zero wiki context when project conventions apply to the task. Generic output is the #1 failure mode of delegation.
-
-## Operational rules
-
-Subagents do NOT reliably inherit project rules from `.claude/rules/`. The main agent MUST paste the relevant rule verbatim into the briefing whenever the subagent will touch that tool:
-
-- **Bash use** → paste `bash-simplicity.md` (no shell plumbing, one command per call, Read/Edit/Write by default with `cat`/`sed` allowed when simpler, `rg` preferred for search)
-- **git use** → paste `git-safety.md` (no write operations without explicit user approval)
-- **Chrome automation** → paste `chrome-resilience.md` (retry sequence on MCP failures)
-
-Skipping this produces subagents that run `find -exec grep`, commit without approval, or give up on Chrome after one failed call, all of which cost far more than the ~100-200 words each rule adds to the briefing.
-
-## Anti-patterns
-
-- "Investigate X" with no file paths, no prior findings, no wiki pointers
-- Pasting the entire wiki into every briefing (wasteful; point instead)
-- Assuming the subagent knows project conventions (it does not)
-- Omitting the expected output format (produces sprawling, unusable reports)
+Shell: paste `bash-simplicity.md`. Git: paste `git-safety.md`.
