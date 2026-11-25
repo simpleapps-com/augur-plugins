@@ -352,9 +352,9 @@ function stubs(on: On, overrides: Partial<World> = {}): World & { clock: MockClo
   });
   on("fs.read", (_$, e) => {
     const file = e.path === "/p/.mcp.json" ? world.mcpFile : undefined;
-    const list = e.path === "/p/work/list.json" ? world.listFile : undefined;
-    if (file === undefined && list === undefined) throw new Error("ENOENT");
-    return { value: file ?? list };
+    const read = file ?? (e.path === "/p/work/list.json" ? world.listFile : undefined);
+    if (read === undefined) throw new Error("ENOENT");
+    return { value: read };
   });
   on("ui.copy", (_$, e) => {
     world.copies.push(`${e.text}@${e.surface}`);
@@ -747,23 +747,23 @@ test("listFrom reads work/list.json, and listKeys gives the filters", async () =
   expect(listKeys({ basecamp: [], github: LIST.github })).toEqual(["site"]);
 });
 
-async function listPane(
-  $: Parameters<Parameters<typeof test>[1]>[0],
-  surface: "terminal" | "desktop",
-) {
-  const ui = await $.ui.mount({ ...PANE, surface });
-  await ui.press({ key: "list" });
-  return ui;
-}
+/** Pressed on a mounted pane to show the List view. */
+const LIST_VIEW = { key: "list" } as const;
 
 test("List shows the list under Basecamp, site and repo headings; ⧉ copies the id", async ($, on) => {
   const world = stubs(on, { listFile: JSON.stringify(LIST) });
   await $.session.start(START);
   await $.command.run(work("check"));
   for (const surface of ["terminal", "desktop"] as const) {
-    const ui = await listPane($, surface);
-    for (const text of ["Basecamp", " acme", " beta", "site", "Fix the cart total", "Another"])
+    const ui = await $.ui.mount({ ...PANE, surface });
+    await ui.press(LIST_VIEW);
+    for (const text of [" acme", " beta", "Fix the cart total", "Another"])
       expect(await ui.find({ type: "Text", text })).toBeDefined();
+    // The headings are buttons (the filter); the view showing is bold text, the other a button
+    for (const text of ["Basecamp", "site", "Summary"])
+      expect(await ui.find({ type: "Button", text })).toBeDefined();
+    expect(await ui.find({ type: "Text", text: "List" })).toBeDefined();
+    expect(await ui.findAll({ type: "Button", text: "List" })).toEqual([]);
     // The Summary lines are gone
     expect(await ui.findAll({ type: "Text", text: "Tracking 2" })).toEqual([]);
     // The id opens its page with the OS's opener (Darwin: open), as argv, no shell
@@ -771,25 +771,30 @@ test("List shows the list under Basecamp, site and repo headings; ⧉ copies the
     expect(world.runs.at(-1)).toEqual(["open", "https://github.com/org/site/issues/2"]);
     await ui.press({ key: "copy:site#2" });
     expect(world.copies.at(-1)).toBe(`site#2@${surface}`);
+    // Every second row is striped, counted across the groups: BC102 and site#2 of the four
+    const boxes = await ui.findAll({ type: "Box" });
+    expect(boxes.filter((box) => box.props?.backgroundColor === "rgb(40,40,40)").length).toBe(2);
     await ui.press({ key: "summary" });
     expect(await ui.find({ type: "Text", text: "Tracking 2" })).toBeDefined();
     await ui.unmount();
   }
 });
 
-test("a heading filters the list; a second click, or All, shows it all again", async ($, on) => {
+test("clicking Basecamp or a repo heading lists only its items; clicking it again lists all", async ($, on) => {
   stubs(on, { listFile: JSON.stringify(LIST) });
   await $.command.run(work("check"));
-  const ui = await listPane($, "terminal");
-  await ui.press({ key: "filter:site" });
+  const ui = await $.ui.mount({ ...PANE, surface: "terminal" });
+  await ui.press(LIST_VIEW);
+  await ui.press({ key: "heading:site" });
   expect(await ui.findAll({ type: "Text", text: "Fix the cart total" })).toEqual([]);
+  expect(await ui.findAll({ type: "Button", text: "Basecamp" })).toEqual([]);
   expect(await ui.find({ type: "Text", text: "A bug" })).toBeDefined();
-  await ui.press({ key: "filter:site" });
+  await ui.press({ key: "heading:site" });
   expect(await ui.find({ type: "Text", text: "Fix the cart total" })).toBeDefined();
-  await ui.press({ key: `filter:${BASECAMP_KEY}` });
+  await ui.press({ key: `heading:${BASECAMP_KEY}` });
   expect(await ui.findAll({ type: "Text", text: "A bug" })).toEqual([]);
   expect(await ui.find({ type: "Text", text: "New banner" })).toBeDefined();
-  await ui.press({ key: "filter:" });
+  await ui.press({ key: `heading:${BASECAMP_KEY}` });
   expect(await ui.find({ type: "Text", text: "A bug" })).toBeDefined();
   await ui.unmount();
 });
@@ -797,8 +802,9 @@ test("a heading filters the list; a second click, or All, shows it all again", a
 test("a filter whose group a sync emptied shows the whole list", async ($, on) => {
   const world = stubs(on, { listFile: JSON.stringify(LIST) });
   await $.command.run(work("check"));
-  let ui = await listPane($, "terminal");
-  await ui.press({ key: "filter:site" });
+  let ui = await $.ui.mount({ ...PANE, surface: "terminal" });
+  await ui.press(LIST_VIEW);
+  await ui.press({ key: "heading:site" });
   await ui.unmount();
   world.listFile = JSON.stringify({ ...LIST, github: [] });
   await $.command.run(work("check"));
@@ -810,7 +816,8 @@ test("a filter whose group a sync emptied shows the whole list", async ($, on) =
 test("List says when there is no list yet, and when it is empty", async ($, on) => {
   const world = stubs(on);
   await $.command.run(work("check"));
-  let ui = await listPane($, "terminal");
+  let ui = await $.ui.mount({ ...PANE, surface: "terminal" });
+  await ui.press(LIST_VIEW);
   expect(await ui.find({ type: "Text", text: "no list yet: press Sync" })).toBeDefined();
   await ui.unmount();
   world.listFile = JSON.stringify({ basecamp: [], github: [] });

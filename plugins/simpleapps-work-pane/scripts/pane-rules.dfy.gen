@@ -519,6 +519,11 @@ function isWebUrl(url: string): bool
   ((|url| > n) && (url[0..n] == WEB_SCHEME))
 }
 
+function isStriped(index: nat): bool
+{
+  ((index % 2) == 1)
+}
+
 function openerOf(sysname: string): string
 {
   if (sysname == "Darwin") then

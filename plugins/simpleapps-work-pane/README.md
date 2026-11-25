@@ -5,7 +5,8 @@
 A **Work** pane beside the chat for a `simpleapps-work` project: what you track (your open Basecamp todos and the open issues in your watched repos), what changed since your last Sync, and a **Sync** button that brings the project's `work/` folder up to date.
 
 ```
-Summary  List
+Summary │ List
+────────────────────────────
 Tracking 14
  Basecamp todos 9
  GitHub issues 5
@@ -19,11 +20,11 @@ synced 09:41
 checked 10:02
 ```
 
-**List** (the toggle at the top) shows the work list itself, the same items in the same order as `work/LIST.md`: Basecamp, with a heading per site, then a heading per watched repo. Each row is one line: the id, which opens the item's page in your browser; `⧉`, which copies the id (`BC1234`, `repo#123`); and the title, cut to the pane's width, so a wider pane shows more of it. Click `Basecamp` or a repo to show only that group; click it again, or `All`, for the whole list.
+**List** (the header at the top; the view showing is bold, click the other) shows the work list itself, the same items in the same order as `work/LIST.md`: Basecamp, with a heading per site, then a heading per watched repo. Each row is one line: the id, which opens the item's page in your browser; `⧉`, which copies the id (`BC1234`, `repo#123`); and the title, cut to the pane's width, so a wider pane shows more of it. Click the `Basecamp` heading or a repo's heading to list only its items; click it again for the whole list.
 
 ```
-Summary  List
-All Basecamp site
+Summary │ List
+────────────────────────────
 Basecamp
  acme
 BC1234 ⧉ Fix the cart tot…
@@ -188,7 +189,7 @@ Commands: `refresh`, `status`, `log-check` (the pane's), `brief <hub>`, `validat
 
 ## Privacy
 
-The pane reads your Basecamp todos through the SimpleApps Basecamp connector and your GitHub issues through `gh`, and writes them to your project's `work/` and `tmp/` folders on your computer. It sends nothing anywhere else. When you click an id in List, it opens that item's `https://` page with your system's own opener (`open` on macOS, `xdg-open` on Linux, `explorer` on Windows); it opens nothing else.
+The pane reads your Basecamp todos through the SimpleApps Basecamp connector and your GitHub issues through `gh`, and writes them to your project's `work/` and `tmp/` folders on your computer. It sends nothing anywhere else. When you click an id in List, it opens that item's web page (secure https links only) with your system's own opener (`open` on macOS, `xdg-open` on Linux, `explorer` on Windows); it opens nothing else.
 
 ## Develop
 

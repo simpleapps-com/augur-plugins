@@ -922,6 +922,13 @@ export function isWebUrl(url: string): boolean {
   return url.length > n && url.slice(0, n) === WEB_SCHEME;
 }
 
+/** The List view's rows alternate: every second row of a group (index 1, 3, …) is striped. */
+export function isStriped(index: number): boolean {
+  //@ verify
+  //@ type index nat
+  return index % 2 === 1;
+}
+
 /** The program that opens a URL in the browser, by the OS type `session.machine` reports. */
 export function openerOf(sysname: string): string {
   //@ verify

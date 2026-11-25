@@ -27,6 +27,7 @@ import {
   hasOwner,
   inWatchedNames,
   isDue,
+  isStriped,
   isWebUrl,
   linkedTargets as provedLinkedTargets,
   logsCheck,
@@ -932,7 +933,7 @@ export const register: Register = (on) => {
     const ui = $.ui.resolve(e);
     const s = await read($, snapshot);
     const shown = await read($, view);
-    const toggle = viewToggle($, ui, shown);
+    const toggle = viewToggle($, ui, shown, e.props.bodyColumns);
     return shown === "list" ? listView($, ui, s.list, toggle) : summaryView($, ui, s, toggle);
   });
 };
@@ -942,19 +943,32 @@ type Ui = ReturnType<EngineInterface["ui"]["resolve"]>;
 type Drawn = ReturnType<typeof viewToggle>;
 
 /** `Summary` and `List` at the top of the pane; the one showing is marked. */
-function viewToggle($: EngineInterface, ui: Ui, shown: View) {
-  const { Box, Button } = ui;
+function viewToggle($: EngineInterface, ui: Ui, shown: View, columns: number) {
+  const { Box, Text, Button } = ui;
+  // A header: the view showing in bold, the other one to press, then a rule the pane's width
   return (
-    <Box flexDirection="row" columnGap={1}>
-      {(["summary", "list"] as const).map((name) => (
-        <Button
-          key={name}
-          label={name === "summary" ? "Summary" : "List"}
-          plain
-          variant={shown === name ? "primary" : "secondary"}
-          onPress={() => void update($, view, () => name)}
-        />
-      ))}
+    <Box flexDirection="column">
+      <Box flexDirection="row" columnGap={1}>
+        {(["summary", "list"] as const).flatMap((name) => {
+          const label = name === "summary" ? "Summary" : "List";
+          const tab =
+            shown === name ? (
+              <Text bold>{label}</Text>
+            ) : (
+              <Button
+                key={name}
+                label={label}
+                plain
+                onPress={() => void update($, view, () => name)}
+              />
+            );
+          // A dim line between the two: Summary │ List
+          return name === "list" ? [<Text dimColor>│</Text>, tab] : [tab];
+        })}
+      </Box>
+      <Text dimColor wrap="truncate">
+        {"─".repeat(columns)}
+      </Text>
     </Box>
   );
 }
@@ -972,10 +986,15 @@ async function openPage($: EngineInterface, url: string): Promise<void> {
 
 /** One line per item: its id opens its page, ⧉ copies the id, and the title is cut to the pane's
     width, so a wider pane shows more of it. */
-function itemRows($: EngineInterface, ui: Ui, rows: ListRow[]) {
+function itemRows($: EngineInterface, ui: Ui, rows: ListRow[], start: number) {
   const { Box, Text, Button } = ui;
-  return rows.map((row) => (
-    <Box flexDirection="row" columnGap={1}>
+  // Every second row of the list is striped (proved `isStriped`), counted across the groups
+  return rows.map((row, k) => (
+    <Box
+      flexDirection="row"
+      columnGap={1}
+      {...(isStriped(start + k) ? { backgroundColor: STRIPE } : {})}
+    >
       <Button
         key={`open:${row.ref}`}
         label={row.ref}
@@ -1010,37 +1029,42 @@ async function listView($: EngineInterface, ui: Ui, work: WorkList | undefined, 
   const current = await read($, filter);
   const basecamp = showsGroup(current, BASECAMP_KEY, keys) ? work.basecamp : [];
   const github = work.github.filter((group) => showsGroup(current, group.key, keys));
+  // The headings are the filter: `Basecamp` or a repo shows only its items; again shows them all
+  const heading = (key: string, label: string) => (
+    <Button
+      key={`heading:${key}`}
+      label={label}
+      plain
+      onPress={() => void update($, filter, (f) => nextFilter(f, key))}
+    />
+  );
   return (
     <Box flexDirection="column">
       {toggle}
-      <Box flexDirection="row" columnGap={1} flexWrap="wrap">
-        {["", ...keys].map((key) => (
-          <Button
-            key={`filter:${key}`}
-            label={key === "" ? "All" : key === BASECAMP_KEY ? "Basecamp" : key}
-            plain
-            variant={current === key ? "primary" : "secondary"}
-            onPress={() => void update($, filter, (f) => nextFilter(f, key))}
-          />
-        ))}
-      </Box>
-      {basecamp.length > 0 && <Text bold>Basecamp</Text>}
-      {basecamp.map((group) => (
+      {basecamp.length > 0 && <Box marginTop={1}>{heading(BASECAMP_KEY, "Basecamp")}</Box>}
+      {basecamp.map((group, g) => (
         <Box flexDirection="column">
           <Text dimColor> {group.key}</Text>
-          {itemRows($, ui, group.rows)}
+          {itemRows($, ui, group.rows, rowCount(basecamp.slice(0, g)))}
         </Box>
       ))}
-      {github.map((group) => (
-        <Box flexDirection="column">
-          <Text bold>{group.key}</Text>
-          {itemRows($, ui, group.rows)}
+      {github.map((group, g) => (
+        <Box flexDirection="column" marginTop={1}>
+          {heading(group.key, group.key)}
+          {itemRows($, ui, group.rows, rowCount(basecamp) + rowCount(github.slice(0, g)))}
         </Box>
       ))}
     </Box>
   );
 }
 
+/** The faint band on every second row of the List view: tuned for a dark theme (a mod cannot
+    read which theme is on). */
+const STRIPE = "rgb(40,40,40)";
+
+/** The rows in `groups`. */
+const rowCount = (groups: { rows: ListRow[] }[]) =>
+  groups.reduce((n, group) => n + group.rows.length, 0);
 /** The Summary view: what you track, the watched repos' counts, Sync, and the check's state. */
 function summaryView($: EngineInterface, ui: Ui, s: Snapshot, toggle: Drawn) {
   const { Box, Text, Button } = ui;
