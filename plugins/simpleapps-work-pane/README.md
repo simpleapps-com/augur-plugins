@@ -19,7 +19,7 @@ synced 09:41
 checked 10:02
 ```
 
-**List** (the toggle at the top) shows the work list itself, the same items in the same order as `work/LIST.md`: Basecamp, with a heading per site, then a heading per watched repo. Each row is one line: the id, which opens the item's page; `⧉`, which copies the id (`BC1234`, `repo#123`); and the title, cut to the pane's width, so a wider pane shows more of it. Click `Basecamp` or a repo to show only that group; click it again, or `All`, for the whole list.
+**List** (the toggle at the top) shows the work list itself, the same items in the same order as `work/LIST.md`: Basecamp, with a heading per site, then a heading per watched repo. Each row is one line: the id, which opens the item's page in your browser; `⧉`, which copies the id (`BC1234`, `repo#123`); and the title, cut to the pane's width, so a wider pane shows more of it. Click `Basecamp` or a repo to show only that group; click it again, or `All`, for the whole list.
 
 ```
 Summary  List
@@ -188,7 +188,7 @@ Commands: `refresh`, `status`, `log-check` (the pane's), `brief <hub>`, `validat
 
 ## Privacy
 
-The pane reads your Basecamp todos through the SimpleApps Basecamp connector and your GitHub issues through `gh`, and writes them to your project's `work/` and `tmp/` folders on your computer. It sends nothing anywhere else.
+The pane reads your Basecamp todos through the SimpleApps Basecamp connector and your GitHub issues through `gh`, and writes them to your project's `work/` and `tmp/` folders on your computer. It sends nothing anywhere else. When you click an id in List, it opens that item's `https://` page with your system's own opener (`open` on macOS, `xdg-open` on Linux, `explorer` on Windows); it opens nothing else.
 
 ## Develop
 

@@ -912,6 +912,23 @@ export function nextFilter(current: string, clicked: string): string {
   return clicked === current ? "" : clicked;
 }
 
+/** The only scheme a row's page is opened with. */
+const WEB_SCHEME = "https://";
+
+/** A row's id opens its page only for an https:// URL: never a file, an app scheme, or empty. */
+export function isWebUrl(url: string): boolean {
+  //@ verify
+  const n = WEB_SCHEME.length;
+  return url.length > n && url.slice(0, n) === WEB_SCHEME;
+}
+
+/** The program that opens a URL in the browser, by the OS type `session.machine` reports. */
+export function openerOf(sysname: string): string {
+  //@ verify
+  if (sysname === "Darwin") return "open";
+  return sysname === "Windows_NT" ? "explorer" : "xdg-open";
+}
+
 /** The List view's filter keys: Basecamp's, when it has todos, then each repo's, in list order. */
 export function filterKeys(hasBasecamp: boolean, basecampKey: string, repos: string[]): string[] {
   //@ verify

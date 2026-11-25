@@ -23,10 +23,12 @@ import {
   isRecentlyClosed,
   filterKeys,
   isTrackedIssue,
+  isWebUrl,
   isTrackedTodo,
   nextFilter,
   nextRetries,
   notesBriefProblem,
+  openerOf,
   outcomeOf,
   logsCheck,
   pendingOf,
@@ -331,4 +333,21 @@ test("filterKeys: Basecamp's key first when it has todos, then the repos (GH #47
   assert.deepEqual(filterKeys(true, "basecamp:", ["site", "tool"]), ["basecamp:", "site", "tool"]);
   assert.deepEqual(filterKeys(false, "basecamp:", ["site"]), ["site"]);
   assert.deepEqual(filterKeys(true, "basecamp:", []), ["basecamp:"]);
+});
+
+test("isWebUrl and openerOf: only https:// pages open, with the OS's opener (GH #47)", () => {
+  for (const [url, web] of [
+    ["https://github.com/org/site/issues/1", true],
+    ["https://x", true],
+    ["https://", false],
+    ["http://example.com", false],
+    ["file:///etc/passwd", false],
+    ["javascript:alert(1)", false],
+    ["", false],
+  ] as const)
+    assert.equal(isWebUrl(url), web);
+  assert.equal(openerOf("Darwin"), "open");
+  assert.equal(openerOf("Windows_NT"), "explorer");
+  assert.equal(openerOf("Linux"), "xdg-open");
+  assert.equal(openerOf(""), "xdg-open");
 });

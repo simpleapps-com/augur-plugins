@@ -766,6 +766,9 @@ test("List shows the list under Basecamp, site and repo headings; ⧉ copies the
       expect(await ui.find({ type: "Text", text })).toBeDefined();
     // The Summary lines are gone
     expect(await ui.findAll({ type: "Text", text: "Tracking 2" })).toEqual([]);
+    // The id opens its page with the OS's opener (Darwin: open), as argv, no shell
+    await ui.press({ key: "open:site#2" });
+    expect(world.runs.at(-1)).toEqual(["open", "https://github.com/org/site/issues/2"]);
     await ui.press({ key: "copy:site#2" });
     expect(world.copies.at(-1)).toBe(`site#2@${surface}`);
     await ui.press({ key: "summary" });

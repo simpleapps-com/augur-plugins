@@ -1143,6 +1143,33 @@ module WorkPane {
   {
   }
 
+  // A row's id opens its page in the browser (a Link prints its URL where the terminal has no
+  // hyperlinks). Only an https:// URL is opened: never a file, an app scheme, or an empty one.
+  const WebScheme := "https://"
+
+  predicate IsWebUrl(url: string)
+  {
+    |url| > |WebScheme| && url[..|WebScheme|] == WebScheme
+  }
+
+  lemma WebUrlExamples()
+    ensures IsWebUrl("https://github.com/org/site/issues/1")
+    ensures !IsWebUrl("https://")
+    ensures !IsWebUrl("http://example.com")
+    ensures !IsWebUrl("file:///etc/passwd")
+    ensures !IsWebUrl("")
+  {
+    assert "https://github.com/org/site/issues/1"[..8] == WebScheme;
+    assert "http://example.com"[4] != WebScheme[4];
+    assert "file:///etc/passwd"[0] != WebScheme[0];
+  }
+
+  // The program that opens a URL in the browser, by the OS type `session.machine` reports.
+  function OpenerOf(sysname: string): string
+  {
+    if sysname == "Darwin" then "open" else if sysname == "Windows_NT" then "explorer" else "xdg-open"
+  }
+
   // The List view's filter keys: Basecamp's, when it has todos, then each repo's, in list order.
   function FilterKeys(hasBasecamp: bool, basecampKey: string, repos: seq<string>): seq<string>
   {
