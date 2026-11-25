@@ -1,5 +1,8 @@
 # Workflow
 
-Follow the development lifecycle: /triage → /wip → /investigate → /discuss → /implement → /quality → /sanity-check → /verify → /submit → /stage → /publish. Each step feeds the next. Most daily work ends at /submit. /stage and /publish are less frequent. /publish runs its pre-flight checks and releases; invoking it is the approval, with no second confirmation.
+The lifecycle, each step feeding the next: `/wip <issue>` (fetches the issue and investigates) → `/code model` (when the work has decisions to prove) → `/wip implement` → `/code quality` → `/code sanity-check` → `/repo submit`.
 
-Load Skill("workflow") for the full development lifecycle and Basecamp-to-GitHub flow.
+- Most daily work ends at `/repo submit`. `/repo publish` releases plugins, less often. There is no staging deploy.
+- `/wip triage` shows what is open; `/wip process` marks shipped WIPs and retires old ones.
+- Tracked work lives in `wip/`, one file per piece of work, linked to its GitHub issue where there is one.
+- `/repo submit` and `/repo publish` are shipping commands (`git-safety.md`).
