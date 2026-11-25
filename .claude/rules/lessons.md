@@ -10,6 +10,10 @@ Load Skill("rules") and run `/rules lessons` to review, consolidate and promote 
 
 - MUST NOT use the AskUserQuestion dialog (multiple-choice "survey" questions); ask in plain text as the last line of the reply, inside the TL;DR, with a recommendation, then stop. Anchor: 2026-11-23, shown the dialog, the user said "NEVER GIVE ME THESE SURVERY ASK ME QUETIONS".
 
+## Porting
+
+- When porting a skill, MUST keep every rule about how to write instructions for Claude, and mark a surface-specific one with its surface instead of dropping it; only content that fits nowhere MAY be cut, and the cut is named in the report. Anchor: 2026-11-25, the `writing-style` port dropped the `ultrathink` section as "Claude Code-specific"; the user: "keep ultrathink".
+
 ## Reporting
 
 - When asked what is left, MUST list only open work; MUST NOT mention items the user declined, dropped or retired. Anchor: 2026-11-25, a "what is left" report on the augur-skills migration WIP listed the unrotated OAuth secret and the retired files; the user: "don't mention the think that I have declien to move when I am asking what is left".
