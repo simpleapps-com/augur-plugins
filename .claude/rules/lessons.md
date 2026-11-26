@@ -24,8 +24,11 @@ Load Skill("rules") and run `/rules lessons` to review, consolidate and promote 
 
 ## Docs
 
+- When judging whether a site or page belongs in the docs, MUST weigh what it does for a newcomer (an index, a directory, a discovery entry point), not only whether its facts appear elsewhere; a hub that leads to the other endpoints MUST be named, with each step of the path it lays out and what each file it names can do, read from the file itself, not from its one-line label. Anchor: 2026-11-26, augur-api.info was left out of the augur-build README as "covered by augur.build"; the user: "it is an importnat hub for finding the other putlic APIs".
 - A plugin's README MUST NOT document limits or workarounds for tools the team does not use (tmux is one of them). Anchor: 2026-11-25, the simpleapps-worktrees README listed a `claude -w --tmux` limit; the user: "we don't use tmux".
 
 ## Reporting
+
+- A `help` answer MUST fit on one screen: one line on what the skill does, one line per subcommand, and how to ask for more (settings, safeguards); MUST NOT list every setting, safeguard and surface; promoted to the shared Help block every skill ships, and wiki Skill-Authoring. Anchor: 2026-11-26, `/repo help` printed two tables, the repo's settings, the safeguards and a surface list; the user: "that help response was so incredibly long I do not think it was helpful".
 
 - When asked what is left, MUST list only open work; MUST NOT mention items the user declined, dropped or retired. Anchor: 2026-11-25, a "what is left" report on the augur-skills migration WIP listed the unrotated OAuth secret and the retired files; the user: "don't mention the think that I have declien to move when I am asking what is left".
