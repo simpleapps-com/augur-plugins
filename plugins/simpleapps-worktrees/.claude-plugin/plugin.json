@@ -1,0 +1,16 @@
+{
+  "name": "simpleapps-worktrees",
+  "displayName": "SimpleApps Worktrees",
+  "description": "Claude Code only. Worktree hooks: places worktrees at {project}/worktrees/<name> in the SimpleApps layout (or <repo>/.claude/worktrees/<name>), detached; never removes one that holds work git can see, and never forces; session end removes that session's empty worktrees.",
+  "version": "2026.11.1",
+  "author": {
+    "name": "SimpleApps",
+    "email": "info@simpleapps.com",
+    "url": "https://www.simpleapps.com"
+  },
+  "homepage": "https://www.simpleapps.com",
+  "repository": "https://github.com/simpleapps-com/augur-plugins",
+  "license": "MIT",
+  "keywords": ["worktree", "git", "claude-code", "hooks"],
+  "network": { "hosts": ["github.com", "registry.npmjs.org"] }
+}

@@ -24,7 +24,7 @@ Each entry says when the rule applies, the musts it MUST carry, and where its pr
 - After the work: report what changed, suggest the project's verify step if the change is untested, then stop. MUST NOT suggest committing, pushing or opening a PR; the user starts those.
 - A question that blocks: MUST NOT end a turn waiting on an answer unless the question is in the visible reply, word for word. The user cannot see the agent's reasoning, so MUST NOT refer to reasoning they never saw. Prefer not blocking: do every part that does not depend on the answer, say what was assumed for the rest, and ask about that.
 
-**From the project:** its layout (`repo/`, `wiki/`, `tmp/`, `clones/`, or a plain repo), where reference repos live, and the verify step it has (`/code verify`, a test command).
+**From the project:** its layout (`repo/`, `wiki/`, `tmp/`, `clones/`, or a plain repo), where reference repos live, and the verify step it has (`/code verify`, a test command). With augur-build installed, the rule ends with a pointer to the full conventions: `Load Skill("work-habits") for the detail.`
 
 ## workflow
 
@@ -36,7 +36,7 @@ Each entry says when the rule applies, the musts it MUST carry, and where its pr
 - Which steps are daily and which are rare (most daily work ends at submitting; releases and deploys are less frequent).
 - Where tracked work lives (WIP files, issues, Basecamp), if anywhere.
 
-**From the project:** the installed skills and commands. For example, with augur-build and simpleapps-work: `/wip triage` → `/wip <issue>` (which investigates) → `/code model` → `/wip implement` → `/code quality` → `/code sanity-check` → `/code verify` → `/repo submit`, then less often `/repo deploy` and `/repo publish`. MUST NOT name a command that is not installed: check the session's skill list and the project's `.claude/commands/` and `.claude/skills/`.
+**From the project:** the installed skills and commands. For example, with augur-build and simpleapps-work: `/wip triage` → `/wip <issue>` (which investigates) → `/strategize discuss` or `/strategize research` when the approach is unclear → `/code model` → `/wip implement` → `/code quality` → `/code sanity-check` → `/code verify` → `/repo submit`, then less often `/repo deploy` and `/repo publish`. MUST NOT name a command that is not installed: check the session's skill list and the project's `.claude/commands/` and `.claude/skills/`.
 
 
 ## bash-simplicity
@@ -49,7 +49,7 @@ Each entry says when the rule applies, the musts it MUST carry, and where its pr
 - Search: MUST use the Grep and Glob tools when they are in the tool list; otherwise `grep -rn` (or `rg`) and `find`/`ls`, still one command each: no pipes to `head`, no chained `find -exec grep`.
 - Never `kill`, `pkill` or `lsof` to stop a process: stop a background task with TaskStop; a process the session did not start is the user's to stop.
 
-**From the project:** where its scratch files go (message files for commits and PRs). The search line stays conditional ("when they are in the tool list"): which tools a machine has is not a fact a committed rule can state.
+**From the project:** where its scratch files go (message files for commits and PRs). The search line stays conditional ("when they are in the tool list"): which tools a machine has is not a fact a committed rule can state. With augur-build installed, the rule ends with `Load Skill("bash-simplicity") for the detail.`
 
 ## chrome-resilience
 

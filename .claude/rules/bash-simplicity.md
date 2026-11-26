@@ -5,3 +5,5 @@
 - Search: MUST use the Grep and Glob tools when they are in the tool list; otherwise `grep -rn` (or `rg`) and `find` or `ls`, still one command each: no pipes to `head`, no chained `find -exec grep`.
 - Scratch files (commit messages, PR bodies) go in the project-level `tmp/`, never `repo/tmp/`, and are removed after use. From `git -C repo`, a message file is `../tmp/<file>`.
 - MUST NOT use `kill`, `pkill` or `lsof` to stop a process: stop a background task with TaskStop; a process the session did not start is the user's to stop.
+
+Load Skill("bash-simplicity") for the detail.

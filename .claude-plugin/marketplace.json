@@ -50,6 +50,12 @@
       "tags": ["claude-code-only", "mod", "basecamp"]
     },
     {
+      "name": "simpleapps-worktrees",
+      "source": "./plugins/simpleapps-worktrees",
+      "category": "development",
+      "tags": ["claude-code-only", "hooks"]
+    },
+    {
       "name": "augur-php-lsp",
       "source": "./plugins/augur-php-lsp",
       "category": "development",
