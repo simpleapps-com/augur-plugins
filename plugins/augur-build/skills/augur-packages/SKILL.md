@@ -24,7 +24,7 @@ This skill points the way; it is not the API reference. Packages gain exports an
 
 1. **List the packages:** `ls <site>/node_modules/@simpleapps-com/`. `<site>` is the folder with the site's `package.json`: the repo root, or the site's package in a pnpm workspace. There may be packages not named here.
 2. **Read each package's `llms.txt`:** the platform's package list and the package's exports in brief.
-3. **Read its `README.md`**, then the `EXPORTS.md` it names ("every export"), for a relevant export's API and examples, including any note on what site code it replaces. The full guide is at `https://augur.build/docs/packages`.
+3. **Read its `README.md`**, then the `EXPORTS.md` it names ("every export"), for a relevant export's API and examples, including any note on what site code it replaces. The full guide is at `https://augur.build/docs/packages/overview`.
 4. MUST NOT read `dist/`, `.d.ts` or compiled JavaScript to discover capabilities: they are build output, and incomplete.
 
 | Package | Covers |
@@ -86,5 +86,5 @@ After the audit, report and stop: MUST NOT change code or file issues unless the
 <!-- shared:help -->
 ## Help
 
-`help` as the argument (`/<skill> help`), or a request such as "how do I use this skill?", explains how the skill is used and changes nothing. The answer comes from this file: what the skill does; each subcommand with one line and an example call, and what a bare call does (a skill with no subcommands gives three example requests instead); the settings and their defaults; and what works on each surface. `help` is reserved: it is never read as another argument (a title, a file, a target). To answer it, MUST NOT run a command, call any tool except to read this skill's own files, or write anything.
+`help` as the argument (`/<skill> help`), or a request such as "how do I use this skill?", gets a short answer that changes nothing. It MUST fit on one screen, about ten lines, with no tables: one line on what the skill does; one line per subcommand with an example call (a skill with no subcommands gives three example requests instead); what a bare call does; and one closing line naming what else can be asked about (its settings, its safeguards, what works on each surface), which is answered only when asked. MUST NOT list every setting, default, safeguard or surface unasked. The answer comes from this file. `help` is reserved: it is never read as another argument (a title, a file, a target). To answer it, MUST NOT run a command, call any tool except to read the files of this skill, or write anything.
 <!-- /shared:help -->
