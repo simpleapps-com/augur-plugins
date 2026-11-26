@@ -14,9 +14,17 @@ Load Skill("rules") and run `/rules lessons` to review, consolidate and promote 
 
 - A skill's text MUST be read from the base directory the Skill tool names, or from the repo's plugin source, never from the plugin cache; promoted to `work-habits.md` and the `rules` catalogue. Anchor: 2026-11-25, `/wip 64` read the `wip` skill's files from the plugin cache; the user: "there MUST be a better way to use the skill data than to read outside the folder".
 
+## Issues
+
+- When an issue's build work is merged, the PR MUST close it (`Closes #N`); a live check that a user runs later, elsewhere, MUST NOT keep it open, and MUST be named in the report instead. Anchor: 2026-11-25, #64 (simpleapps-seo) was merged and released with `Refs #64`, left open for a Semrush sign-in test; the user: "that is not a good enough reason to leave it open, if you are complete close it".
+
 ## Porting
 
 - When porting a skill, MUST keep every rule about how to write instructions for Claude, and mark a surface-specific one with its surface instead of dropping it; only content that fits nowhere MAY be cut, and the cut is named in the report. Anchor: 2026-11-25, the `writing-style` port dropped the `ultrathink` section as "Claude Code-specific"; the user: "keep ultrathink".
+
+## Docs
+
+- A plugin's README MUST NOT document limits or workarounds for tools the team does not use (tmux is one of them). Anchor: 2026-11-25, the simpleapps-worktrees README listed a `claude -w --tmux` limit; the user: "we don't use tmux".
 
 ## Reporting
 

@@ -8,6 +8,9 @@ For SimpleApps staff. Work with Basecamp 2 from claude.ai, Claude Desktop, Cowor
 
 | Skill | Use it for |
 |-------|------------|
+| `basecamp` | Working in Basecamp the team's way: a client request read in full (every comment and attachment), ids found from a link and the project's site-info document, and comments, todos and assignments drafted for your yes before anything posts. Turns a request into a GitHub issue for code work, cross-linked both ways, and keeps client detail in Basecamp and technical detail in GitHub. Filing the issue needs Claude Code; in chat it drafts the issue for you to file |
+| `guide` | A short tour for new staff: the project folder, how work flows from Basecamp to GitHub to a WIP to a pull request, which skill does what, and a typical session, pointing to each skill's own `help` |
+| `project` | The SimpleApps project folder (`repo/`, `wiki/`, `wip/`, `tmp/`, `clones/`, `worktrees/`, `goals/`, `.simpleapps/`): a bare `/project` explains it; `/project init` checks a folder and fixes what is missing (symlinks, the per-user settings and their permission defaults), asking before any write outside the project, and hands the rules and `CLAUDE.md` to `/rules write`. Needs Claude Code; in chat it explains the layout |
 | `wip` | Tracking a piece of work from a GitHub issue or Basecamp item to shipped, in a local WIP file that is never committed. `/wip <issue or Basecamp link>` creates the WIP (request, acceptance criteria, attachment summaries) and investigates it, or refreshes an existing one. `/wip triage` shows the repo's issues, PRs and WIPs; `/wip investigate` and `/wip implement` research and build against the criteria; `/wip process` marks shipped work and retires old WIPs. It never writes to git or GitHub: with Augur Build installed, `/repo` commits and ships. Everything but drafting needs Claude Code; in chat it drafts a WIP from a Basecamp item, or from a GitHub issue you paste |
 
 ## Install

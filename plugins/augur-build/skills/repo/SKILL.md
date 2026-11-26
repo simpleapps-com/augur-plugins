@@ -1,6 +1,6 @@
 ---
 name: repo
-description: Ships a project's code through git and GitHub. Shows repo status, commits, submits a pull request, cleans up branches, publishes a release, deploys to staging, and files an issue when asked. One skill with seven subcommands (`/repo status`, `commit`, `submit`, `cleanup`, `publish`, `deploy`, `issue`); settings on the project's wiki Deployment page choose how each behaves, within fixed safeguards. Use when the user asks to commit, push, submit, open or merge a PR, release, publish, deploy, clean up branches, check the repo's status, or file an issue.
+description: Ships a project's code through git and GitHub. Shows repo status, commits, submits a pull request, cleans up branches, publishes a release, deploys to staging, and files an issue when asked, on this repo or upstream on another. One skill with seven subcommands (`/repo status`, `commit`, `submit`, `cleanup`, `publish`, `deploy`, `issue`); settings on the project's wiki Deployment page choose how each behaves, within fixed safeguards. Use when the user asks to commit, push, submit, open or merge a PR, release, publish, deploy, clean up branches, check the repo's status, or file an issue, here or on another repo.
 license: MIT
 allowed-tools: Bash(node ${CLAUDE_SKILL_DIR}/scripts/cleanup-plan.ts *)
 ---
@@ -39,7 +39,7 @@ Run as `/repo <subcommand>`. Before running one, read its reference and the ones
 | `cleanup` | Back to `<default>` once the work is merged, delete merged branches, remove this run's files | | [references/cleanup.md](references/cleanup.md) |
 | `publish` | Pre-flight checks, version bump, release per `repo-release`, verify, clean up | commit, submit, cleanup, conventional-commits | [references/publish.md](references/publish.md) |
 | `deploy` | Deploy to staging per `repo-deploy` | | [references/deploy.md](references/deploy.md) |
-| `issue` | File a GitHub issue the user asked for | | [references/issue.md](references/issue.md) |
+| `issue` | File a GitHub issue the user asked for, here or on another repo; an upstream dependency also marks the local issue blocked | | [references/issue.md](references/issue.md) |
 
 Message format: [references/conventional-commits.md](references/conventional-commits.md).
 
@@ -80,7 +80,7 @@ Read-only, for every subcommand:
 
 - git: `status` (`--short --branch`, `--porcelain`); `branch` (`--show-current`, `-vv`, `--format=<fmt>`, `--merged <default>`); `log` (`--oneline`, `-<n>`, `--format=<fmt>`, `--grep=<text>`, a `<range>`, `-- <path>...`); `diff` (`--cached`, `--name-only`, `--stat`, a `<range>`, `-- <path>...`); `show <ref>` (`--stat`); `rev-parse <ref>`; `tag -l` (`--sort=<key>`); `ls-remote` (`--heads`, `--tags`) `origin` (`<ref>`); `stash list`; `worktree list`; `fetch origin`; `config --get <key>`; `remote get-url origin`.
 - files: `ls <path>` for a path inside `<repo>` (to list release units, or find installed hooks).
-- gh: `repo view <R> --json <fields>`; `pr view <N|branch> --json <fields>`; `pr list` (`--state <s>`, `--head <branch>`, `--author @me`, `--json <fields>`); `pr checks <N>`; `run list` (`--branch <b>`, `--commit <sha>`, `--workflow <file>`, `--limit <n>`, `--json <fields>`); `run view <id>` (`--json <fields>`); `release view <tag>`; `issue view <N> --json <fields>`; `issue list` (`--search <text>`, `--state all`, `--limit <n>`); `label list`.
+- gh: `repo view <R> --json <fields>` (or `<target>`, for `issue`); `pr view <N|branch> --json <fields>`; `pr list` (`--state <s>`, `--head <branch>`, `--author @me`, `--json <fields>`); `pr checks <N>`; `run list` (`--branch <b>`, `--commit <sha>`, `--workflow <file>`, `--limit <n>`, `--json <fields>`); `run view <id>` (`--json <fields>`); `release view <tag>`; `issue view <N> --json <fields>`; `issue list` (`--search <text>`, `--state all`, `--limit <n>`); `label list`.
 
 ## Safeguards no setting can remove
 
@@ -98,6 +98,7 @@ Read-only, for every subcommand:
 - **Branch deletes** only under cleanup's guard: never `<default>` or the current branch. In Claude Code the guard is a proved script ([references/cleanup.md](references/cleanup.md)); a branch it does not mark for deletion is kept.
 - **Survey before every commit.** Name every untracked file and every change this session did not make. A file that is not source, docs or config (an archive, a key, an `.env`, a stray script) is named on its own line and asked about; on a "no", it is left out.
 - **Issues.** No GitHub issue is created unless the user asked for one. Linking an issue the user named, or the branch carries, is optional.
+- **No private data leaves a private place.** Nothing private (a private repo's name or issue numbers, client or person names, site ids, account ids, private hosts, credentials, text from a private issue, Basecamp or WIP) goes into a commit, PR, release, issue or comment on a public repo. A repo whose visibility cannot be read counts as public ([references/issue.md](references/issue.md), Privacy).
 - **Checks.** A failed check or hook stops the subcommand: MUST NOT fix it and carry on, or route around it.
 
 ## After a subcommand

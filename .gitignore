@@ -4,6 +4,8 @@ node_modules/
 .env
 .env.*
 .claude/settings.local.json
+# Claude Code's runtime lock for scheduled tasks
+.claude/scheduled_tasks.lock
 # LemmaScript run log and blob cache, and its three-way-merge scratch files (lsc regen)
 .lemmascript/
 *.dfy.base
