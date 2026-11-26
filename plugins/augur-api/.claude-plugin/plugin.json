@@ -2,7 +2,7 @@
   "name": "augur-api",
   "displayName": "Augur API",
   "description": "Site admins read and manage their site's ERP and e-commerce data through the Augur services, with Claude asking before every change.",
-  "version": "2026.11.4",
+  "version": "2026.11.5",
   "author": {
     "name": "SimpleApps",
     "email": "info@simpleapps.com",
