@@ -6,6 +6,8 @@ Read and manage your site's ERP and e-commerce data, such as items, pricing, cus
 
 **Changes are live.** Creating, updating, or deleting a record changes your site's data straight away. Claude tells you exactly what it will change and waits for your yes before each change.
 
+**Feedback.** When something does not work (an endpoint it cannot find, a wrong result), Claude may offer to send the Augur team a feedback report. It shows you exactly what it will send and sends it only after your yes. A report holds what you asked and what went wrong, never your site's data.
+
 ## Install
 
 **claude.ai, Claude Desktop, and Cowork** (Pro, Max, Ultra, Team, or Enterprise plan):
