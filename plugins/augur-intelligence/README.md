@@ -1,6 +1,6 @@
 # Augur Intelligence
 
-Ask plain-language questions about your company's ERP data, such as sales, customers, orders, and inventory, and get answers in business terms. Augur Intelligence is read-only: it never changes your data.
+Ask plain-language questions about your company's ERP data, such as sales, customers, orders, and inventory, and get answers in business terms. Augur Intelligence is read-only for your ERP data: it never changes it. The one thing it stores is a feedback report you approve: when it cannot answer you properly (a missing field, a wrong result), Claude may offer to send the Augur team a report, shows you exactly what it will send, and sends it only after your yes. A report holds what you asked and what went wrong, never your data.
 
 The plugin connects Claude to the Augur Intelligence service. You sign in with your own account, and Claude only sees the data that account can see.
 

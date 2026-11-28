@@ -24,6 +24,27 @@ One confirmation covers one change. For a batch, list every record and change fi
 
 After a change, read the record back and tell the admin what it now holds.
 
+## Feedback
+
+When the connector fails the admin, offer to send the Augur team a feedback report through `agrSite.feedback.create` (with the connector's create tool). Offer it; MUST NOT send one unasked. Each miss has a `kind`:
+
+| The miss | `kind` |
+|----------|--------|
+| A field or endpoint you could not find | `schema_gap` |
+| A description that misled you | `misleading_description` |
+| A result that was wrong | `wrong_result` |
+| A call the connector or service rejected | `call_rejected` |
+| Data that should be there and is not | `missing_data` |
+| A feature the admin wanted | `feature_request` |
+
+The report's fields: `kind`, `question` (what the admin asked, in their words) and `problem` (what went wrong) are required, and the service rejects a blank one; `coordinates` (the endpoint ids and field names involved), `attempt` (the call you made: its endpoint id and params, never its results) and `suggestion` (the fix, if any) are optional (`POST /feedback` in the [agr-site spec](https://agr-site.augur-api.com/openapi.json)). MUST NOT put rows or values of the site's data in a report, nor a credential; leave record values out of `attempt`. The service sets the site, the caller and the date from the sign-in, so the report never carries them.
+
+1. Show the admin the exact report, every field as it will be sent.
+2. Send it only after their clear yes, with the same `siteId` as the call that missed. One yes covers one report, even when tools run without asking. A no, or no answer, sends nothing.
+3. Tell them it was sent.
+
+A miss in Augur Intelligence (the ERP questions connector) goes through that connector's own `feedback` tool, not this one.
+
 ## When sign-in fails
 
 Only site admins (Super Users of the site) can sign in. If calls fail with an authentication error, ask the admin to reconnect the Augur API connector and sign in again, and to check they are using an admin account for the right site.
